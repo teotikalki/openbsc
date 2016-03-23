@@ -26,6 +26,8 @@
 
 #include <osmocom/core/linuxlist.h>
 #include <osmocom/gsm/mncc.h>
+#include <osmocom/gsm/gsm_utils.h>
+#include <osmocom/gsm/protocol/gsm_04_08.h>
 
 #include <stdint.h>
 
@@ -156,8 +158,8 @@ struct gsm_mncc {
 	int		emergency;
 	char		imsi[16];
 
-	unsigned char	lchan_type;
-	unsigned char	lchan_mode;
+	enum gsm_chan_t lchan_type;
+	enum gsm48_chan_mode lchan_mode;
 };
 
 struct gsm_data_frame {

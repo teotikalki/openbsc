@@ -27,6 +27,9 @@
 #include <string.h>
 #include <errno.h>
 
+#include <osmocom/gsm/gsm_utils.h>
+#include <osmocom/gsm/protocol/gsm_04_08.h>
+
 #include <openbsc/gsm_04_08.h>
 #include <openbsc/debug.h>
 #include <openbsc/mncc.h>
@@ -65,7 +68,7 @@ static struct gsm_call *get_call_ref(uint32_t callref)
 	return NULL;
 }
 
-uint8_t mncc_codec_for_mode(int lchan_type)
+enum gsm48_chan_mode mncc_codec_for_mode(enum gsm_chan_t lchan_type)
 {
 	/* FIXME: check codec capabilities of the phone */
 
@@ -75,7 +78,7 @@ uint8_t mncc_codec_for_mode(int lchan_type)
 		return mncc_int.def_codec[1];
 }
 
-static uint8_t determine_lchan_mode(struct gsm_mncc *setup)
+static enum gsm48_chan_mode determine_lchan_mode(struct gsm_mncc *setup)
 {
 	return mncc_codec_for_mode(setup->lchan_type);
 }
@@ -138,7 +141,8 @@ static int mncc_setup_ind(struct gsm_call *call, int msg_type,
 	memset(&mncc, 0, sizeof(struct gsm_mncc));
 	mncc.callref = call->callref;
 	mncc.lchan_mode = determine_lchan_mode(setup);
-	DEBUGP(DMNCC, "(call %x) Modify channel mode.\n", call->callref);
+	DEBUGP(DMNCC, "(call %x) Modify channel mode: %s\n", call->callref,
+	       osmo_gsm48_chan_mode2str(mncc.lchan_mode));
 	mncc_tx_to_cc(call->net, MNCC_LCHAN_MODIFY, &mncc);
 
 	/* send setup to remote */
@@ -207,13 +211,16 @@ static int mncc_setup_cnf(struct gsm_call *call, int msg_type,
 	DEBUGP(DMNCC, "(call %x) Bridging with remote.\n", call->callref);
 
 	/* in direct mode, we always have to bridge the channels */
-	if (ipacc_rtp_direct)
+	if (ipacc_rtp_direct) {
+		DEBUGP(DMNCC, "Bridging: direct RTP.\n");
 		return mncc_tx_to_cc(call->net, MNCC_BRIDGE, &bridge);
+	}
 
 	/* proxy mode */
 	if (!net->handover.active) {
 		/* in the no-handover case, we can bridge, i.e. use
 		 * the old RTP proxy code */
+		DEBUGP(DMNCC, "Bridging: no handover is active.\n");
 		return mncc_tx_to_cc(call->net, MNCC_BRIDGE, &bridge);
 	} else {
 		/* in case of handover, we need to re-write the RTP

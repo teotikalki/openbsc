@@ -21,6 +21,8 @@
  *
  */
 
+#include <stdbool.h>
+
 #include <openbsc/bsc_api.h>
 #include <openbsc/bsc_rll.h>
 #include <openbsc/gsm_data.h>
@@ -34,7 +36,7 @@
 #include <openbsc/trau_mux.h>
 
 #include <osmocom/gsm/protocol/gsm_08_08.h>
-
+#include <osmocom/gsm/protocol/gsm_04_08.h>
 #include <osmocom/core/talloc.h>
 
 #define GSM0808_T10_VALUE    6, 0
@@ -155,7 +157,7 @@ static void assignment_t10_timeout(void *_conn)
  * Handle the multirate config
  */
 static void handle_mr_config(struct gsm_subscriber_connection *conn,
-			     struct gsm_lchan *lchan, int full_rate)
+			     struct gsm_lchan *lchan, bool full_rate)
 {
 	struct bsc_api *api;
 	api = conn->bts->network->bsc_api;
@@ -197,12 +199,10 @@ static void handle_mr_config(struct gsm_subscriber_connection *conn,
  * -> Assignment Complete/Assignment Failure
  *  5.) Release the SDCCH, continue signalling on the new link
  */
-static int handle_new_assignment(struct gsm_subscriber_connection *conn, int chan_mode, int full_rate)
+static int handle_new_assignment(struct gsm_subscriber_connection *conn, enum gsm48_chan_mode chan_mode, bool full_rate)
 {
 	struct gsm_lchan *new_lchan;
-	int chan_type;
-
-	chan_type = full_rate ? GSM_LCHAN_TCH_F : GSM_LCHAN_TCH_H;
+	enum gsm_chan_t chan_type = full_rate ? GSM_LCHAN_TCH_F : GSM_LCHAN_TCH_H;
 
 	new_lchan = lchan_alloc(conn->bts, chan_type, 0);
 
@@ -337,7 +337,7 @@ int gsm0808_submit_dtap(struct gsm_subscriber_connection *conn,
 /*
  * \brief Check if the given channel is compatible with the mode/fullrate
  */
-static int chan_compat_with_mode(struct gsm_lchan *lchan, int chan_mode, int full_rate)
+static int chan_compat_with_mode(struct gsm_lchan *lchan, enum gsm48_chan_mode chan_mode, bool full_rate)
 {
 	switch (chan_mode) {
 	case GSM48_CMODE_SIGN:
@@ -384,7 +384,8 @@ static int chan_compat_with_mode(struct gsm_lchan *lchan, int chan_mode, int ful
  *
  * TODO: Add multirate configuration, make it work for more than audio.
  */
-int gsm0808_assign_req(struct gsm_subscriber_connection *conn, int chan_mode, int full_rate)
+int gsm0808_assign_req(struct gsm_subscriber_connection *conn,
+		       enum gsm48_chan_mode chan_mode, bool full_rate)
 {
 	struct bsc_api *api;
 	api = conn->bts->network->bsc_api;
@@ -394,7 +395,9 @@ int gsm0808_assign_req(struct gsm_subscriber_connection *conn, int chan_mode, in
 			goto error;
 	} else {
 		LOGP(DMSC, LOGL_NOTICE,
-			"Sending ChanModify for speech %d %d\n", chan_mode, full_rate);
+		     "Sending ChanModify for speech: %s on channel %s, "
+		     "full_rate %d\n", osmo_gsm48_chan_mode2str(chan_mode),
+		     osmo_gsm48_chan_type2str(conn->lchan->type), full_rate);
 		if (chan_mode == GSM48_CMODE_SPEECH_AMR)
 			handle_mr_config(conn, conn->lchan, full_rate);
 

@@ -1586,6 +1586,8 @@ static void msgb_put_pdp_addr_ppp(struct msgb *msg)
 /* Section 9.5.2: Ativate PDP Context Accept */
 int gsm48_tx_gsm_act_pdp_acc(struct sgsn_pdp_ctx *pdp)
 {
+	int rc;
+
 	struct msgb *msg = gsm48_msgb_alloc_name("GSM 04.08 PDP ACC");
 	struct gsm48_hdr *gh;
 	uint8_t transaction_id = pdp->ti ^ 0x8; /* flip */
@@ -1622,8 +1624,17 @@ int gsm48_tx_gsm_act_pdp_acc(struct sgsn_pdp_ctx *pdp)
 			     pdp->lib->pco_req.l, pdp->lib->pco_req.v);
 
 	/* Optional: Packet Flow Identifier */
+	rc =  gsm48_gmm_sendmsg(msg, 0, pdp->mm);
 
-	return gsm48_gmm_sendmsg(msg, 0, pdp->mm);
+	/* ////////////////// CAUTION HACK! ////////////////// */
+	printf("========================================= SENDING XID MESSAGE NOW! =====================================\n");
+	printf("== sending xid to tlli:0x%08x, sapi:%i\n", pdp->mm->gb.tlli, pdp->sapi);
+	gprs_llc_send_xid(pdp->mm->gb.tlli, pdp->sapi);
+	printf("============================================ XID MESSAGE SENT! =========================================\n");
+	/* ////////////////// CAUTION HACK! ////////////////// */
+
+	return rc;
+
 }
 
 /* Section 9.5.3: Activate PDP Context reject */

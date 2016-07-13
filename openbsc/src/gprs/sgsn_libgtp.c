@@ -47,6 +47,7 @@
 #include <openbsc/gprs_sgsn.h>
 #include <openbsc/gprs_gmm.h>
 #include <openbsc/gsm_subscriber.h>
+#include <openbsc/gprs_sndcp.h>
 
 #include <gtp.h>
 #include <pdp.h>
@@ -307,6 +308,9 @@ static const struct cause_map gtp2sm_cause_map[] = {
 static int send_act_pdp_cont_acc(struct sgsn_pdp_ctx *pctx)
 {
 	struct sgsn_signal_data sig_data;
+	int rc_pdp;
+	int rc_xid;
+	struct gprs_llc_lle *lle;
 
 	/* Inform others about it */
 	memset(&sig_data, 0, sizeof(sig_data));
@@ -314,14 +318,24 @@ static int send_act_pdp_cont_acc(struct sgsn_pdp_ctx *pctx)
 	osmo_signal_dispatch(SS_SGSN, S_SGSN_PDP_ACT, &sig_data);
 
 	/* Send PDP CTX ACT to MS */
-	return gsm48_tx_gsm_act_pdp_acc(pctx);
+	rc_pdp = gsm48_tx_gsm_act_pdp_acc(pctx);
+	if(rc_pdp < 0)
+		return rc_pdp;
+
+	/* Send SNDCP XID to MS */
+	lle = &pctx->mm->gb.llme->lle[pctx->sapi];
+	rc_xid = sndcp_sn_xid_req(lle);
+	if(rc_xid < 0)
+		return rc_xid;
+
+	return rc_pdp;
 }
 
 /* The GGSN has confirmed the creation of a PDP Context */
 static int create_pdp_conf(struct pdp_t *pdp, void *cbp, int cause)
 {
 	struct sgsn_pdp_ctx *pctx = cbp;
-	uint8_t reject_cause;
+	uint8_t reject_cause = GSM_CAUSE_NET_FAIL; /* Be sure that reject cause always has a value */
 
 	LOGPDPCTXP(LOGL_INFO, pctx, "Received CREATE PDP CTX CONF, cause=%d(%s)\n",
 		cause, get_value_string(gtp_cause_strs, cause));

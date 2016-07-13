@@ -1,8 +1,9 @@
 /* GPRS LLC XID field encoding/decoding as per 3GPP TS 04.64 */
 
-/* (C) 2016 by Harald Welte <laforge@gnumonks.org>
- *
+/* (C) 2016 by Sysmocom s.f.m.c. GmbH
  * All Rights Reserved
+ *
+ * Author: Philipp Maier
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published by
@@ -28,6 +29,8 @@
 #include <openbsc/gprs_llc.h>
 #include <osmocom/core/msgb.h>
 #include <openbsc/sgsn.h>
+#include <osmocom/core/linuxlist.h>
+#include <osmocom/core/talloc.h>
 
 
 /* Parse XID parameter field */
@@ -37,7 +40,7 @@ static int decode_xid_field(uint8_t *bytes, uint8_t bytes_maxlen, struct gprs_ll
 	uint8_t type;
 	uint8_t len;
 
-	/* Exit immediately if it is cleare that no
+	/* Exit immediately if it is clear that no
            parseable data is present */
 	if((bytes_maxlen < 1)||(!(bytes)))
 		return -EINVAL;
@@ -77,7 +80,7 @@ static int encode_xid_field(uint8_t *bytes, int bytes_maxlen, struct gprs_llc_xi
 	if(xid_field->data_len > 3)
 		xl = 1;
 
-	/* Exit immediately if it is cleare that no
+	/* Exit immediately if it is clear that no
            encoding result can be stored */
 	if(bytes_maxlen < xid_field->data_len+1+xl)
 		return -EINVAL;
@@ -108,6 +111,8 @@ int gprs_llc_compile_xid(struct llist_head *xid_fields, uint8_t *bytes, int byte
 	struct gprs_llc_xid_field *xid_field;
 	int rc;
 	int byte_counter = 0;
+
+	memset(bytes,0,bytes_maxlen);
 
 	llist_for_each_entry(xid_field, xid_fields, list) 
 	{

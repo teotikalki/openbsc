@@ -34,7 +34,7 @@
 #include <openbsc/gprs_llc.h>
 #include <openbsc/sgsn.h>
 
-#include "gprs_sndcp.h"
+#include <openbsc/gprs_sndcp.h>
 
 /* Chapter 7.2: SN-PDU Formats */
 struct sndcp_common_hdr {
@@ -619,3 +619,13 @@ static int sndcp_rx_llc_prim()
 	case LL_STATUS_IND:
 }
 #endif
+
+
+
+/* Set of SNDCP-XID negotiation (See also: TS 144 065, Section 6.8 XID parameter negotiation) */
+int sndcp_sn_xid_req(struct gprs_llc_lle *lle)
+{
+	return gprs_ll_xid_req(lle,NULL);
+}
+
+

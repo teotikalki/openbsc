@@ -36,7 +36,7 @@
 #include <openbsc/signal.h>
 #include <openbsc/gprs_llc.h>
 
-#include "gprs_sndcp.h"
+#include <openbsc/gprs_sndcp.h>
 
 #include <osmocom/vty/vty.h>
 #include <osmocom/vty/command.h>

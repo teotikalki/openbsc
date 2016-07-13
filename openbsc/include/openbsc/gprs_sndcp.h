@@ -50,4 +50,24 @@ struct gprs_sndcp_entity {
 
 extern struct llist_head gprs_sndcp_entities;
 
+
+/* Entry point for the SNSM-ACTIVATE.indication */
+int sndcp_sm_activate_ind(struct gprs_llc_lle *lle, uint8_t nsapi);
+
+/* Entry point for the SNSM-DEACTIVATE.indication */
+int sndcp_sm_deactivate_ind(struct gprs_llc_lle *lle, uint8_t nsapi);
+
+/* Request transmission of a SN-PDU over specified LLC Entity + SAPI */
+int sndcp_unitdata_req(struct msgb *msg, struct gprs_llc_lle *lle, uint8_t nsapi,
+			void *mmcontext);
+
+/* Section 5.1.2.17 LL-UNITDATA.ind */
+int sndcp_llunitdata_ind(struct msgb *msg, struct gprs_llc_lle *lle,
+			 uint8_t *hdr, uint16_t len);
+
+/* Set of SNDCP-XID negotiation (See also: TS 144 065, Section 6.8 XID parameter negotiation) */
+int sndcp_sn_xid_req(struct gprs_llc_lle *lle);
+
+
+
 #endif	/* INT_SNDCP_H */

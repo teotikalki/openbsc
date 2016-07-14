@@ -23,14 +23,16 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-#include <osmocom/core/utils.h>
 #include <errno.h>
-#include <openbsc/gprs_llc_xid.h>
-#include <openbsc/gprs_llc.h>
-#include <osmocom/core/msgb.h>
-#include <openbsc/sgsn.h>
+
+#include <osmocom/core/utils.h>
 #include <osmocom/core/linuxlist.h>
 #include <osmocom/core/talloc.h>
+#include <osmocom/core/msgb.h>
+
+#include <openbsc/gprs_llc.h>
+#include <openbsc/sgsn.h>
+#include <openbsc/gprs_llc_xid.h>
 
 
 /* Parse XID parameter field */
@@ -39,6 +41,7 @@ static int decode_xid_field(uint8_t *bytes, uint8_t bytes_maxlen, struct gprs_ll
 	uint8_t xl;
 	uint8_t type;
 	uint8_t len;
+	int bytes_counter = 0;
 
 	/* Exit immediately if it is clear that no
            parseable data is present */
@@ -48,23 +51,35 @@ static int decode_xid_field(uint8_t *bytes, uint8_t bytes_maxlen, struct gprs_ll
 	/* Extract header info */
 	xl = (*bytes >> 7)&1;
 	type = (*bytes >> 2)&0x1F;
+
+	/* Extract length field */
 	len = (*bytes) & 0x3;
-	if(bytes_maxlen < len+1+xl)
-		return -EINVAL;
 	bytes++;
+	bytes_counter++;
 	if(xl)
 	{
-		len |= ((*bytes) << 2) & 0xE0;
+		if(bytes_maxlen < 2)
+			return -EINVAL;
+		len = (len << 6) & 0xC0;
+		len |= ((*bytes) >> 2) & 0x3F;
 		bytes++;
+		bytes_counter++;
 	}
 
 	/* Fill out struct */
 	xid_field->type = type;
 	xid_field->data_len = len;
-	xid_field->data = bytes;
+	if(len > 0)
+	{
+		if(bytes_maxlen < bytes_counter+len)
+			return -EINVAL;	
+		xid_field->data = bytes;
+	}
+	else
+		xid_field->data = NULL;
 
 	/* Return consumed length */
-	return len+1+xl;
+	return bytes_counter+len;
 }
 
 
@@ -77,6 +92,7 @@ static int encode_xid_field(uint8_t *bytes, int bytes_maxlen, struct gprs_llc_xi
 	if(!xid_field)
 		return -EINVAL;
 
+	/* When the length does not fit into 2 bits, we need extended length fields */
 	if(xid_field->data_len > 3)
 		xl = 1;
 
@@ -85,7 +101,7 @@ static int encode_xid_field(uint8_t *bytes, int bytes_maxlen, struct gprs_llc_xi
 	if(bytes_maxlen < xid_field->data_len+1+xl)
 		return -EINVAL;
 
-	/* There are only 5 bytes reserved for the type, exit on exceed */
+	/* There are only 5 bits reserved for the type, exit on exceed */
 	if(xid_field->type > 31)
 		return -EINVAL;
 
@@ -93,15 +109,14 @@ static int encode_xid_field(uint8_t *bytes, int bytes_maxlen, struct gprs_llc_xi
 	memset(bytes,0,bytes_maxlen);
 	if(xl)
 		bytes[0] |= 0x80;
-
 	bytes[0] |= (((xid_field->type)&0x1F) << 2);
-	bytes[0] |= (xid_field->data_len & 3);
+	bytes[0] |= (((xid_field->data_len) >> 6) & 0x03);
 	if(xl)
-		bytes[1] = ((xid_field->data_len) << 2);
+		bytes[1] = ((xid_field->data_len) << 2) & 0xFC;
 	memcpy(bytes+1+xl,xid_field->data,xid_field->data_len+1+xl);
 
 	/* Return generated length */
-	return xid_field->data_len + 1+xl;
+	return xid_field->data_len+1+xl;
 }
 
 

@@ -18,6 +18,7 @@ sgsn_test_LDADD = \
 	$(top_builddir)/src/gprs/gprs_llc_xid.o \
 	$(top_builddir)/src/gprs/crc24.o \
 	$(top_builddir)/src/gprs/gprs_sndcp.o \
+	$(top_builddir)/src/gprs/gprs_sndcp_xid.o \
 	$(top_builddir)/src/gprs/gprs_gmm.o \
 	$(top_builddir)/src/gprs/gprs_sgsn.o \
 	$(top_builddir)/src/gprs/sgsn_vty.o \
@@ -37,5 +38,5 @@ sgsn_test_LDADD = \
 	$(LIBOSMOGB_LIBS) \
 	$(LIBCARES_LIBS) \
 	$(LIBCRYPTO_LIBS) \
-	-lgtp -lrt
+	-lgtp -lrt -lm
 

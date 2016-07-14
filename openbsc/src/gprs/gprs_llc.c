@@ -74,13 +74,10 @@ static int msgb_put_xid_par(struct msgb *msg, uint8_t type, uint8_t length, uint
 	return length + header_len;
 }
 
-
-
 /* Generate XID message */
 static int gprs_llc_generate_xid(uint8_t *bytes, int bytes_len, struct llist_head *additional_xid_fields)
 {
 	LLIST_HEAD(xid_fields);
-	struct gprs_llc_xid_field *additional_xid_field;
 
 	struct gprs_llc_xid_field xid_version;
 	struct gprs_llc_xid_field xid_n201u;
@@ -94,17 +91,14 @@ static int gprs_llc_generate_xid(uint8_t *bytes, int bytes_len, struct llist_hea
 	xid_n201u.data = (uint8_t*) "\x05\xf0";
 	xid_n201u.data_len = 2;
 
-	xid_n201i.type = GPRS_LLC_XID_T_N201_U;
+	xid_n201i.type = GPRS_LLC_XID_T_N201_I;
 	xid_n201i.data = (uint8_t*) "\x05\xf0";
 	xid_n201i.data_len = 2;
 
 
 	/* Add additional xid fields (e.g. from SNDCP-XID) */
 	if(additional_xid_fields)
-	{
-		llist_for_each_entry(additional_xid_field, additional_xid_fields, list) 
-			llist_add(additional_xid_fields, &xid_fields);
-	}
+		llist_splice(additional_xid_fields, &xid_fields);
 
 	/* Add locally managed XID Fields */
 	llist_add(&xid_n201i.list, &xid_fields);

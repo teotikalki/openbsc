@@ -35,6 +35,8 @@
 #include <openbsc/sgsn.h>
 
 #include <openbsc/gprs_sndcp.h>
+#include <openbsc/gprs_llc_xid.h>
+#include <openbsc/gprs_sndcp_xid.h>
 
 /* Chapter 7.2: SN-PDU Formats */
 struct sndcp_common_hdr {
@@ -621,11 +623,171 @@ static int sndcp_rx_llc_prim()
 #endif
 
 
+/* Generate SNDCP-XID message */
+static int gprs_llc_generate_sndcp_xid(uint8_t *bytes, int bytes_len)
+{
+	LLIST_HEAD(comp_fields);
+	struct gprs_sndcp_hdrcomp_rohc_params rohc_params;
+	struct gprs_sndcp_comp_field rohc_comp_field;
+
+	struct gprs_sndcp_hdrcomp_rfc1144_params rfc1144_params;
+	struct gprs_sndcp_comp_field rfc1144_comp_field;
+
+	struct gprs_sndcp_hdrcomp_rfc2507_params rfc2507_params;
+	struct gprs_sndcp_comp_field rfc2507_comp_field;
+
+	memset(&rohc_comp_field,0,sizeof(struct gprs_sndcp_comp_field));
+	memset(&rfc1144_comp_field,0,sizeof(struct gprs_sndcp_comp_field));
+	memset(&rfc2507_comp_field,0,sizeof(struct gprs_sndcp_comp_field));
+
+	/* Setup which NSAPIs shall make use of ROHC */
+	rohc_params.nsapi[0] = 5;
+	rohc_params.nsapi[1] = 6;
+	rohc_params.nsapi[2] = 7;
+	rohc_params.nsapi[3] = 8;
+	rohc_params.nsapi[4] = 9;
+	rohc_params.nsapi[5] = 10;
+	rohc_params.nsapi[6] = 11;
+	rohc_params.nsapi[7] = 12;
+	rohc_params.nsapi[8] = 13;
+	rohc_params.nsapi[9] = 14;
+	rohc_params.nsapi[10] = 15;
+	rohc_params.nsapi_len = 11;
+
+	/* Setup ROHC operating parameters */
+	rohc_params.max_cid = 15; /* default */
+	rohc_params.max_hdr = 168; /* default */
+	rohc_params.profile[0] = ROHC_UNCOMPRESSED;
+	rohc_params.profile[1] = ROHC_RTP;
+	rohc_params.profile[2] = ROHCV2_RTP;
+	rohc_params.profile[3] = ROHC_UDP;
+	rohc_params.profile[4] = ROHCv2_UDP;
+	rohc_params.profile[5] = ROHC_ESP;
+	rohc_params.profile[6] = ROHCV2_ESP;
+	rohc_params.profile[7] = ROHC_IP;
+	rohc_params.profile[8] = ROHCV2_IP;
+	rohc_params.profile[9] = ROHC_LLA;
+	rohc_params.profile[10] = ROHC_LLA_WITH_R_MODE;
+	rohc_params.profile[11] = ROHC_TCP;
+	rohc_params.profile[12] = ROHC_RTP_UDP_LITE;
+	rohc_params.profile[13] = ROHCV2_RTP_UDP_LITE;
+	rohc_params.profile[14] = ROHC_UDP_LITE;
+	rohc_params.profile[15] = ROHCV2_UDP_LITE;
+	rohc_params.profile_len = 16;
+
+	/* Setup ROHC compression field */
+	rohc_comp_field.p = 1;
+	rohc_comp_field.entity = 31;
+	rohc_comp_field.algo = ROHC;
+	rohc_comp_field.comp[0] = ROHC_PCOMP1;
+	rohc_comp_field.comp[1] = ROHC_PCOMP2;
+	rohc_comp_field.comp_len = 2;
+	rohc_comp_field.rohc_params = &rohc_params;
+
+
+
+	/* Setup which NSAPIs shall make use of rfc1144 */
+	rfc1144_params.nsapi[0] = 5;
+	rfc1144_params.nsapi[1] = 6;
+	rfc1144_params.nsapi[2] = 7;
+	rfc1144_params.nsapi[3] = 8;
+	rfc1144_params.nsapi[4] = 9;
+	rfc1144_params.nsapi[5] = 10;
+	rfc1144_params.nsapi[6] = 11;
+	rfc1144_params.nsapi[7] = 12;
+	rfc1144_params.nsapi[8] = 13;
+	rfc1144_params.nsapi[9] = 14;
+	rfc1144_params.nsapi[10] = 15;
+	rfc1144_params.nsapi_len = 11;
+
+	/* Setup rfc1144 operating parameters */
+	rfc1144_params.s01 = 15;
+
+	/* Setup rfc1144 compression field */
+	rfc1144_comp_field.p = 1;
+	rfc1144_comp_field.entity = 31;
+	rfc1144_comp_field.algo = RFC_1144;
+	rfc1144_comp_field.comp[0] = RFC1144_PCOMP1;
+	rfc1144_comp_field.comp[1] = RFC1144_PCOMP2;
+	rfc1144_comp_field.comp_len = 2;
+	rfc1144_comp_field.rfc1144_params = &rfc1144_params;
+
+
+
+	/* Setup which NSAPIs shall make use of rfc1144 */
+	rfc2507_params.nsapi[0] = 5;
+	rfc2507_params.nsapi[1] = 6;
+	rfc2507_params.nsapi[2] = 7;
+	rfc2507_params.nsapi[3] = 8;
+	rfc2507_params.nsapi[4] = 9;
+	rfc2507_params.nsapi[5] = 10;
+	rfc2507_params.nsapi[6] = 11;
+	rfc2507_params.nsapi[7] = 12;
+	rfc2507_params.nsapi[8] = 13;
+	rfc2507_params.nsapi[9] = 14;
+	rfc2507_params.nsapi[10] = 15;
+	rfc2507_params.nsapi_len = 11;
+
+	/* Setup rfc2507 operating parameters */
+	rfc2507_params.f_max_period = 256;
+	rfc2507_params.f_max_time = 5;
+	rfc2507_params.max_header = 168;
+	rfc2507_params.tcp_space = 15;
+	rfc2507_params.non_tcp_space = 15;
+
+	/* Setup rfc2507 compression field */
+	rfc2507_comp_field.p = 1;
+	rfc2507_comp_field.entity = 31;
+	rfc2507_comp_field.algo = RFC_2507;
+	rfc2507_comp_field.comp[0] = RFC2507_PCOMP1;
+	rfc2507_comp_field.comp[1] = RFC2507_PCOMP2;
+	rfc2507_comp_field.comp[2] = RFC2507_PCOMP3;
+	rfc2507_comp_field.comp[3] = RFC2507_PCOMP4;
+	rfc2507_comp_field.comp[4] = RFC2507_PCOMP5;
+	rfc2507_comp_field.comp_len = 5;
+	rfc2507_comp_field.rfc2507_params = &rfc2507_params;
+
+
+	/* Add compression field(s) to list */
+	llist_add(&rohc_comp_field.list, &comp_fields);
+	llist_add(&rfc1144_comp_field.list, &comp_fields);
+	llist_add(&rfc2507_comp_field.list, &comp_fields);
+
+	/* Comile bytestream */
+	return gprs_sndcp_compile_xid(&comp_fields, bytes, bytes_len);
+}
+
 
 /* Set of SNDCP-XID negotiation (See also: TS 144 065, Section 6.8 XID parameter negotiation) */
 int sndcp_sn_xid_req(struct gprs_llc_lle *lle)
 {
-	return gprs_ll_xid_req(lle,NULL);
+	LLIST_HEAD(xid_fields);
+	uint8_t l3params_bytes[1024];
+	int sndcp_xid_bytes_len;
+	struct gprs_llc_xid_field l3params;
+
+
+	/* Generate compression parameter bytestream */
+	sndcp_xid_bytes_len = gprs_llc_generate_sndcp_xid(l3params_bytes, sizeof(l3params_bytes));
+
+
+	/* Proceed with sending the XID with the SNDCP-XID bytetsream included */
+	if(sndcp_xid_bytes_len > 0)
+	{
+		l3params.type = GPRS_LLC_XID_T_L3_PAR;
+		l3params.data = l3params_bytes;
+		l3params.data_len = sndcp_xid_bytes_len;
+		llist_add(&l3params.list, &xid_fields);
+		return gprs_ll_xid_req(lle,&xid_fields);
+	}
+
+	/* When bytestream can not be generated, silently proceed without SNDCP-XID */
+	else
+	{
+		LOGP(DLLC, LOGL_ERROR, "SNDCP-XID-Message generation failed, SNDCP-XID not sent!\n");
+		return gprs_ll_xid_req(lle,NULL);
+	}
+
 }
 
 

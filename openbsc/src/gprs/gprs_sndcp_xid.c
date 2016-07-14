@@ -1,4 +1,4 @@
-/* GPRS LLC XID field encoding/decoding as per 3GPP TS 04.64 */
+/* GPRS SNDCP XID field encoding/decoding as per 3GPP TS 144 065 */
 
 /* (C) 2016 by Sysmocom s.f.m.c. GmbH
  * All Rights Reserved
@@ -24,15 +24,43 @@
 #include <string.h>
 #include <stdint.h>
 #include <math.h>
-#include <osmocom/core/utils.h>
 #include <errno.h>
-#include <openbsc/gprs_sndcp_xid.h>
-#include <openbsc/gprs_llc.h>
+
+#include <osmocom/core/utils.h>
 #include <osmocom/core/msgb.h>
-#include <openbsc/sgsn.h>
 #include <osmocom/core/linuxlist.h>
 #include <osmocom/core/talloc.h>
 #include <osmocom/gsm/tlv.h>
+
+#include <openbsc/gprs_llc.h>
+#include <openbsc/sgsn.h>
+#include <openbsc/gprs_sndcp_xid.h>
+
+
+/* Encode applicable sapis (works the same in all three compression schemes) */
+static int encode_hdrcomp_applicable_sapis(uint8_t *bytes, int *nsapis, int nsapis_len)
+{
+	uint16_t blob;
+	int nsapi;
+	int i;
+
+	/* Encode applicable SAPIs */
+	blob=0;
+	for(i=0;i<nsapis_len;i++)
+	{
+		nsapi = nsapis[i];
+		if((nsapi < 5)||(nsapi > 15))
+			return -EINVAL;
+		blob |= (1 << (16-(nsapi-4)));
+	}
+
+	/* Store result */
+	*bytes = (blob >> 8)&0xFF;
+	bytes++;
+	*bytes = blob&0xFF;
+
+	return 2;
+}
 
 
 /* Encode ROHC parameter field */
@@ -44,9 +72,8 @@ static int encode_hdrcomp_rohc_params(uint8_t *bytes, int bytes_maxlen, struct g
 	/* NOTE: Do not call manually, will be called by encode_hdrcomp_comp_field on purpose */
 
 	int i;
-	uint16_t blob;
-	int nsapi;
 	int bytes_counter = 0;
+	int rc;
 
 	/* Exit immediately if no source struct is available */
 	if(!params)
@@ -70,19 +97,9 @@ static int encode_hdrcomp_rohc_params(uint8_t *bytes, int bytes_maxlen, struct g
 	memset(bytes,0,bytes_maxlen);
 
 	/* Encode applicable SAPIs */
-	blob=0;
-	for(i=0;i<params->nsapi_len;i++)
-	{
-		nsapi = params->nsapi[i];
-		if((nsapi < 5)||(nsapi > 15))
-			return -EINVAL;
-		blob |= (1 << (16-(nsapi-4)));
-	}
-	*bytes = (blob >> 8)&0xFF;
-	bytes++;
-	*bytes = blob&0xFF;
-	bytes++;
-	bytes_counter += 2;
+	rc = encode_hdrcomp_applicable_sapis(bytes, params->nsapi, params->nsapi_len);
+	bytes+=rc;
+	bytes_counter+=rc;
 
 	/* Encode MAX_CID */
 	if((params->max_cid < 0)||(params->max_cid > 16383))
@@ -117,6 +134,124 @@ static int encode_hdrcomp_rohc_params(uint8_t *bytes, int bytes_maxlen, struct g
 }
 
 
+/* Encode rfc1144 parameter field */
+static int encode_hdrcomp_rfc1144_params(uint8_t *bytes, int bytes_maxlen, struct gprs_sndcp_hdrcomp_rfc1144_params *params)
+{
+	/* NOTE: Buffer *bytes should offer at least 3 bytes of space to store the generation results */
+
+	/* NOTE: Do not call manually, will be called by encode_hdrcomp_comp_field on purpose */
+
+	int bytes_counter = 0;
+	int rc;
+
+	/* Exit immediately if no source struct is available */
+	if(!params)
+		return -EINVAL;
+
+	/* Exit immediately if no sufficient memory space is supplied */
+	if((bytes_maxlen < 3)||(!(bytes)))
+		return -EINVAL;
+
+	/* Exit if number of possible nsapis exceeds valid range
+	   (Only 11 nsapis possible for PDP-Contexts) */
+	if((params->nsapi_len < 0)||(params->nsapi_len > 11))
+		return -EINVAL;
+
+	/* Zero out buffer */
+	memset(bytes,0,bytes_maxlen);
+
+	/* Encode applicable SAPIs */
+	rc = encode_hdrcomp_applicable_sapis(bytes, params->nsapi, params->nsapi_len);
+	bytes+=rc;
+	bytes_counter+=rc;
+
+	/* Encode s01 */
+	*bytes = params->s01;
+	bytes++;
+	bytes_counter++;	
+
+	/* Return generated length */
+	return bytes_counter;
+}
+
+
+/* Encode rfc2507 parameter field */
+static int encode_hdrcomp_rfc2507_params(uint8_t *bytes, int bytes_maxlen, struct gprs_sndcp_hdrcomp_rfc2507_params *params)
+{
+	/* NOTE: Buffer *bytes should offer at least 3 bytes of space to store the generation results */
+
+	/* NOTE: Do not call manually, will be called by encode_hdrcomp_comp_field on purpose */
+
+	int bytes_counter = 0;
+	int rc;
+
+	/* Exit immediately if no source struct is available */
+	if(!params)
+		return -EINVAL;
+
+	/* Exit immediately if no sufficient memory space is supplied */
+	if((bytes_maxlen < 9)||(!(bytes)))
+		return -EINVAL;
+
+	/* Exit if number of possible nsapis exceeds valid range
+	   (Only 11 nsapis possible for PDP-Contexts) */
+	if((params->nsapi_len < 0)||(params->nsapi_len > 11))
+		return -EINVAL;
+
+	/* Zero out buffer */
+	memset(bytes,0,bytes_maxlen);
+
+	/* Encode applicable SAPIs */
+	rc = encode_hdrcomp_applicable_sapis(bytes, params->nsapi, params->nsapi_len);
+	bytes+=rc;
+	bytes_counter+=rc;
+
+	/* Encode F_MAX_PERIOD */
+	if((params->f_max_period < 1)||(params->f_max_period > 65535))
+		return -EINVAL;
+	*bytes = (params->f_max_period >> 8)&0xFF;
+	bytes++;
+	bytes_counter++;
+	*bytes = (params->f_max_period)&0xFF;
+	bytes++;
+	bytes_counter++;	
+
+	/* Encode F_MAX_TIME */
+	if((params->f_max_time < 1)||(params->f_max_time > 255))
+		return -EINVAL;
+	*bytes = params->f_max_time;
+	bytes++;
+	bytes_counter++;
+
+	/* Encode MAX_HEADER */
+	if((params->max_header < 60)||(params->max_header > 255))
+		return -EINVAL;
+	*bytes = params->max_header;
+	bytes++;
+	bytes_counter++;
+
+	/* Encode TCP_SPACE */
+	if((params->tcp_space < 3)||(params->tcp_space > 255))
+		return -EINVAL;
+	*bytes = params->tcp_space;
+	bytes++;
+	bytes_counter++;
+
+	/* Encode NON_TCP_SPACE */
+	if((params->non_tcp_space < 3)||(params->tcp_space > 65535))
+		return -EINVAL;
+	*bytes = (params->non_tcp_space >> 8)&0xFF;
+	bytes++;
+	bytes_counter++;
+	*bytes = (params->non_tcp_space)&0xFF;
+	bytes++;
+	bytes_counter++;	
+
+	/* Return generated length */
+	return bytes_counter;
+}
+
+
 /* Encode data or protocol control information compression field */
 static int encode_hdrcomp_comp_field(uint8_t *bytes, int bytes_maxlen, struct gprs_sndcp_comp_field *comp_field)
 {
@@ -129,11 +264,16 @@ static int encode_hdrcomp_comp_field(uint8_t *bytes, int bytes_maxlen, struct gp
 	uint8_t payload_bytes_len = -1;
 
 	/* If possible, try do encode payload bytes first */
-	if(comp_field->rohc_params)
-		payload_bytes_len = encode_hdrcomp_rohc_params(payload_bytes, sizeof(payload_bytes), comp_field->rohc_params);
-
 	/* NOTE: New compression fields will be added here. If the pointer to the struct is NULL, the field will
                  be ignored. The first field that has a pointer different from NULL will be picked for encoding. */
+	if(comp_field->rfc1144_params)
+		payload_bytes_len = encode_hdrcomp_rfc1144_params(payload_bytes, sizeof(payload_bytes), comp_field->rfc1144_params);
+	else if(comp_field->rfc2507_params)
+		payload_bytes_len = encode_hdrcomp_rfc2507_params(payload_bytes, sizeof(payload_bytes), comp_field->rfc2507_params);
+	else if(comp_field->rohc_params)
+		payload_bytes_len = encode_hdrcomp_rohc_params(payload_bytes, sizeof(payload_bytes), comp_field->rohc_params);
+	else
+		return -EINVAL;
 
 	/* Exit immediately if payload byte generation failed */
 	if(payload_bytes_len < 0)
@@ -237,12 +377,13 @@ int gprs_sndcp_compile_xid(struct llist_head *comp_fields, uint8_t *bytes, int b
 	struct gprs_sndcp_comp_field *comp_field;
 	int rc;
 	int byte_counter = 0;
+	uint8_t tag;
 
 	uint8_t comp_bytes[512];
 	uint8_t xid_version_number[1] = {CURRENT_SNDCP_VERSION};
 
 	/* Exit immediately if no sufficient memory space is supplied */
-	if((bytes_maxlen < 1+sizeof(xid_version_number))||(!(bytes)))
+	if((bytes_maxlen < 2+sizeof(xid_version_number))||(!(bytes)))
 		return -EINVAL;
 
 	/* Zero out buffer (just to be sure) */
@@ -250,11 +391,10 @@ int gprs_sndcp_compile_xid(struct llist_head *comp_fields, uint8_t *bytes, int b
 
 	/* Prepend header */
 	bytes = tlv_put(bytes,SNDCP_XID_VERSION_NUMBER,sizeof(xid_version_number),xid_version_number);
-	byte_counter++;
+	byte_counter+=(sizeof(xid_version_number)+2);
 
 	llist_for_each_entry(comp_field, comp_fields, list) 
 	{
-		/* Encode Compression Field */
 		rc = encode_hdrcomp_comp_field(comp_bytes, sizeof(comp_bytes), comp_field);
 
 		/* Immediately stop on error */
@@ -262,14 +402,17 @@ int gprs_sndcp_compile_xid(struct llist_head *comp_fields, uint8_t *bytes, int b
 			return rc;
 
 		/* Make sure we do not overflow the buffer */
-		if(byte_counter < bytes_maxlen)
+		if(byte_counter+rc+2 < bytes_maxlen)
 		{
-			/* FIXME: Currently we are setting the type flag SNDCP_XID_PROTOCOL_CONTROL_INFORMATION_COMPRESSION
-				  statically, this is fine as long as we do only header compression. If we want to do
-				  data compression as welle we need to check in comp_field which compression parameter
-				  we deal with */
-			bytes = tlv_put(bytes,SNDCP_XID_PROTOCOL_CONTROL_INFORMATION_COMPRESSION,rc,comp_bytes);
-			byte_counter+=rc;
+			/* Determinte tag */
+			/* NOTE: Currently we only deal with header compression */
+			if((comp_field->rohc_params)||(comp_field->rfc1144_params)||(comp_field->rfc2507_params))
+				tag = SNDCP_XID_PROTOCOL_CONTROL_INFORMATION_COMPRESSION;
+			else
+				return -EINVAL;
+
+			bytes = tlv_put(bytes,tag,rc,comp_bytes);
+			byte_counter+=rc+2;
 		}
 		else
 			return -EINVAL;
@@ -278,5 +421,6 @@ int gprs_sndcp_compile_xid(struct llist_head *comp_fields, uint8_t *bytes, int b
 	/* Return generated length */
 	return byte_counter;
 }
+
 
 

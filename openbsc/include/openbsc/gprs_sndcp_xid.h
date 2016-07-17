@@ -52,6 +52,7 @@ struct gprs_sndcp_hdrcomp_rfc1144_params {
 enum gprs_sndcp_hdrcomp_rfc1144_pcomp {
 	RFC1144_PCOMP1 = 0, 	/* Uncompressed TCP */
 	RFC1144_PCOMP2 = 1, 	/* Compressed TCP */
+	RFC1144_PCOMP_LEN = 2
 };
 
 
@@ -74,6 +75,7 @@ enum gprs_sndcp_hdrcomp_rfc2507_pcomp {
 	RFC2507_PCOMP3 = 2, 	/* Compressed TCP non delta */
 	RFC2507_PCOMP4 = 3, 	/* Compressed non TCP */
 	RFC2507_PCOMP5 = 4, 	/* Context state */
+	RFC2507_PCOMP_LEN = 5
 };
 
 
@@ -92,6 +94,7 @@ struct gprs_sndcp_hdrcomp_rohc_params {
 enum gprs_sndcp_hdrcomp_rohc_pcomp {
 	ROHC_PCOMP1 = 0, 	/* ROHC small CIDs */
 	ROHC_PCOMP2 = 1,	/* ROHC large CIDs */
+	ROHC_PCOMP_LEN = 2
 };
 
 /* ROHC compression profiles, see also: http://www.iana.org/assignments/rohc-pro-ids/rohc-pro-ids.xhtml */

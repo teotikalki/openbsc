@@ -51,7 +51,7 @@ static int encode_hdrcomp_applicable_sapis(uint8_t *bytes, int *nsapis, int nsap
 		nsapi = nsapis[i];
 		if((nsapi < 5)||(nsapi > 15))
 			return -EINVAL;
-		blob |= (1 << (16-(nsapi-4)));
+		blob |= (1 << nsapi);
 	}
 
 	/* Store result */

@@ -105,15 +105,23 @@ static int encode_xid_field(uint8_t *bytes, int bytes_maxlen, struct gprs_llc_xi
 	if(xid_field->type > 31)
 		return -EINVAL;
 
-	/* Encode data */
+	/* Encode header */
 	memset(bytes,0,bytes_maxlen);
 	if(xl)
 		bytes[0] |= 0x80;
 	bytes[0] |= (((xid_field->type)&0x1F) << 2);
-	bytes[0] |= (((xid_field->data_len) >> 6) & 0x03);
+
 	if(xl)
+	{
+		bytes[0] |= (((xid_field->data_len) >> 6) & 0x03);
 		bytes[1] = ((xid_field->data_len) << 2) & 0xFC;
-	memcpy(bytes+1+xl,xid_field->data,xid_field->data_len+1+xl);
+	}
+	else
+		bytes[0] |= ((xid_field->data_len) & 0x03);
+
+	/* Append payload data */
+	if((xid_field->data)&&(xid_field->data_len))
+		memcpy(bytes+1+xl,xid_field->data,xid_field->data_len);
 
 	/* Return generated length */
 	return xid_field->data_len+1+xl;

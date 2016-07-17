@@ -45,35 +45,6 @@ static struct gprs_llc_lle *lle_for_rx_by_tlli_sapi(const uint32_t tlli, uint8_t
  * BEGIN XID RELATED 
  */
 
-/* According to 6.4.1.6 / Figure 11 */
-static int msgb_put_xid_par(struct msgb *msg, uint8_t type, uint8_t length, uint8_t *data)
-{
-	uint8_t header_len = 1;
-	uint8_t *cur;
-
-	/* type is a 5-bit field... */
-	if (type > 0x1f)
-		return -EINVAL;
-
-	if (length > 3)
-		header_len = 2;
-
-	cur = msgb_put(msg, length + header_len);
-
-	/* build the header without or with XL bit */
-	if (length <= 3) {
-		*cur++ = (type << 2) | (length & 3);
-	} else {
-		*cur++ = 0x80 | (type << 2) | (length >> 6);
-		*cur++ = (length << 2);
-	}
-
-	/* copy over the payload of the parameter*/
-	memcpy(cur, data, length);
-
-	return length + header_len;
-}
-
 /* Generate XID message */
 static int gprs_llc_generate_xid(uint8_t *bytes, int bytes_len, struct llist_head *additional_xid_fields)
 {
@@ -109,6 +80,32 @@ static int gprs_llc_generate_xid(uint8_t *bytes, int bytes_len, struct llist_hea
 	return gprs_llc_compile_xid(&xid_fields, bytes, bytes_len);
 }
 
+/* Generate XID message that will cause the GMM to reset */
+static int gprs_llc_generate_xid_for_gmm_reset(uint8_t *bytes, int bytes_len)
+{
+	LLIST_HEAD(xid_fields);
+	int random = rand();
+
+	struct gprs_llc_xid_field xid_reset;
+	struct gprs_llc_xid_field xid_iovui;
+
+	/* First XID component must be RESET */
+	xid_reset.type = GPRS_LLC_XID_T_RESET;
+	xid_reset.data = NULL;
+	xid_reset.data_len = 0;
+
+	/* randomly select new IOV-UI */
+	xid_iovui.type = GPRS_LLC_XID_T_IOV_UI;
+	xid_iovui.data = (uint8_t *) &random;
+	xid_iovui.data_len = 4;
+
+	/* Add locally managed XID Fields */
+	llist_add(&xid_iovui.list, &xid_fields);
+	llist_add(&xid_reset.list, &xid_fields);
+
+	return gprs_llc_compile_xid(&xid_fields, bytes, bytes_len);
+}
+
 /* Analyze an incoming XID message */
 static int gprs_llc_analyze_xid(uint8_t *bytes, int bytes_len)
 {
@@ -124,6 +121,8 @@ static int gprs_llc_analyze_xid(uint8_t *bytes, int bytes_len)
 	{
 			printf("==> xid->type=%i, xid->data_len=%i, xid->data=%s\n",xid_field->type,xid_field->data_len,osmo_hexdump_nospc(xid_field->data,xid_field->data_len));
 	}
+
+	/* FIXME: Do something useful with the parsed results! */
 
 	return rc;
 }
@@ -867,15 +866,20 @@ int gprs_llgmm_unassign(struct gprs_llc_llme *llme)
 int gprs_llgmm_reset(struct gprs_llc_llme *llme)
 {
 	struct msgb *msg = msgb_alloc_headroom(4096, 1024, "LLC_XID");
-	int random = rand();
 	struct gprs_llc_lle *lle = &llme->lle[1];
+	uint8_t xid_bytes[1024];
+	int xid_bytes_len;
+	uint8_t *xid;
+
 
 	printf("========================================== GOT LLGMM RESET! ============================================\n");
 
-	/* First XID component must be RESET */
-	msgb_put_xid_par(msg, GPRS_LLC_XID_T_RESET, 0, NULL);
-	/* randomly select new IOV-UI */
-	msgb_put_xid_par(msg, GPRS_LLC_XID_T_IOV_UI, 4, (uint8_t *) &random);
+	/* Generate XID message */
+	xid_bytes_len = gprs_llc_generate_xid_for_gmm_reset(xid_bytes,sizeof(xid_bytes));
+	if(xid_bytes_len < 0)
+		return -EINVAL;
+	xid = msgb_put(msg, xid_bytes_len);
+	memcpy(xid, xid_bytes, xid_bytes_len);
 
 	/* Reset some of the LLC parameters. See GSM 04.64, 8.5.3.1 */
 	lle->vu_recv = 0;
@@ -884,18 +888,26 @@ int gprs_llgmm_reset(struct gprs_llc_llme *llme)
 	lle->oc_ui_recv = 0;
 
 	/* FIXME: Start T200, wait for XID response */
+
 	return gprs_llc_tx_xid(lle, msg, 1);
 }
 
 int gprs_llgmm_reset_oldmsg(struct msgb* oldmsg, uint8_t sapi)
 {
 	struct msgb *msg = msgb_alloc_headroom(4096, 1024, "LLC_XID");
-	int random = rand();
+	uint8_t xid_bytes[1024];
+	int xid_bytes_len;
+	uint8_t *xid;
 
-	/* First XID component must be RESET */
-	msgb_put_xid_par(msg, GPRS_LLC_XID_T_RESET, 0, NULL);
-	/* randomly select new IOV-UI */
-	msgb_put_xid_par(msg, GPRS_LLC_XID_T_IOV_UI, 4, (uint8_t *) &random);
+	printf("======================================= GOT LLGMM RESET (OLDMSG)! =======================================\n");
+
+	/* Generate XID message */
+	xid_bytes_len = gprs_llc_generate_xid_for_gmm_reset(xid_bytes,sizeof(xid_bytes));
+	if(xid_bytes_len < 0)
+		return -EINVAL;
+	xid = msgb_put(msg, xid_bytes_len);
+	memcpy(xid, xid_bytes, xid_bytes_len);
+
 
 	/* FIXME: Start T200, wait for XID response */
 

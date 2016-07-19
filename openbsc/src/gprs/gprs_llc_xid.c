@@ -36,7 +36,7 @@
 
 
 /* Parse XID parameter field */
-static int decode_xid_field(uint8_t *bytes, uint8_t bytes_maxlen, struct gprs_llc_xid_field *xid_field)
+static int decode_xid_field(uint8_t *bytes, uint8_t bytes_len, struct gprs_llc_xid_field *xid_field)
 {
 	uint8_t xl;
 	uint8_t type;
@@ -45,7 +45,11 @@ static int decode_xid_field(uint8_t *bytes, uint8_t bytes_maxlen, struct gprs_ll
 
 	/* Exit immediately if it is clear that no
            parseable data is present */
-	if((bytes_maxlen < 1)||(!(bytes)))
+	if((bytes_len < 1)||(!(bytes)))
+		return -EINVAL;
+
+	/* Exit immediately if no result can be stored */
+	if(!xid_field)
 		return -EINVAL;
 
 	/* Extract header info */
@@ -58,7 +62,7 @@ static int decode_xid_field(uint8_t *bytes, uint8_t bytes_maxlen, struct gprs_ll
 	bytes_counter++;
 	if(xl)
 	{
-		if(bytes_maxlen < 2)
+		if(bytes_len < 2)
 			return -EINVAL;
 		len = (len << 6) & 0xC0;
 		len |= ((*bytes) >> 2) & 0x3F;
@@ -71,7 +75,7 @@ static int decode_xid_field(uint8_t *bytes, uint8_t bytes_maxlen, struct gprs_ll
 	xid_field->data_len = len;
 	if(len > 0)
 	{
-		if(bytes_maxlen < bytes_counter+len)
+		if(bytes_len < bytes_counter+len)
 			return -EINVAL;	
 		xid_field->data = bytes;
 	}
@@ -184,6 +188,34 @@ int gprs_llc_parse_xid(struct llist_head *xid_fields, uint8_t *bytes, int bytes_
 		if(bytes_len == 0)
 			return 0;
 	}
+}
+
+
+/* Free llist with xid fields */
+void gprs_llc_free_xid(struct llist_head *xid_fields)
+{
+	struct gprs_llc_xid_field *xid_field;
+
+	llist_for_each_entry(xid_field, xid_fields, list) 
+	{
+		talloc_free(xid_field);
+	}
+
+}
+
+/* Create a duplicate of an XID-Field */
+struct gprs_llc_xid_field *gprs_llc_duplicate_xid_field(struct gprs_llc_xid_field *xid_field)
+{
+	struct gprs_llc_xid_field *duplicate_of_xid_field;
+
+	/* Create a copy of the XID field in memory */
+	duplicate_of_xid_field = talloc_zero(NULL, struct gprs_llc_xid_field);
+	memcpy(duplicate_of_xid_field, xid_field, sizeof(struct gprs_llc_xid_field));
+
+	/* Wipeout all llist information in the duplicate (just to be sure) */
+	memset(&duplicate_of_xid_field->list,0,sizeof(struct llist_head));
+
+	return duplicate_of_xid_field;
 }
 
 

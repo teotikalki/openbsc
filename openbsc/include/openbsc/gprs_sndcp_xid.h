@@ -15,14 +15,14 @@ struct gprs_sndcp_comp_field {
 	int p;			/* Propose bit (P), see also: 6.5.1.1.2 and 6.6.1.1.2 */
 	int entity;		/* Entity number, see also: 6.5.1.1.3 and 6.6.1.1.3 */
 	int algo;		/* gorithm identifier, see also: 6.5.1.1.4 and 6.6.1.1.4 */
-	int comp[16];		/* PCOMP / DCOMP values, see also: 6.5.1.1.5 and 6.6.1.1.5 */
 	int comp_len;		/* Number of contained PCOMP / DCOMP values */
+	int comp[16];		/* PCOMP / DCOMP values, see also: 6.5.1.1.5 and 6.6.1.1.5 */
 
 	/* Note: Only one of the following struct pointers may, 
                  be used unused pointers must be set to NULL! */
-	struct gprs_sndcp_hdrcomp_rohc_params *rohc_params;		/* Parameters: ROHC Robust header compression */
 	struct gprs_sndcp_hdrcomp_rfc1144_params *rfc1144_params;	/* Parameters: RFC1144 TCP/IP Header compression */
 	struct gprs_sndcp_hdrcomp_rfc2507_params *rfc2507_params;	/* Parameters: RFC2507 TCP/IP and UDP/IP header compression */
+	struct gprs_sndcp_hdrcomp_rohc_params *rohc_params;		/* Parameters: ROHC Robust header compression */
 };
 
 /* According to: TS 144 065 6.5.1.1.4 Algorithm identifier */
@@ -39,13 +39,22 @@ enum gprs_sndcp_xid_param_types {
 	SNDCP_XID_PROTOCOL_CONTROL_INFORMATION_COMPRESSION = 2, /* See also: subclause 6.5.1 */
 };
 
+/* When the propose bit in an SNDCP-XID compression field is set to zero,
+   the algorithm identifier is stripped. The algoritm parameters are specific
+   for each algorithms. The following struct is used to pass the information
+   about the referenced algorithm to the parser. */
+struct gprs_sndcp_hdrcomp_entity_algo_lookuptable {
+	int entity;
+	int algo;
+};
+
 
 
 /* According to: TS 144 065 6.5.2.1 Parameters (Table 5) */
 struct gprs_sndcp_hdrcomp_rfc1144_params {
-	int nsapi[11];		/* Applicable NSAPIs (default 0) */
 	int nsapi_len;		/* Number of applicable NSAPIs (default 0) */
-	uint8_t s01;		/* (default 15) */
+	int nsapi[11];		/* Applicable NSAPIs (default 0) */
+	int s01;		/* (default 15) */
 };
 
 /* According to: TS 144 065 6.5.2.2 Assignment of PCOMP values */
@@ -59,13 +68,13 @@ enum gprs_sndcp_hdrcomp_rfc1144_pcomp {
 
 /* According to: TS 144 065 6.5.3.1 Parameters (Table 6) */
 struct gprs_sndcp_hdrcomp_rfc2507_params {
-	int nsapi[11];		/* Applicable NSAPIs (default 0) */
 	int nsapi_len;		/* Number of applicable NSAPIs (default 0) */
-	uint16_t f_max_period;	/* (default 256) */
-	uint8_t f_max_time;	/* (default 5) */
-	uint8_t max_header;	/* (default 168) */
-	uint8_t tcp_space;	/* (default 15) */
-	uint16_t non_tcp_space;	/* (default 15) */
+	int nsapi[11];		/* Applicable NSAPIs (default 0) */
+	int f_max_period;	/* (default 256) */
+	int f_max_time;	/* (default 5) */
+	int max_header;	/* (default 168) */
+	int tcp_space;	/* (default 15) */
+	int non_tcp_space;	/* (default 15) */
 };
 
 /* According to: TS 144 065 6.5.3.2 Assignment of PCOMP values for RFC2507 */
@@ -82,12 +91,12 @@ enum gprs_sndcp_hdrcomp_rfc2507_pcomp {
 
 /* According to: TS 144 065 6.5.4.1 Parameter (Table 10) */
 struct gprs_sndcp_hdrcomp_rohc_params {
-	int nsapi[11];		/* Applicable NSAPIs (default 0) */
 	int nsapi_len;		/* Number of applicable NSAPIs (default 0) */
+	int nsapi[11];		/* Applicable NSAPIs (default 0) */
 	int max_cid;		/* (default 15) */
-	int max_hdr;		/* (default 168) */
-	uint16_t profile[16];	/* Applicable ROHC profiles (default 0, ROHC uncompressed) */
+	int max_header;		/* (default 168) */
 	int profile_len;	/* Number of applicable ROHC profiles (default 1) */
+	uint16_t profile[16];	/* Applicable ROHC profiles (default 0, ROHC uncompressed) */
 };
 
 /* According to: TS 144 065 6.5.4.2 Assignment of PCOMP values for ROHC */
@@ -118,8 +127,17 @@ enum gprs_sndcp_xid_rohc_profiles {
 };
 
 
-
 /* Transform a list with compression fields into an SNDCP-XID message (bytes) */
 int gprs_sndcp_compile_xid(struct llist_head *comp_fields, uint8_t *bytes, int bytes_maxlen);
+
+/* Transform an SNDCP-XID message (bytes) into a list of SNDCP-XID fields */
+int gprs_sndcp_parse_xid(struct llist_head *comp_fields, uint8_t *bytes, int bytes_len, struct gprs_sndcp_hdrcomp_entity_algo_lookuptable *lt, int lt_len);
+
+/* Dump a list with SNDCP-XID fields (Debug) */
+void gprs_sndcp_dump_comp_fields(struct llist_head *comp_fields);
+
+/* Free a list with SNDCP-XID fields */
+void gprs_sndcp_free_comp_fields(struct llist_head *comp_fields);
+
 
 #endif

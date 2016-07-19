@@ -42,5 +42,10 @@ int gprs_llc_compile_xid(struct llist_head *xid_fields, uint8_t *bytes, int byte
 /* Transform a XID message (bytes) into a list of XID fields */
 int gprs_llc_parse_xid(struct llist_head *xid_fields, uint8_t *bytes, int bytes_len);
 
+/* Free llist with xid fields */
+void gprs_llc_free_xid(struct llist_head *xid_fields);
+
+/* Create a duplicate of an XID-Field */
+struct gprs_llc_xid_field *gprs_llc_duplicate_xid_field(struct gprs_llc_xid_field *xid_field);
 
 #endif

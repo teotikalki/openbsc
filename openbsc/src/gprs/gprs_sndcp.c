@@ -647,14 +647,14 @@ static int gprs_llc_generate_sndcp_xid(uint8_t *bytes, int bytes_len, uint8_t ns
 	rfc1144_params.nsapi_len = 1;
 
 	/* Setup rfc1144 operating parameters */
-	rfc1144_params.s01 = 15;
+	rfc1144_params.s01 = 3;
 
 	/* Setup rfc1144 compression field */
 	rfc1144_comp_field.p = 1;
-	rfc1144_comp_field.entity = 1;
+	rfc1144_comp_field.entity = 0;
 	rfc1144_comp_field.algo = RFC_1144;
-	rfc1144_comp_field.comp[RFC1144_PCOMP1] = 3;
-	rfc1144_comp_field.comp[RFC1144_PCOMP2] = 4;
+	rfc1144_comp_field.comp[RFC1144_PCOMP1] = 1;
+	rfc1144_comp_field.comp[RFC1144_PCOMP2] = 2;
 	rfc1144_comp_field.comp_len = RFC1144_PCOMP_LEN;
 	rfc1144_comp_field.rfc1144_params = &rfc1144_params;
 
@@ -673,13 +673,13 @@ static int gprs_llc_generate_sndcp_xid(uint8_t *bytes, int bytes_len, uint8_t ns
 
 	/* Setup rfc2507 compression field */
 	rfc2507_comp_field.p = 1;
-	rfc2507_comp_field.entity = 0;
+	rfc2507_comp_field.entity = 1;
 	rfc2507_comp_field.algo = RFC_2507;
-	rfc2507_comp_field.comp[RFC2507_PCOMP1] = 5;
-	rfc2507_comp_field.comp[RFC2507_PCOMP2] = 6;
-	rfc2507_comp_field.comp[RFC2507_PCOMP3] = 7;
-	rfc2507_comp_field.comp[RFC2507_PCOMP4] = 8;
-	rfc2507_comp_field.comp[RFC2507_PCOMP5] = 9;
+	rfc2507_comp_field.comp[RFC2507_PCOMP1] = 3;
+	rfc2507_comp_field.comp[RFC2507_PCOMP2] = 4;
+	rfc2507_comp_field.comp[RFC2507_PCOMP3] = 5;
+	rfc2507_comp_field.comp[RFC2507_PCOMP4] = 6;
+	rfc2507_comp_field.comp[RFC2507_PCOMP5] = 7;
 	rfc2507_comp_field.comp_len = RFC2507_PCOMP_LEN;
 	rfc2507_comp_field.rfc2507_params = &rfc2507_params;
 
@@ -701,7 +701,7 @@ static int gprs_llc_generate_sndcp_xid(uint8_t *bytes, int bytes_len, uint8_t ns
 
 	/* Setup ROHC operating parameters */
 	rohc_params.max_cid = 15; /* default */
-	rohc_params.max_hdr = 168; /* default */
+	rohc_params.max_header = 168; /* default */
 	rohc_params.profile[0] = ROHC_UNCOMPRESSED;
 	rohc_params.profile[1] = ROHC_RTP;
 	rohc_params.profile[2] = ROHCV2_RTP;
@@ -722,10 +722,10 @@ static int gprs_llc_generate_sndcp_xid(uint8_t *bytes, int bytes_len, uint8_t ns
 
 	/* Setup ROHC compression field */
 	rohc_comp_field.p = 1;
-	rohc_comp_field.entity = 31;
+	rohc_comp_field.entity = 2;
 	rohc_comp_field.algo = ROHC;
-	rohc_comp_field.comp[ROHC_PCOMP1] = 1;
-	rohc_comp_field.comp[ROHC_PCOMP2] = 2;
+	rohc_comp_field.comp[ROHC_PCOMP1] = 8;
+	rohc_comp_field.comp[ROHC_PCOMP2] = 9;
 	rohc_comp_field.comp_len = ROHC_PCOMP_LEN;
 	rohc_comp_field.rohc_params = &rohc_params;
 
@@ -733,8 +733,8 @@ static int gprs_llc_generate_sndcp_xid(uint8_t *bytes, int bytes_len, uint8_t ns
 
 	/* Add compression field(s) to list */
 	llist_add(&rfc1144_comp_field.list, &comp_fields);
-	//llist_add(&rfc2507_comp_field.list, &comp_fields);
-	//llist_add(&rohc_comp_field.list, &comp_fields);
+	llist_add(&rfc2507_comp_field.list, &comp_fields);
+	llist_add(&rohc_comp_field.list, &comp_fields);
 
 	/* Comile bytestream */
 	return gprs_sndcp_compile_xid(&comp_fields, bytes, bytes_len);

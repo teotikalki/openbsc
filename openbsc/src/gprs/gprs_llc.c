@@ -106,14 +106,15 @@ static int gprs_llc_generate_xid_for_gmm_reset(uint8_t *bytes, int bytes_len)
 	return gprs_llc_compile_xid(&xid_fields, bytes, bytes_len);
 }
 
-/* Analyze an incoming XID message */
-static int gprs_llc_analyze_xid(uint8_t *bytes, int bytes_len)
+/* Analyze an incoming XID response */
+static int gprs_llc_analyze_xid_response(uint8_t *bytes, int bytes_len)
 {
 	int rc;
 	LLIST_HEAD(xid_fields);
 	struct gprs_llc_xid_field *xid_field;
 
-	printf("=======> GOT: %s\n",osmo_hexdump_nospc(bytes,bytes_len));
+	
+	printf("XID RESPONSE: =======> GOT: %s\n",osmo_hexdump_nospc(bytes,bytes_len));
 	
 	rc = gprs_llc_parse_xid(&xid_fields, bytes, bytes_len);
 
@@ -126,6 +127,46 @@ static int gprs_llc_analyze_xid(uint8_t *bytes, int bytes_len)
 
 	return rc;
 }
+
+
+/* Analyze an incoming XID request and generate an appropiate response */
+static int gprs_llc_analyze_xid_request(uint8_t *bytes_request, int bytes_request_len, uint8_t *bytes_response, int bytes_response_maxlen)
+{
+	int rc;
+	LLIST_HEAD(xid_fields);
+	LLIST_HEAD(xid_fields_response);
+
+	struct gprs_llc_xid_field *xid_field;
+	struct gprs_llc_xid_field *xid_field_response;
+
+	printf("XID REQUEST: =======> GOT: %s\n",osmo_hexdump_nospc(bytes_request,bytes_request_len));
+	
+	rc = gprs_llc_parse_xid(&xid_fields, bytes_request, bytes_request_len);
+
+	llist_for_each_entry(xid_field, &xid_fields, list) 
+	{
+		printf("==> xid->type=%i, xid->data_len=%i, xid->data=%s\n",xid_field->type,xid_field->data_len,osmo_hexdump_nospc(xid_field->data,xid_field->data_len));
+
+		/* CAUTION HACK: Ignore all layer 3 parameters */
+		if(xid_field->type != GPRS_LLC_XID_T_L3_PAR)
+		{
+			xid_field_response = gprs_llc_duplicate_xid_field(xid_field);
+			llist_add(&xid_field_response->list, &xid_fields_response);
+		}
+		else
+			printf("==> TYPE 11 detected - Ignored!\n");
+	}
+
+	rc =  gprs_llc_compile_xid(&xid_fields_response, bytes_response, bytes_response_maxlen);
+
+	gprs_llc_free_xid(&xid_fields);
+	gprs_llc_free_xid(&xid_fields_response);
+
+	/* FIXME: Do something useful with the parsed results! */
+
+	return rc;
+}
+
 
 /* Send XID response to LLE */
 static int gprs_llc_tx_xid(struct gprs_llc_lle *lle, struct msgb *msg,
@@ -143,6 +184,9 @@ static int gprs_llc_tx_xid(struct gprs_llc_lle *lle, struct msgb *msg,
 static void rx_llc_xid(struct gprs_llc_lle *lle,
 			struct gprs_llc_hdr_parsed *gph)
 {
+	uint8_t response[1024];
+	int response_len;
+
 	/* FIXME: 8.5.3.3: check if XID is invalid */
 	if (gph->is_cmd) {
 
@@ -153,14 +197,16 @@ static void rx_llc_xid(struct gprs_llc_lle *lle,
 		struct msgb *resp;
 		uint8_t *xid;
 		resp = msgb_alloc_headroom(4096, 1024, "LLC_XID");
-		xid = msgb_put(resp, gph->data_len);
-		memcpy(xid, gph->data, gph->data_len);
-		gprs_llc_analyze_xid(gph->data, gph->data_len);
+
+		response_len = gprs_llc_analyze_xid_request(gph->data, gph->data_len,response,sizeof(response));
+		xid = msgb_put(resp, response_len);
+		memcpy(xid, response, response_len);
+
 		gprs_llc_tx_xid(lle, resp, 0);
 	} else {
 		printf("================================= GOT RESPONSE TO NETWORK ORIGINATED XID! ==============================\n");
 		LOGP(DLLC, LOGL_NOTICE, "Received XID respone from MS\n");
-		gprs_llc_analyze_xid(gph->data, gph->data_len);
+		gprs_llc_analyze_xid_response(gph->data, gph->data_len);
 		/* FIXME: if we had sent a XID reset, send
 		 * LLGMM-RESET.conf to GMM */
 		/* FIXME: implement XID negotiation using SNDCP */

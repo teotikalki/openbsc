@@ -370,6 +370,9 @@ static int encode_comp_field(uint8_t *bytes, int bytes_maxlen, struct gprs_sndcp
 	return bytes_counter;
 }
 
+#if 0
+
+/* FIXME: Remove this old code as soon as possible! */
 
 /* Transform a list with compression fields into an SNDCP-XID message (bytes) */
 int gprs_sndcp_compile_xid(struct llist_head *comp_fields, uint8_t *bytes, int bytes_maxlen)
@@ -421,6 +424,64 @@ int gprs_sndcp_compile_xid(struct llist_head *comp_fields, uint8_t *bytes, int b
 	/* Return generated length */
 	return byte_counter;
 }
+#endif
+
+/* Convert all compression fields to bytstreams */
+static int gprs_sndcp_pack_fields(struct llist_head *comp_fields, uint8_t *bytes, int bytes_maxlen)
+{
+	struct gprs_sndcp_comp_field *comp_field;
+	int byte_counter = 0;
+	int rc;
+
+	llist_for_each_entry(comp_field, comp_fields, list) 
+	{
+		rc = encode_comp_field(bytes+byte_counter, bytes_maxlen-byte_counter, comp_field);
+
+		/* Immediately stop on error */
+		if(rc < 0)
+			return rc;
+
+		byte_counter += rc;
+	}
+
+	/* Return generated length */
+	return byte_counter;
+}
+
+/* Transform a list with compression fields into an SNDCP-XID message (bytes) */
+int gprs_sndcp_compile_xid(struct llist_head *comp_fields, uint8_t *bytes, int bytes_maxlen)
+{
+	int rc;
+	int byte_counter = 0;
+	uint8_t comp_bytes[512];
+	uint8_t xid_version_number[1] = {CURRENT_SNDCP_VERSION};
+
+	/* Exit immediately if no sufficient memory space is supplied */
+	if((bytes_maxlen < 2+sizeof(xid_version_number))||(!(bytes)))
+		return -EINVAL;
+
+	/* Zero out buffer (just to be sure) */
+	memset(bytes,0,bytes_maxlen);
+
+	/* Prepend header */
+	bytes = tlv_put(bytes,SNDCP_XID_VERSION_NUMBER,sizeof(xid_version_number),xid_version_number);
+	byte_counter+=(sizeof(xid_version_number)+2);
+
+	/* Add header compression data */
+	rc = gprs_sndcp_pack_fields(comp_fields, comp_bytes, sizeof(comp_bytes));
+	if(rc < 0)
+		return rc;
+	bytes = tlv_put(bytes,SNDCP_XID_PROTOCOL_CONTROL_INFORMATION_COMPRESSION,rc,comp_bytes);
+	byte_counter+=rc+2;
+
+	/* FIXME: Currently we only deal with protocol control compression information. When we add 
+                  data compression, we must distinguish between field types in order to pack them
+                  into the right TLV bucket */
+
+	/* Return generated length */
+	return byte_counter;
+}
+
 
 
 

@@ -774,3 +774,48 @@ int sndcp_sn_xid_req(struct gprs_llc_lle *lle, uint8_t nsapi)
 }
 
 
+
+
+
+
+
+
+/* Process SNDCP-XID indication (See also: TS 144 065, Section 6.8 XID parameter negotiation) */
+int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication, struct gprs_llc_xid_field *xid_field_response, struct gprs_llc_lle *lle)
+{
+	int rc;
+	LLIST_HEAD(comp_fields);
+
+	/* Parse SNDCP-CID XID-Field */
+	rc = gprs_sndcp_parse_xid(&comp_fields, xid_field_indication->data, xid_field_indication->data_len, NULL, 0);
+
+	if(rc >= 0)
+	{
+		printf("UNMODIFIED:\n");
+		gprs_sndcp_dump_comp_fields(&comp_fields);
+		/* FIXME: Modify comp_fields here! */
+
+		printf("MODIFIED:\n");
+		gprs_sndcp_dump_comp_fields(&comp_fields);
+
+		/* Reserve some memory to store the modified SNDCP-XID bytes */
+		xid_field_response->data = talloc_zero_size(NULL, xid_field_indication->data_len);
+
+		/* Set Type flag for response */
+		xid_field_response->type=GPRS_LLC_XID_T_L3_PAR;
+
+		/* Compile modified SNDCP-XID bytes */
+		rc = gprs_sndcp_compile_xid(&comp_fields, xid_field_response->data, xid_field_indication->data_len);
+		if(rc > 0)
+			xid_field_response->data_len = rc;
+		else
+		{
+			talloc_free(xid_field_response->data);
+			xid_field_response->data = NULL;
+			xid_field_response->data_len = 0;
+		}
+	}
+
+	gprs_sndcp_free_comp_fields(&comp_fields);
+}
+

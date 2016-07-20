@@ -142,24 +142,41 @@ static int gprs_llc_analyze_xid_request(uint8_t *bytes_request, int bytes_reques
 	printf("XID REQUEST: =======> GOT: %s\n",osmo_hexdump_nospc(bytes_request,bytes_request_len));
 	
 	rc = gprs_llc_parse_xid(&xid_fields, bytes_request, bytes_request_len);
+	/* FIXME: Do something with the return code! */
 
 	llist_for_each_entry(xid_field, &xid_fields, list) 
 	{
 		printf("==> xid->type=%i, xid->data_len=%i, xid->data=%s\n",xid_field->type,xid_field->data_len,osmo_hexdump_nospc(xid_field->data,xid_field->data_len));
 
-		/* CAUTION HACK: Ignore all layer 3 parameters */
-		if(xid_field->type != GPRS_LLC_XID_T_L3_PAR)
+		/* Forward SNDCP-XID fields to Layer 3 (SNDCP) */
+		if(xid_field->type == GPRS_LLC_XID_T_L3_PAR)
 		{
+			xid_field_response = talloc_zero(NULL, struct gprs_llc_xid_field);
+			rc = sndcp_sn_xid_ind(xid_field, xid_field_response, NULL);
+			if(rc == 0)
+				llist_add(&xid_field_response->list, &xid_fields_response);
+			else
+				talloc_free(xid_field_response);
+		}
+
+		/* Process LLC-XID fields: */
+		else
+		{
+			/* CAUTION HACK: This will echo and therefore accept all requested parameters without further checking */
 			xid_field_response = gprs_llc_duplicate_xid_field(xid_field);
 			llist_add(&xid_field_response->list, &xid_fields_response);
 		}
-		else
-			printf("==> TYPE 11 detected - Ignored!\n");
+
+
 	}
 
+	printf("COMPILE!\n");
 	rc =  gprs_llc_compile_xid(&xid_fields_response, bytes_response, bytes_response_maxlen);
+	/* FIXME: Do something with the return code! */
 
+	printf("FREE1!\n");
 	gprs_llc_free_xid(&xid_fields);
+	printf("FREE2!\n");
 	gprs_llc_free_xid(&xid_fields_response);
 
 	/* FIXME: Do something useful with the parsed results! */

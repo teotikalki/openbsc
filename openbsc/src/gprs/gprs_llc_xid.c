@@ -29,10 +29,12 @@
 #include <osmocom/core/linuxlist.h>
 #include <osmocom/core/talloc.h>
 #include <osmocom/core/msgb.h>
+#include <osmocom/core/talloc.h>
 
 #include <openbsc/gprs_llc.h>
 #include <openbsc/sgsn.h>
 #include <openbsc/gprs_llc_xid.h>
+
 
 
 /* Parse XID parameter field */
@@ -77,7 +79,9 @@ static int decode_xid_field(uint8_t *bytes, uint8_t bytes_len, struct gprs_llc_x
 	{
 		if(bytes_len < bytes_counter+len)
 			return -EINVAL;	
-		xid_field->data = bytes;
+
+		xid_field->data = talloc_zero_size(NULL, xid_field->data_len);
+		memcpy(xid_field->data,bytes,xid_field->data_len);
 	}
 	else
 		xid_field->data = NULL;
@@ -198,6 +202,8 @@ void gprs_llc_free_xid(struct llist_head *xid_fields)
 
 	llist_for_each_entry(xid_field, xid_fields, list) 
 	{
+		if((xid_field->data)&&(xid_field->data_len))
+			talloc_free(xid_field->data);
 		talloc_free(xid_field);
 	}
 
@@ -211,6 +217,8 @@ struct gprs_llc_xid_field *gprs_llc_duplicate_xid_field(struct gprs_llc_xid_fiel
 	/* Create a copy of the XID field in memory */
 	duplicate_of_xid_field = talloc_zero(NULL, struct gprs_llc_xid_field);
 	memcpy(duplicate_of_xid_field, xid_field, sizeof(struct gprs_llc_xid_field));
+	duplicate_of_xid_field->data = talloc_zero_size(NULL, xid_field->data_len);
+	memcpy(duplicate_of_xid_field->data,xid_field->data,xid_field->data_len);
 
 	/* Wipeout all llist information in the duplicate (just to be sure) */
 	memset(&duplicate_of_xid_field->list,0,sizeof(struct llist_head));

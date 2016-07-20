@@ -46,7 +46,7 @@ static struct gprs_llc_lle *lle_for_rx_by_tlli_sapi(const uint32_t tlli, uint8_t
  */
 
 /* Generate XID message */
-static int gprs_llc_generate_xid(uint8_t *bytes, int bytes_len, struct llist_head *additional_xid_fields)
+static int gprs_llc_generate_xid(uint8_t *bytes, int bytes_len, struct gprs_llc_xid_field *l3_xid_field)
 {
 	LLIST_HEAD(xid_fields);
 
@@ -66,10 +66,15 @@ static int gprs_llc_generate_xid(uint8_t *bytes, int bytes_len, struct llist_hea
 	xid_n201i.data = (uint8_t*) "\x05\xf0";
 	xid_n201i.data_len = 2;
 
+	/* Add layer 3 XID field (if present) */
+	if(l3_xid_field)
+	{
+		/* Enforce layer 3 XID type (just to be sure) */
+		l3_xid_field->type=GPRS_LLC_XID_T_L3_PAR;
 
-	/* Add additional xid fields (e.g. from SNDCP-XID) */
-	if(additional_xid_fields)
-		llist_splice(additional_xid_fields, &xid_fields);
+		/* Add Layer 3 XID field to the list */
+		llist_add(&l3_xid_field->list, &xid_fields);
+	}
 
 	/* Add locally managed XID Fields */
 	llist_add(&xid_n201i.list, &xid_fields);
@@ -130,8 +135,11 @@ static int gprs_llc_analyze_xid_response(uint8_t *bytes, int bytes_len)
 
 
 /* Analyze an incoming XID request and generate an appropiate response */
-static int gprs_llc_analyze_xid_request(uint8_t *bytes_request, int bytes_request_len, uint8_t *bytes_response, int bytes_response_maxlen)
+static int gprs_llc_process_xid_request(uint8_t *bytes_request, int bytes_request_len, uint8_t *bytes_response, int bytes_response_maxlen, struct gprs_llc_lle *lle)
 {
+	/* Note: This function computes the response that is sent back to the phone when 
+                 a phone originated XID is received */
+
 	int rc;
 	LLIST_HEAD(xid_fields);
 	LLIST_HEAD(xid_fields_response);
@@ -139,47 +147,42 @@ static int gprs_llc_analyze_xid_request(uint8_t *bytes_request, int bytes_reques
 	struct gprs_llc_xid_field *xid_field;
 	struct gprs_llc_xid_field *xid_field_response;
 
+	/* FIXME: Remove debug output when done */
 	printf("XID REQUEST: =======> GOT: %s\n",osmo_hexdump_nospc(bytes_request,bytes_request_len));
 	
 	rc = gprs_llc_parse_xid(&xid_fields, bytes_request, bytes_request_len);
-	/* FIXME: Do something with the return code! */
-
-	llist_for_each_entry(xid_field, &xid_fields, list) 
+	if (rc == 0)
 	{
-		printf("==> xid->type=%i, xid->data_len=%i, xid->data=%s\n",xid_field->type,xid_field->data_len,osmo_hexdump_nospc(xid_field->data,xid_field->data_len));
-
-		/* Forward SNDCP-XID fields to Layer 3 (SNDCP) */
-		if(xid_field->type == GPRS_LLC_XID_T_L3_PAR)
+		llist_for_each_entry(xid_field, &xid_fields, list) 
 		{
-			xid_field_response = talloc_zero(NULL, struct gprs_llc_xid_field);
-			rc = sndcp_sn_xid_ind(xid_field, xid_field_response, NULL);
-			if(rc == 0)
-				llist_add(&xid_field_response->list, &xid_fields_response);
+			/* FIXME: Remove debug output when done */
+			printf("==> xid->type=%i, xid->data_len=%i, xid->data=%s\n",xid_field->type,xid_field->data_len,osmo_hexdump_nospc(xid_field->data,xid_field->data_len));
+
+			/* Forward SNDCP-XID fields to Layer 3 (SNDCP) */
+			if(xid_field->type == GPRS_LLC_XID_T_L3_PAR)
+			{
+				xid_field_response = talloc_zero(NULL, struct gprs_llc_xid_field);
+				rc = sndcp_sn_xid_ind(xid_field, xid_field_response, lle);
+				if(rc == 0)
+					llist_add(&xid_field_response->list, &xid_fields_response);
+				else
+					talloc_free(xid_field_response);
+			}
+
+			/* Process LLC-XID fields: */
 			else
-				talloc_free(xid_field_response);
+			{
+				/* FIXME: Do something more useful with the XID information, than
+					  just echoing it */
+				xid_field_response = gprs_llc_duplicate_xid_field(xid_field);
+				llist_add(&xid_field_response->list, &xid_fields_response);
+			}
 		}
 
-		/* Process LLC-XID fields: */
-		else
-		{
-			/* CAUTION HACK: This will echo and therefore accept all requested parameters without further checking */
-			xid_field_response = gprs_llc_duplicate_xid_field(xid_field);
-			llist_add(&xid_field_response->list, &xid_fields_response);
-		}
-
-
+		rc = gprs_llc_compile_xid(&xid_fields_response, bytes_response, bytes_response_maxlen);
+		gprs_llc_free_xid(&xid_fields_response);
 	}
-
-	printf("COMPILE!\n");
-	rc =  gprs_llc_compile_xid(&xid_fields_response, bytes_response, bytes_response_maxlen);
-	/* FIXME: Do something with the return code! */
-
-	printf("FREE1!\n");
 	gprs_llc_free_xid(&xid_fields);
-	printf("FREE2!\n");
-	gprs_llc_free_xid(&xid_fields_response);
-
-	/* FIXME: Do something useful with the parsed results! */
 
 	return rc;
 }
@@ -215,7 +218,7 @@ static void rx_llc_xid(struct gprs_llc_lle *lle,
 		uint8_t *xid;
 		resp = msgb_alloc_headroom(4096, 1024, "LLC_XID");
 
-		response_len = gprs_llc_analyze_xid_request(gph->data, gph->data_len,response,sizeof(response));
+		response_len = gprs_llc_process_xid_request(gph->data, gph->data_len,response,sizeof(response), lle);
 		xid = msgb_put(resp, response_len);
 		memcpy(xid, response, response_len);
 
@@ -232,7 +235,7 @@ static void rx_llc_xid(struct gprs_llc_lle *lle,
 
 
 /* Set of LL-XID negotiation (See also: TS 101 351, Section 7.2.2.4) */
-int gprs_ll_xid_req(struct gprs_llc_lle *lle, struct llist_head *xid_fields)
+int gprs_ll_xid_req(struct gprs_llc_lle *lle, struct gprs_llc_xid_field *l3_xid_field)
 {
 	uint8_t xid_bytes[1024];;
 	int xid_bytes_len;
@@ -240,7 +243,7 @@ int gprs_ll_xid_req(struct gprs_llc_lle *lle, struct llist_head *xid_fields)
 	struct msgb *msg;
 
 	/* Generate XID */
-	xid_bytes_len = gprs_llc_generate_xid(xid_bytes,sizeof(xid_bytes),xid_fields);
+	xid_bytes_len = gprs_llc_generate_xid(xid_bytes,sizeof(xid_bytes),l3_xid_field);
 
 
 	/* Only perform XID sending if the XID message contains something */

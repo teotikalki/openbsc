@@ -5,7 +5,7 @@
 #include <stdint.h>
 #include <openbsc/gprs_sgsn.h>
 
-#define CURRENT_SNDCP_VERSION 1	/* See TS 144 065, clause 8 */
+#define CURRENT_SNDCP_VERSION 0	/* See TS 144 065, clause 8 */
 
 /* According to: TS 144 065 6.5.1.1 Format of the protocol control information compression field (Figure 7) 
                  TS 144 065 6.6.1.1 Format of the data compression field (Figure 9) */

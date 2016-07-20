@@ -402,7 +402,7 @@ int gprs_sndcp_compile_xid(struct llist_head *comp_fields, uint8_t *bytes, int b
 			return rc;
 
 		/* Make sure we do not overflow the buffer */
-		if(byte_counter+rc+2 < bytes_maxlen)
+		if(byte_counter+rc+2 <= bytes_maxlen)
 		{
 			/* Determinte tag */
 			/* NOTE: Currently we only deal with header compression */
@@ -421,26 +421,6 @@ int gprs_sndcp_compile_xid(struct llist_head *comp_fields, uint8_t *bytes, int b
 	/* Return generated length */
 	return byte_counter;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -899,6 +879,10 @@ void gprs_sndcp_dump_comp_fields(struct llist_head *comp_fields)
 	struct gprs_sndcp_comp_field *comp_field;
 	int i;
 
+	/* Exit immediately if no list is present */
+	if(!(comp_fields))
+		return;
+
 	llist_for_each_entry(comp_field, comp_fields, list) 
 	{
 		printf("struct gprs_sndcp_comp_field {\n");
@@ -964,6 +948,10 @@ void gprs_sndcp_free_comp_fields(struct llist_head *comp_fields)
 {
 	struct gprs_sndcp_comp_field *comp_field;
 
+	/* Exit immediately if no list is present */
+	if(!(comp_fields))
+		return;
+
 	llist_for_each_entry(comp_field, comp_fields, list) 
 	{
 		if(comp_field->rfc1144_params)
@@ -976,6 +964,11 @@ void gprs_sndcp_free_comp_fields(struct llist_head *comp_fields)
 		talloc_free(comp_field);
 	}
 }
+
+
+
+
+
 
 
 

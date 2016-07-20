@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <openbsc/gprs_sgsn.h>
+#include <openbsc/gprs_llc_xid.h>
 
 /* Section 4.7 LLC Layer Structure */
 enum gprs_llc_sapi {
@@ -221,7 +222,7 @@ int gprs_llgmm_assign(struct gprs_llc_llme *llme,
 int gprs_llgmm_unassign(struct gprs_llc_llme *llme);
 
 /* Set of LL-XID negotiation (See also: TS 101 351, Section 7.2.2.4) */
-int gprs_ll_xid_req(struct gprs_llc_lle *lle, struct llist_head *xid_fields);
+int gprs_ll_xid_req(struct gprs_llc_lle *lle, struct gprs_llc_xid_field *l3_xid_field);
 
 
 

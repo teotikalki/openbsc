@@ -179,8 +179,13 @@ static int defrag_segments(struct gprs_sndcp_entity *sne)
 
 	/* actually send the N-PDU to the SGSN core code, which then
 	 * hands it off to the correct GTP tunnel + GGSN via gtp_data_req() */
-	return sgsn_rx_sndcp_ud_ind(&sne->ra_id, sne->lle->llme->tlli,
+	if(hdrcomp_test_ind(msg->data, msg->len))
+	{
+		return sgsn_rx_sndcp_ud_ind(&sne->ra_id, sne->lle->llme->tlli,
 				    sne->nsapi, msg, sne->defrag.tot_len, npdu);
+	}
+	else
+		return -EIO;
 }
 
 static int defrag_input(struct gprs_sndcp_entity *sne, struct msgb *msg, uint8_t *hdr,
@@ -443,6 +448,9 @@ static int sndcp_send_ud_frag(struct sndcp_frag_state *fs)
 int sndcp_unitdata_req(struct msgb *msg, struct gprs_llc_lle *lle, uint8_t nsapi,
 			void *mmcontext)
 {
+	/* NOTE Traffic from the network to the mobile passes along here */
+
+
 	struct gprs_sndcp_entity *sne;
 	struct sndcp_common_hdr *sch;
 	struct sndcp_comp_hdr *scomph;
@@ -450,6 +458,11 @@ int sndcp_unitdata_req(struct msgb *msg, struct gprs_llc_lle *lle, uint8_t nsapi
 	struct sndcp_frag_state fs;
 
 	/* Identifiers from UP: (TLLI, SAPI) + (BVCI, NSEI) */
+
+	if(hdrcomp_test_req(msg->data, msg->len))
+		printf("SENT!\n");
+	else
+		return -EIO;
 
 	sne = gprs_sndcp_entity_by_lle(lle, nsapi);
 	if (!sne) {
@@ -561,7 +574,11 @@ int sndcp_llunitdata_ind(struct msgb *msg, struct gprs_llc_lle *lle,
 	}
 	/* actually send the N-PDU to the SGSN core code, which then
 	 * hands it off to the correct GTP tunnel + GGSN via gtp_data_req() */
-	return sgsn_rx_sndcp_ud_ind(&sne->ra_id, lle->llme->tlli, sne->nsapi, msg, npdu_len, npdu);
+
+	if(hdrcomp_test_ind(npdu, npdu_len-3))
+		return sgsn_rx_sndcp_ud_ind(&sne->ra_id, lle->llme->tlli, sne->nsapi, msg, npdu_len, npdu);
+	else
+		return -EIO;
 }
 
 #if 0

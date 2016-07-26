@@ -23,6 +23,8 @@ struct gprs_sndcp_comp_field {
 	struct gprs_sndcp_hdrcomp_rfc1144_params *rfc1144_params;	/* Parameters: RFC1144 TCP/IP Header compression */
 	struct gprs_sndcp_hdrcomp_rfc2507_params *rfc2507_params;	/* Parameters: RFC2507 TCP/IP and UDP/IP header compression */
 	struct gprs_sndcp_hdrcomp_rohc_params *rohc_params;		/* Parameters: ROHC Robust header compression */
+	struct gprs_sndcp_datacomp_v42bis_params *v42bis_params;	/* Parameters: V43bis data compression */
+	struct gprs_sndcp_datacomp_v44_params *v44_params;		/* Parameters: V44 data compression */
 };
 
 /* According to: TS 144 065 6.5.1.1.4 Algorithm identifier */
@@ -30,6 +32,12 @@ enum gprs_sndcp_hdr_comp_algo {
 	RFC_1144 = 0,		/* TCP/IP header compression, see also 6.5.2 */
 	RFC_2507 = 1,		/* TCP/IP and UDP/IP header compression, see also: 6.5.3 */
 	ROHC = 2,		/* Robust Header Compression, see also 6.5.4 */
+};
+
+/* According to: TS 144 065 6.5.1.1.4 Algorithm identifier */
+enum gprs_sndcp_data_comp_algo {
+	V42BIS = 0,		/* V42bis data compression, see also 6.6.2 */
+	V44 = 1,		/* V44 data compression, see also: 6.6.3 */
 };
 
 /* According to: TS 144 065 8 SNDCP XID parameters */
@@ -127,6 +135,46 @@ enum gprs_sndcp_xid_rohc_profiles {
 };
 
 
+
+/* According to: TS 144 065 6.6.2.1 Parameters (Table 7a) */
+struct gprs_sndcp_datacomp_v42bis_params {
+	int nsapi_len;		/* Number of applicable NSAPIs (default 0) */
+	int nsapi[11];		/* Applicable NSAPIs (default 0) */
+	int p0;			/* (default 3) */
+	int p1;			/* (default 2048) */
+	int p2;			/* (default 20) */
+
+};
+
+/* According to: ETSI TS 144 065 6.6.2.2 Assignment of DCOMP values (for V42bis) */
+enum gprs_sndcp_datacomp_v42bis_dcomp {
+	V42BIS_PCOMP1 = 0, 	/* V42bis enabled */
+	V42BIS_DCOMP_LEN = 1
+};
+
+
+
+/* According to: TS 144 065 6.6.3.1 Parameters (Table 7c) */
+struct gprs_sndcp_datacomp_v44_params {
+	int nsapi_len;		/* Number of applicable NSAPIs (default 0) */
+	int nsapi[11];		/* Applicable NSAPIs (default 0) */
+	int c0;			/* (default 10000000) */
+	int p0;			/* (default 3) */
+	int p1t;		/* Refer to subclause 6.6.3.1.4 */
+	int p1r;		/* Refer to subclause 6.6.3.1.5 */
+	int p3t;		/* (default 3 x p1t) */
+	int p3r;		/* (default 3 x p1r) */
+};
+
+/* According to: ETSI TS 144 065 6.6.3.2 Assignment of DCOMP values (for V44) */
+enum gprs_sndcp_datacomp_v44_dcomp {
+	V44_PCOMP1 = 0, 	/* Packet method compressed */
+	V44_PCOMP2 = 1, 	/* Multi packet method compressed */
+	V44_DCOMP_LEN = 2
+};
+
+
+
 /* Transform a list with compression fields into an SNDCP-XID message (bytes) */
 int gprs_sndcp_compile_xid(struct llist_head *comp_fields, uint8_t *bytes, int bytes_maxlen);
 
@@ -138,6 +186,9 @@ void gprs_sndcp_dump_comp_fields(struct llist_head *comp_fields);
 
 /* Free a list with SNDCP-XID fields */
 void gprs_sndcp_free_comp_fields(struct llist_head *comp_fields);
+
+/* Find out to which compression class the specified comp-field belongs (header compression or data compression?) */
+int gprs_sndcp_get_compression_class(struct gprs_sndcp_comp_field *comp_field);
 
 
 #endif

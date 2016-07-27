@@ -46,6 +46,9 @@ struct gprs_sndcp_entity {
 	enum sndcp_rx_state rx_state;
 	/* The defragmentation queue */
 	struct defrag_state defrag;
+
+	/* Specifies which compression is used once the packet is re-assembled */
+	int pcomp;
 };
 
 extern struct llist_head gprs_sndcp_entities;

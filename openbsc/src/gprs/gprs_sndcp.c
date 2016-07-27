@@ -38,6 +38,52 @@
 #include <openbsc/gprs_llc_xid.h>
 #include <openbsc/gprs_sndcp_xid.h>
 
+int compression_test_active = 0;
+
+static void showPacketDetails(uint8_t *data, int len, int direction, char *info)
+{
+	uint8_t tcp_flags;
+
+
+	printf("===============> %s\n",info);
+
+	if(direction)
+		printf("===============> PHONE => NETWORK: %s\n",osmo_hexdump_nospc(data, len));
+	else
+		printf("===============> PHONE <= NETWORK: %s\n",osmo_hexdump_nospc(data, len));
+
+	printf("===============> LENGTH: %i\n",len);
+	if(data[9]==0x06)
+	{
+		printf("===============> PRTOCOL TYPE TCP!\n");
+		tcp_flags = data[33];
+		
+		printf("===============> FLAGS: ");
+		if(tcp_flags & 1)
+			printf("FIN ");
+		if(tcp_flags & 2)
+			printf("SYN ");		
+		if(tcp_flags & 4)
+			printf("RST ");		
+		if(tcp_flags & 8)
+			printf("PSH ");		
+		if(tcp_flags & 16)
+			printf("ACK ");		
+		if(tcp_flags & 32)
+			printf("URG ");		
+		printf("\n");
+	}
+	else if(data[9]==0x11)
+	{
+		printf("===============> PRTOCOL TYPE UDP!\n");
+	}
+	else 
+	{
+		printf("===============> PRTOCOL TYPE UNKNOWN (%02x)!\n",data[9]);
+	}
+
+}
+
 /* Chapter 7.2: SN-PDU Formats */
 struct sndcp_common_hdr {
 	/* octet 1 */
@@ -146,6 +192,8 @@ static int defrag_segments(struct gprs_sndcp_entity *sne)
 	unsigned int seg_nr;
 	uint8_t *npdu;
 
+	printf("===============> defrag_segments()\n");
+
 	LOGP(DSNDCP, LOGL_DEBUG, "TLLI=0x%08x NSAPI=%u: Defragment output PDU %u "
 		"num_seg=%u tot_len=%u\n", sne->lle->llme->tlli, sne->nsapi,
 		sne->defrag.npdu, sne->defrag.highest_seg, sne->defrag.tot_len);
@@ -178,19 +226,22 @@ static int defrag_segments(struct gprs_sndcp_entity *sne)
 	/* FIXME: cancel timer */
 
 	/* actually send the N-PDU to the SGSN core code, which then
-	 * hands it off to the correct GTP tunnel + GGSN via gtp_data_req() */
-	if(hdrcomp_test_ind(msg->data, msg->len))
-	{
-		return sgsn_rx_sndcp_ud_ind(&sne->ra_id, sne->lle->llme->tlli,
-				    sne->nsapi, msg, sne->defrag.tot_len, npdu);
-	}
-	else
-		return -EIO;
+	 * hands it off to the correcshowPacketDetailst GTP tunnel + GGSN via gtp_data_req() */
+	printf("\n\n\n////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
+	showPacketDetails(msg->data, msg->len,1,"defrag_segments()");
+	msg->len = gprs_sndcp_hdrcomp_expand(msg->data, msg->len, sne->pcomp);
+	sne->pcomp = 0;
+	showPacketDetails(msg->data, msg->len,1,"defrag_segments()");
+	printf("////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n\n\n");
+
+	return sgsn_rx_sndcp_ud_ind(&sne->ra_id, sne->lle->llme->tlli,sne->nsapi, msg, sne->defrag.tot_len, npdu);
 }
 
 static int defrag_input(struct gprs_sndcp_entity *sne, struct msgb *msg, uint8_t *hdr,
 			unsigned int len)
 {
+	printf("===============> defrag_input()\n");
+
 	struct sndcp_common_hdr *sch;
 	struct sndcp_udata_hdr *suh;
 	uint16_t npdu_num;
@@ -456,13 +507,16 @@ int sndcp_unitdata_req(struct msgb *msg, struct gprs_llc_lle *lle, uint8_t nsapi
 	struct sndcp_comp_hdr *scomph;
 	struct sndcp_udata_hdr *suh;
 	struct sndcp_frag_state fs;
+	int pcomp;
+
 
 	/* Identifiers from UP: (TLLI, SAPI) + (BVCI, NSEI) */
+	printf("\n\n\n////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
+	showPacketDetails(msg->data, msg->len,0,"sndcp_initdata_req()");
+	msg->len = gprs_sndcp_hdrcomp_compress(msg->data, msg->len,&pcomp);
+	showPacketDetails(msg->data, msg->len,0,"sndcp_initdata_req()");
+	printf("////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n\n\n");
 
-	if(hdrcomp_test_req(msg->data, msg->len))
-		printf("SENT!\n");
-	else
-		return -EIO;
 
 	sne = gprs_sndcp_entity_by_lle(lle, nsapi);
 	if (!sne) {
@@ -504,7 +558,7 @@ int sndcp_unitdata_req(struct msgb *msg, struct gprs_llc_lle *lle, uint8_t nsapi
 	sne->tx_npdu_nr = (sne->tx_npdu_nr + 1) % 0xfff;
 
 	scomph = (struct sndcp_comp_hdr *) msgb_push(msg, sizeof(*scomph));
-	scomph->pcomp = 0;
+	scomph->pcomp = pcomp;
 	scomph->dcomp = 0;
 
 	/* prepend common SNDCP header */
@@ -555,19 +609,42 @@ int sndcp_llunitdata_ind(struct msgb *msg, struct gprs_llc_lle *lle,
 	/* FIXME: move this RA_ID up to the LLME or even higher */
 	bssgp_parse_cell_id(&sne->ra_id, msgb_bcid(msg));
 
-	/* any non-first segment is by definition something to defragment
-	 * as is any segment that tells us there are more segments */
-	if (!sch->first || sch->more)
-		return defrag_input(sne, msg, hdr, len);
+
 
 	if (scomph && (scomph->pcomp || scomph->dcomp)) {
 		LOGP(DSNDCP, LOGL_ERROR, "We don't support compression yet\n");
-		return -EIO;
+	//	return -EIO;
+	}
+
+	printf("===============> sne->pcomp = %i\n",sne->pcomp);
+
+	if(scomph)
+	{
+		if (scomph->pcomp)
+			printf("===============> HEADER COMPRESSION ON!\n");
+		else
+			printf("===============> HEADER COMPRESSION OFF!\n");
+		sne->pcomp = scomph->pcomp;
+	}
+	else
+		printf("===============> NO scomph!\n");
+	
+
+	printf("===============> sne->pcomp = %i\n",sne->pcomp);
+
+
+	/* any non-first segment is by definition something to defragment
+	 * as is any segment that tells us there are more segments */
+	if (!sch->first || sch->more)
+	{
+		printf("===============> DEFRAG!\n");
+		return defrag_input(sne, msg, hdr, len);
 	}
 
 	npdu_num = (suh->npdu_high << 8) | suh->npdu_low;
 	npdu = (uint8_t *)suh + sizeof(*suh);
-	npdu_len = (msg->data + msg->len) - npdu;
+	npdu_len = (msg->data + msg->len) - npdu - 3; /* -3 'removes' the FCS from SNDCP */
+
 	if (npdu_len <= 0) {
 		LOGP(DSNDCP, LOGL_ERROR, "Short SNDCP N-PDU: %d\n", npdu_len);
 		return -EIO;
@@ -575,10 +652,16 @@ int sndcp_llunitdata_ind(struct msgb *msg, struct gprs_llc_lle *lle,
 	/* actually send the N-PDU to the SGSN core code, which then
 	 * hands it off to the correct GTP tunnel + GGSN via gtp_data_req() */
 
-	if(hdrcomp_test_ind(npdu, npdu_len-3))
-		return sgsn_rx_sndcp_ud_ind(&sne->ra_id, lle->llme->tlli, sne->nsapi, msg, npdu_len, npdu);
-	else
-		return -EIO;
+
+	printf("\n\n\n////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
+	showPacketDetails(npdu, npdu_len,1,"sndcp_llunitdata_ind()");
+	npdu_len = gprs_sndcp_hdrcomp_expand(npdu, npdu_len, sne->pcomp);
+	sne->pcomp = 0;
+	showPacketDetails(npdu, npdu_len,1,"sndcp_llunitdata_ind()");
+	printf("////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n\n\n");
+
+
+	return sgsn_rx_sndcp_ud_ind(&sne->ra_id, lle->llme->tlli, sne->nsapi, msg, npdu_len, npdu);
 }
 
 #if 0
@@ -817,7 +900,9 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication, struct gpr
 			{
 				case RFC_1144:
 					/* RFC 1144 is not yet supported, so we set applicable nsapis to zero */
-					comp_field->rfc1144_params->nsapi_len = 0;
+					//comp_field->rfc1144_params->nsapi_len = 0;
+					printf("ACCEPTING RFC1144!\n");
+					compression_test_active = 1;
 				break;
 				case RFC_2507:
 					/* RFC 2507 is not yet supported, so we set applicable nsapis to zero */

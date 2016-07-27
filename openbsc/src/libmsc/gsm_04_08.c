@@ -249,13 +249,22 @@ int gsm48_secure_channel(struct gsm_subscriber_connection *conn, int key_seq,
 
 static bool subscr_regexp_check(const struct gsm_network *net, const char *imsi)
 {
+#if 0
 	if (!net->authorized_reg_str)
+	{
+		printf("PROBLEM WITH net->authorized_reg_str!\n");
 		return false;
+	}
 
 	if (regexec(&net->authorized_regexp, imsi, 0, NULL, 0) != REG_NOMATCH)
 		return true;
 
+	printf("PROBLEM WITH regexec()\n");
+
 	return false;
+#endif
+
+	return true;
 }
 
 static int authorize_subscriber(struct gsm_loc_updating_operation *loc,
@@ -531,10 +540,20 @@ static struct gsm_subscriber *subscr_create(const struct gsm_network *net,
 					    const char *imsi)
 {
 	if (!net->auto_create_subscr)
+	{
+		printf("<-Problem with auto_create_subscr\n");
 		return NULL;
 
+	}
+
 	if (!subscr_regexp_check(net, imsi))
+	{
+		printf("<-Problem with subscr_regexp_check\n");
 		return NULL;
+
+	}
+
+
 
 	return subscr_create_subscriber(net->subscr_group, imsi);
 }
@@ -562,7 +581,13 @@ static int mm_rx_id_resp(struct gsm_subscriber_connection *conn, struct msgb *ms
 			conn->subscr = subscr_get_by_imsi(net->subscr_group,
 							  mi_string);
 			if (!conn->subscr)
+			{
+				printf("<- ATTEMPTING TO CREATE NEW SUBSCRIBER!\n");
 				conn->subscr = subscr_create(net, mi_string);
+
+				if(!conn->subscr)
+					printf("<- SUBSCRIBER CREATION FAILED SOMEHOW :-(\n");
+			}
 		}
 		if (!conn->subscr && conn->loc_operation) {
 			gsm0408_loc_upd_rej(conn, bts->network->reject_cause);

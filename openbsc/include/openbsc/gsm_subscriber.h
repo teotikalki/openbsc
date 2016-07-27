@@ -10,8 +10,8 @@
 #define GSM_NAME_LENGTH 160
 
 #define GSM_EXTENSION_LENGTH 15 /* MSISDN can only be 15 digits length */
-#define GSM_MIN_EXTEN 20000
-#define GSM_MAX_EXTEN 49999
+#define GSM_MIN_EXTEN 23000
+#define GSM_MAX_EXTEN 23999
 
 #define GSM_SUBSCRIBER_FIRST_CONTACT	0x00000001
 /* gprs_sgsn.h defines additional flags including and above bit 16 (0x10000) */

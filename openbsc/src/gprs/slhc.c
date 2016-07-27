@@ -59,7 +59,7 @@
 #include <osmocom/core/talloc.h>
 #include <openbsc/slhc.h>
 
-#define SLHC_DEBUG 0
+#define SLHC_DEBUG 1	/* Enable private debug messages */
 
 static uint8_t *encode(uint8_t *cp, uint16_t n);
 static long decode(uint8_t **cpp);
@@ -772,7 +772,7 @@ int slhc_toss(struct slcompress *comp)
 void slhc_i_status(struct slcompress *comp)
 {
 	if (comp != NULLSLCOMPR) {
-		printf("\t%d Cmp, %d Uncmp, %d Bad, %d Tossed\n",
+		printf("%d Cmp, %d Uncmp, %d Bad, %d Tossed",
 			comp->sls_i_compressed,
 			comp->sls_i_uncompressed,
 			comp->sls_i_error,
@@ -783,12 +783,12 @@ void slhc_i_status(struct slcompress *comp)
 void slhc_o_status(struct slcompress *comp)
 {
 	if (comp != NULLSLCOMPR) {
-		printf("\t%d Cmp, %d Uncmp, %d AsIs, %d NotTCP\n",
+		printf("%d Cmp, %d Uncmp, %d AsIs, %d NotTCP",
 			comp->sls_o_compressed,
 			comp->sls_o_uncompressed,
 			comp->sls_o_tcp,
 			comp->sls_o_nontcp);
-		printf("\t%10d Searches, %10d Misses\n",
+		printf(" %d Searches, %d Misses",
 			comp->sls_o_searches,
 			comp->sls_o_misses);
 	}

@@ -21,6 +21,9 @@
 
 #include <errno.h>
 #include <stdint.h>
+#include <stdbool.h>
+
+#include <openssl/rand.h>
 
 #include <osmocom/core/msgb.h>
 #include <osmocom/core/linuxlist.h>
@@ -86,10 +89,9 @@ static int gprs_llc_generate_xid(uint8_t *bytes, int bytes_len, struct gprs_llc_
 }
 
 /* Generate XID message that will cause the GMM to reset */
-static int gprs_llc_generate_xid_for_gmm_reset(uint8_t *bytes, int bytes_len)
+static int gprs_llc_generate_xid_for_gmm_reset(uint8_t *bytes, int bytes_len, int iov_ui)
 {
 	LLIST_HEAD(xid_fields);
-	int random = rand();
 
 	struct gprs_llc_xid_field xid_reset;
 	struct gprs_llc_xid_field xid_iovui;
@@ -101,7 +103,7 @@ static int gprs_llc_generate_xid_for_gmm_reset(uint8_t *bytes, int bytes_len)
 
 	/* randomly select new IOV-UI */
 	xid_iovui.type = GPRS_LLC_XID_T_IOV_UI;
-	xid_iovui.data = (uint8_t *) &random;
+	xid_iovui.data = (uint8_t *) &iov_ui;
 	xid_iovui.data_len = 4;
 
 	/* Add locally managed XID Fields */
@@ -271,8 +273,44 @@ int gprs_ll_xid_req(struct gprs_llc_lle *lle, struct gprs_llc_xid_field *l3_xid_
 
 
 
+static int apply_gea(struct gprs_llc_lle *lle, uint16_t crypt_len, uint16_t nu,
+                     uint32_t oc, uint8_t sapi, uint8_t *fcs, uint8_t *data)
+{
+        uint8_t cipher_out[GSM0464_CIPH_MAX_BLOCK];
 
+        if (lle->llme->algo == GPRS_ALGO_GEA0)
+                return -EINVAL;
 
+        /* Compute the 'Input' Paraemeter */
+        uint32_t fcs_calc, iv = gprs_cipher_gen_input_ui(lle->llme->iov_ui, sapi,
+                                                         nu, oc);
+        /* Compute gamma that we need to XOR with the data */
+        int r = gprs_cipher_run(cipher_out, crypt_len, lle->llme->algo,
+                                lle->llme->kc, iv,
+                                fcs ? GPRS_CIPH_SGSN2MS : GPRS_CIPH_MS2SGSN);
+        if (r < 0) {
+                LOGP(DLLC, LOGL_ERROR, "Error producing %s gamma for UI "
+                     "frame: %d\n", get_value_string(gprs_cipher_names,
+                                                     lle->llme->algo), r);
+                return -ENOMSG;
+        }
+
+        if (fcs) {
+                /* Mark frame as encrypted and update FCS */
+                data[2] |= 0x02;
+                fcs_calc = gprs_llc_fcs(data, fcs - data);
+                fcs[0] = fcs_calc & 0xff;
+                fcs[1] = (fcs_calc >> 8) & 0xff;
+                fcs[2] = (fcs_calc >> 16) & 0xff;
+                data += 3;
+        }
+
+        /* XOR the cipher output with the data */
+        for (r = 0; r < crypt_len; r++)
+                *(data + r) ^= cipher_out[r];
+
+        return 0;
+}
 
 /* Entry function from upper level (LLC), asking us to transmit a BSSGP PDU
  * to a remote MS (identified by TLLI) at a BTS identified by its BVCI and NSEI */
@@ -472,6 +510,7 @@ static struct gprs_llc_llme *llme_alloc(uint32_t tlli)
 	llme->old_tlli = 0xffffffff;
 	llme->state = GPRS_LLMS_UNASSIGNED;
 	llme->age_timestamp = GPRS_LLME_RESET_AGE;
+	llme->cksn = GSM_KEY_SEQ_INVAL;
 
 	for (i = 0; i < ARRAY_SIZE(llme->lle); i++)
 		lle_init(llme, i);
@@ -567,9 +606,13 @@ static int gprs_llc_tx_u(struct msgb *msg, uint8_t sapi, int command,
 	return _bssgp_tx_dl_ud(msg, NULL);
 }
 
-/* Transmit a UI frame over the given SAPI */
+/* Transmit a UI frame over the given SAPI:
+   'encryptable' indicates whether particular message can be encrypted according
+   to 3GPP TS 24.008 § 4.7.1.2
+ */
+
 int gprs_llc_tx_ui(struct msgb *msg, uint8_t sapi, int command,
-		   void *mmctx)
+		   struct sgsn_mm_ctx *mmctx, bool encryptable)
 {
 	struct gprs_llc_lle *lle;
 	uint8_t *fcs, *llch;
@@ -589,6 +632,8 @@ int gprs_llc_tx_ui(struct msgb *msg, uint8_t sapi, int command,
 		msgb_free(msg);
 		return -EFBIG;
 	}
+
+	gprs_llme_copy_key(mmctx, lle->llme);
 
 	/* Update LLE's (BVCI, NSEI) tuple */
 	lle->llme->bvci = msgb_bvci(msg);
@@ -627,33 +672,12 @@ int gprs_llc_tx_ui(struct msgb *msg, uint8_t sapi, int command,
 	fcs[1] = (fcs_calc >> 8) & 0xff;
 	fcs[2] = (fcs_calc >> 16) & 0xff;
 
-	/* encrypt information field + FCS, if needed! */
-	if (lle->llme->algo != GPRS_ALGO_GEA0) {
-		uint32_t iov_ui = 0; /* FIXME: randomly select for TLLI */
-		uint16_t crypt_len = (fcs + 3) - (llch + 3);
-		uint8_t cipher_out[GSM0464_CIPH_MAX_BLOCK];
-		uint32_t iv;
-		int rc, i;
-		uint8_t *kc = lle->llme->kc;
-
-		/* Compute the 'Input' Paraemeter */
-		iv = gprs_cipher_gen_input_ui(iov_ui, sapi, nu, oc);
-
-		/* Compute the keystream that we need to XOR with the data */
-		rc = gprs_cipher_run(cipher_out, crypt_len, lle->llme->algo,
-				     kc, iv, GPRS_CIPH_SGSN2MS);
+	if (lle->llme->algo != GPRS_ALGO_GEA0 && encryptable) {
+		int rc = apply_gea(lle, fcs - llch, nu, oc, sapi, fcs, llch);
 		if (rc < 0) {
-			LOGP(DLLC, LOGL_ERROR, "Error crypting UI frame: %d\n", rc);
 			msgb_free(msg);
 			return rc;
 		}
-
-		/* XOR the cipher output with the information field + FCS */
-		for (i = 0; i < crypt_len; i++)
-			*(llch + 3 + i) ^= cipher_out[i];
-
-		/* Mark frame as encrypted */
-		ctrl[1] |= 0x02;
 	}
 
 	/* Identifiers passed down: (BVCI, NSEI) */
@@ -738,6 +762,7 @@ int gprs_llc_rcvmsg(struct msgb *msg, struct tlv_parsed *tv)
 	struct gprs_llc_hdr *lh = (struct gprs_llc_hdr *) msgb_llch(msg);
 	struct gprs_llc_hdr_parsed llhp;
 	struct gprs_llc_lle *lle;
+	bool drop_cipherable = false;
 	int rc = 0;
 
 	/* Identifiers from DOWN: NSEI, BVCI, TLLI */
@@ -771,7 +796,8 @@ int gprs_llc_rcvmsg(struct msgb *msg, struct tlv_parsed *tv)
 		case GPRS_SAPI_SNDCP9:
 		case GPRS_SAPI_SNDCP11:
 			/* Ask an upper layer for help. */
-			return sgsn_force_reattach_oldmsg(msg);
+			return gsm0408_gprs_force_reattach_oldmsg(msg,
+								  lle->llme);
 		default:
 			break;
 		}
@@ -783,38 +809,24 @@ int gprs_llc_rcvmsg(struct msgb *msg, struct tlv_parsed *tv)
 
 	/* decrypt information field + FCS, if needed! */
 	if (llhp.is_encrypted) {
-		uint32_t iov_ui = 0; /* FIXME: randomly select for TLLI */
-		uint16_t crypt_len = llhp.data_len + 3;
-		uint8_t cipher_out[GSM0464_CIPH_MAX_BLOCK];
-		uint32_t iv;
-		uint8_t *kc = lle->llme->kc;
-		int rc, i;
-
-		if (lle->llme->algo == GPRS_ALGO_GEA0) {
+		if (lle->llme->algo != GPRS_ALGO_GEA0) {
+			rc = apply_gea(lle, llhp.data_len + 3, llhp.seq_tx,
+				       lle->oc_ui_recv, lle->sapi, NULL,
+				       llhp.data);
+			if (rc < 0)
+				return rc;
+		llhp.fcs = *(llhp.data + llhp.data_len);
+		llhp.fcs |= *(llhp.data + llhp.data_len + 1) << 8;
+		llhp.fcs |= *(llhp.data + llhp.data_len + 2) << 16;
+		} else {
 			LOGP(DLLC, LOGL_NOTICE, "encrypted frame for LLC that "
 				"has no KC/Algo! Dropping.\n");
 			return 0;
 		}
-
-		iv = gprs_cipher_gen_input_ui(iov_ui, lle->sapi, llhp.seq_tx,
-						lle->oc_ui_recv);
-		rc = gprs_cipher_run(cipher_out, crypt_len, lle->llme->algo,
-				     kc, iv, GPRS_CIPH_MS2SGSN);
-		if (rc < 0) {
-			LOGP(DLLC, LOGL_ERROR, "Error decrypting frame: %d\n",
-			     rc);
-			return rc;
-		}
-
-		/* XOR the cipher output with the information field + FCS */
-		for (i = 0; i < crypt_len; i++)
-			*(llhp.data + i) ^= cipher_out[i];
 	} else {
-		if (lle->llme->algo != GPRS_ALGO_GEA0) {
-			LOGP(DLLC, LOGL_NOTICE, "unencrypted frame for LLC "
-				"that is supposed to be encrypted. Dropping.\n");
-			return 0;
-		}
+		if (lle->llme->algo != GPRS_ALGO_GEA0 &&
+		    lle->llme->cksn != GSM_KEY_SEQ_INVAL)
+			drop_cipherable = true;
 	}
 
 	/* We have to do the FCS check _after_ decryption */
@@ -839,7 +851,8 @@ int gprs_llc_rcvmsg(struct msgb *msg, struct tlv_parsed *tv)
 		switch (llhp.sapi) {
 		case GPRS_SAPI_GMM:
 			/* send LL_UNITDATA_IND to GMM */
-			rc = gsm0408_gprs_rcvmsg_gb(msg, lle->llme);
+			rc = gsm0408_gprs_rcvmsg_gb(msg, lle->llme,
+						    drop_cipherable);
 			break;
 		case GPRS_SAPI_SNDCP3:
 		case GPRS_SAPI_SNDCP5:
@@ -863,17 +876,28 @@ int gprs_llc_rcvmsg(struct msgb *msg, struct tlv_parsed *tv)
 	return rc;
 }
 
+/* Propagate crypto parameters MM -> LLME */
+void gprs_llme_copy_key(struct sgsn_mm_ctx *mm, struct gprs_llc_llme *llme)
+{
+	if (!mm)
+		return;
+	if (mm->ciph_algo != GPRS_ALGO_GEA0) {
+		llme->algo = mm->ciph_algo;
+		if (llme->cksn != mm->auth_triplet.key_seq &&
+		    mm->auth_triplet.key_seq != GSM_KEY_SEQ_INVAL) {
+			memcpy(llme->kc, mm->auth_triplet.vec.kc,
+			       gprs_cipher_key_length(mm->ciph_algo));
+			llme->cksn = mm->auth_triplet.key_seq;
+		}
+	} else
+		llme->cksn = GSM_KEY_SEQ_INVAL;
+}
+
 /* 04.64 Chapter 7.2.1.1 LLGMM-ASSIGN */
 int gprs_llgmm_assign(struct gprs_llc_llme *llme,
-		      uint32_t old_tlli, uint32_t new_tlli,
-		      enum gprs_ciph_algo alg, const uint8_t *kc)
+		      uint32_t old_tlli, uint32_t new_tlli)
 {
 	unsigned int i;
-
-	/* Update the crypto parameters */
-	llme->algo = alg;
-	if (alg != GPRS_ALGO_GEA0)
-		memcpy(llme->kc, kc, sizeof(llme->kc));
 
 	if (old_tlli == 0xffffffff && new_tlli != 0xffffffff) {
 		/* TLLI Assignment 8.3.1 */
@@ -924,8 +948,7 @@ int gprs_llgmm_assign(struct gprs_llc_llme *llme,
 /* TLLI unassignment */
 int gprs_llgmm_unassign(struct gprs_llc_llme *llme)
 {
-	return gprs_llgmm_assign(llme, llme->tlli, 0xffffffff, GPRS_ALGO_GEA0,
-				 NULL);
+	return gprs_llgmm_assign(llme, llme->tlli, 0xffffffff);
 }
 
 /* Chapter 7.2.1.2 LLGMM-RESET.req */
@@ -938,10 +961,17 @@ int gprs_llgmm_reset(struct gprs_llc_llme *llme)
 	uint8_t *xid;
 
 
+
 	printf("========================================== GOT LLGMM RESET! ============================================\n");
 
+	if (RAND_bytes((uint8_t *) &llme->iov_ui, 4) != 1) {
+		LOGP(DLLC, LOGL_NOTICE, "RAND_bytes failed for LLC XID reset, "
+		     "falling back to rand()\n");
+		llme->iov_ui = rand();
+	}
+
 	/* Generate XID message */
-	xid_bytes_len = gprs_llc_generate_xid_for_gmm_reset(xid_bytes,sizeof(xid_bytes));
+	xid_bytes_len = gprs_llc_generate_xid_for_gmm_reset(xid_bytes,sizeof(xid_bytes),llme->iov_ui);
 	if(xid_bytes_len < 0)
 		return -EINVAL;
 	xid = msgb_put(msg, xid_bytes_len);
@@ -958,7 +988,8 @@ int gprs_llgmm_reset(struct gprs_llc_llme *llme)
 	return gprs_llc_tx_xid(lle, msg, 1);
 }
 
-int gprs_llgmm_reset_oldmsg(struct msgb* oldmsg, uint8_t sapi)
+int gprs_llgmm_reset_oldmsg(struct msgb* oldmsg, uint8_t sapi,
+			    struct gprs_llc_llme *llme)
 {
 	struct msgb *msg = msgb_alloc_headroom(4096, 1024, "LLC_XID");
 	uint8_t xid_bytes[1024];
@@ -967,13 +998,18 @@ int gprs_llgmm_reset_oldmsg(struct msgb* oldmsg, uint8_t sapi)
 
 	printf("======================================= GOT LLGMM RESET (OLDMSG)! =======================================\n");
 
+	if (RAND_bytes((uint8_t *) &llme->iov_ui, 4) != 1) {
+		LOGP(DLLC, LOGL_NOTICE, "RAND_bytes failed for LLC XID reset, "
+		     "falling back to rand()\n");
+		llme->iov_ui = rand();
+	}
+
 	/* Generate XID message */
-	xid_bytes_len = gprs_llc_generate_xid_for_gmm_reset(xid_bytes,sizeof(xid_bytes));
+	xid_bytes_len = gprs_llc_generate_xid_for_gmm_reset(xid_bytes,sizeof(xid_bytes),llme->iov_ui);
 	if(xid_bytes_len < 0)
 		return -EINVAL;
 	xid = msgb_put(msg, xid_bytes_len);
 	memcpy(xid, xid_bytes, xid_bytes_len);
-
 
 	/* FIXME: Start T200, wait for XID response */
 

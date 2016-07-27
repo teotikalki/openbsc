@@ -106,53 +106,21 @@ static inline void init_dchan_hdr(struct abis_rsl_dchan_hdr *dh,
 	dh->ie_chan = RSL_IE_CHAN_NR;
 }
 
-/* determine logical channel based on TRX and channel number IE */
-struct gsm_lchan *lchan_lookup(struct gsm_bts_trx *trx, uint8_t chan_nr)
+/* call rsl_lchan_lookup and set the log context */
+static struct gsm_lchan *lchan_lookup(struct gsm_bts_trx *trx, uint8_t chan_nr)
 {
-	struct gsm_lchan *lchan;
-	uint8_t ts_nr = chan_nr & 0x07;
-	uint8_t cbits = chan_nr >> 3;
-	uint8_t lch_idx;
-	struct gsm_bts_trx_ts *ts = &trx->ts[ts_nr];
+	int rc;
+	struct gsm_lchan *lchan = rsl_lchan_lookup(trx, chan_nr, &rc);
 
-	if (cbits == 0x01) {
-		lch_idx = 0;	/* TCH/F */	
-		if (ts->pchan != GSM_PCHAN_TCH_F &&
-		    ts->pchan != GSM_PCHAN_PDCH &&
-		    ts->pchan != GSM_PCHAN_TCH_F_PDCH)
-			LOGP(DRSL, LOGL_ERROR, "chan_nr=0x%02x but pchan=%u\n",
-				chan_nr, ts->pchan);
-	} else if ((cbits & 0x1e) == 0x02) {
-		lch_idx = cbits & 0x1;	/* TCH/H */
-		if (ts->pchan != GSM_PCHAN_TCH_H)
-			LOGP(DRSL, LOGL_ERROR, "chan_nr=0x%02x but pchan=%u\n",
-				chan_nr, ts->pchan);
-	} else if ((cbits & 0x1c) == 0x04) {
-		lch_idx = cbits & 0x3;	/* SDCCH/4 */
-		if (ts->pchan != GSM_PCHAN_CCCH_SDCCH4 &&
-		    ts->pchan != GSM_PCHAN_CCCH_SDCCH4_CBCH)
-			LOGP(DRSL, LOGL_ERROR, "chan_nr=0x%02x but pchan=%u\n",
-				chan_nr, ts->pchan);
-	} else if ((cbits & 0x18) == 0x08) {
-		lch_idx = cbits & 0x7;	/* SDCCH/8 */
-		if (ts->pchan != GSM_PCHAN_SDCCH8_SACCH8C &&
-		    ts->pchan != GSM_PCHAN_SDCCH8_SACCH8C_CBCH)
-			LOGP(DRSL, LOGL_ERROR, "chan_nr=0x%02x but pchan=%u\n",
-				chan_nr, ts->pchan);
-	} else if (cbits == 0x10 || cbits == 0x11 || cbits == 0x12) {
-		lch_idx = 0;
-		if (ts->pchan != GSM_PCHAN_CCCH &&
-		    ts->pchan != GSM_PCHAN_CCCH_SDCCH4 &&
-		    ts->pchan != GSM_PCHAN_CCCH_SDCCH4_CBCH)
-			LOGP(DRSL, LOGL_ERROR, "chan_nr=0x%02x but pchan=%u\n",
-				chan_nr, ts->pchan);
-		/* FIXME: we should not return first sdcch4 !!! */
-	} else {
+	if (!lchan) {
 		LOGP(DRSL, LOGL_ERROR, "unknown chan_nr=0x%02x\n", chan_nr);
 		return NULL;
 	}
 
-	lchan = &ts->lchan[lch_idx];
+	if (rc < 0)
+		LOGP(DRSL, LOGL_ERROR, "%s mismatching chan_nr=0x%02x\n",
+		     gsm_ts_and_pchan_name(lchan->ts), chan_nr);
+
 	log_set_context(BSC_CTX_LCHAN, lchan);
 	if (lchan->conn)
 		log_set_context(BSC_CTX_SUBSCR, lchan->conn->subscr);
@@ -374,6 +342,9 @@ static int channel_mode_from_lchan(struct rsl_ie_chan_mode *cm,
 	case GSM_LCHAN_NONE:
 	case GSM_LCHAN_UNKNOWN:
 	default:
+		LOGP(DRSL, LOGL_ERROR,
+		     "unsupported activation lchan->type %u %s\n",
+		     lchan->type, gsm_lchant_name(lchan->type));
 		return -EINVAL;
 	}
 
@@ -407,6 +378,9 @@ static int channel_mode_from_lchan(struct rsl_ie_chan_mode *cm,
 				cm->chan_rate = RSL_CMOD_SP_NT_6k0;
 				break;
 			default:
+				LOGP(DRSL, LOGL_ERROR,
+				     "unsupported lchan->tch_mode %u\n",
+				     lchan->tch_mode);
 				return -EINVAL;
 			}
 			break;
@@ -436,9 +410,15 @@ static int channel_mode_from_lchan(struct rsl_ie_chan_mode *cm,
 			cm->chan_rate = RSL_CMOD_CSD_T_32000;
 			break;
 		default:
+			LOGP(DRSL, LOGL_ERROR,
+			     "unsupported lchan->csd_mode %u\n",
+			     lchan->csd_mode);
 			return -EINVAL;
 		}
 	default:
+		LOGP(DRSL, LOGL_ERROR,
+		     "unsupported lchan->tch_mode %u\n",
+		     lchan->tch_mode);
 		return -EINVAL;
 	}
 
@@ -470,7 +450,7 @@ int rsl_chan_activate_lchan(struct gsm_lchan *lchan, uint8_t act_type,
 	if (rc < 0)
 		return rc;
 
-	/* if channel is in PDCH mode, deactivate PDCH first */
+	/* If a TCH_F/PDCH TS is in PDCH mode, deactivate PDCH first. */
 	if (lchan->ts->pchan == GSM_PCHAN_TCH_F_PDCH
 	    && (lchan->ts->flags & TS_F_PDCH_ACTIVE)) {
 		/* store activation type and handover reference */
@@ -645,8 +625,9 @@ static void error_timeout_cb(void *data)
 	LOGP(DRSL, LOGL_INFO, "%s is back in operation.\n", gsm_lchan_name(lchan));
 	rsl_lchan_set_state(lchan, LCHAN_S_NONE);
 
-	/* Put PDCH channel back into PDCH mode */
-	if (lchan->ts->pchan == GSM_PCHAN_TCH_F_PDCH)
+	/* Put PDCH channel back into PDCH mode, if GPRS is enabled */
+	if (lchan->ts->pchan == GSM_PCHAN_TCH_F_PDCH
+	    && lchan->ts->trx->bts->gprs.mode != BTS_GPRS_NONE)
 		rsl_ipacc_pdch_activate(lchan->ts, 1);
 }
 
@@ -732,6 +713,7 @@ static int rsl_rf_chan_release_err(struct gsm_lchan *lchan)
 
 static int rsl_rx_rf_chan_rel_ack(struct gsm_lchan *lchan)
 {
+	struct gsm_bts_trx_ts *ts = lchan->ts;
 
 	DEBUGP(DRSL, "%s RF CHANNEL RELEASE ACK\n", gsm_lchan_name(lchan));
 
@@ -747,7 +729,7 @@ static int rsl_rx_rf_chan_rel_ack(struct gsm_lchan *lchan)
 	 * will be sent. So let's "repair" the channel.
 	 */
 	if (lchan->state == LCHAN_S_BROKEN) {
-		int do_free = is_sysmobts_v2(lchan->ts->trx->bts);
+		int do_free = is_sysmobts_v2(ts->trx->bts);
 		LOGP(DRSL, LOGL_NOTICE,
 			"%s CHAN REL ACK for broken channel. %s.\n",
 			gsm_lchan_name(lchan),
@@ -771,14 +753,17 @@ static int rsl_rx_rf_chan_rel_ack(struct gsm_lchan *lchan)
 	 *
 	 * Any state other than LCHAN_S_REL_ERR became LCHAN_S_NONE after above
 	 * do_lchan_free(). Assert this, because that's what ensures a PDCH ACT
-	 * on a dynamic channel in all cases.
+	 * on a TCH/F_PDCH TS in all cases.
+	 *
+	 * If GPRS is disabled, always skip the PDCH ACT.
 	 */
 	OSMO_ASSERT(lchan->state == LCHAN_S_NONE
 		    || lchan->state == LCHAN_S_REL_ERR);
-	if (lchan->ts->pchan == GSM_PCHAN_TCH_F_PDCH
+	if (ts->trx->bts->gprs.mode == BTS_GPRS_NONE)
+		return 0;
+	if (ts->pchan == GSM_PCHAN_TCH_F_PDCH
 	    && lchan->state == LCHAN_S_NONE)
-		return rsl_ipacc_pdch_activate(lchan->ts, 1);
-
+		return rsl_ipacc_pdch_activate(ts, 1);
 	return 0;
 }
 
@@ -974,34 +959,35 @@ int rsl_lchan_set_state(struct gsm_lchan *lchan, int state)
 static int rsl_rx_chan_act_ack(struct msgb *msg)
 {
 	struct abis_rsl_dchan_hdr *rslh = msgb_l2(msg);
+	struct gsm_lchan *lchan = msg->lchan;
 
 	/* BTS has confirmed channel activation, we now need
 	 * to assign the activated channel to the MS */
 	if (rslh->ie_chan != RSL_IE_CHAN_NR)
 		return -EINVAL;
 
-	osmo_timer_del(&msg->lchan->act_timer);
+	osmo_timer_del(&lchan->act_timer);
 
-	if (msg->lchan->state == LCHAN_S_BROKEN) {
+	if (lchan->state == LCHAN_S_BROKEN) {
 		LOGP(DRSL, LOGL_NOTICE, "%s CHAN ACT ACK for broken channel.\n",
-			gsm_lchan_name(msg->lchan));
+			gsm_lchan_name(lchan));
 		return 0;
 	}
 
-	if (msg->lchan->state != LCHAN_S_ACT_REQ)
+	if (lchan->state != LCHAN_S_ACT_REQ)
 		LOGP(DRSL, LOGL_NOTICE, "%s CHAN ACT ACK, but state %s\n",
-			gsm_lchan_name(msg->lchan),
-			gsm_lchans_name(msg->lchan->state));
-	rsl_lchan_set_state(msg->lchan, LCHAN_S_ACTIVE);
+			gsm_lchan_name(lchan),
+			gsm_lchans_name(lchan->state));
+	rsl_lchan_set_state(lchan, LCHAN_S_ACTIVE);
 
-	if (msg->lchan->rqd_ref) {
-		rsl_send_imm_assignment(msg->lchan);
-		talloc_free(msg->lchan->rqd_ref);
-		msg->lchan->rqd_ref = NULL;
-		msg->lchan->rqd_ta = 0;
+	if (lchan->rqd_ref) {
+		rsl_send_imm_assignment(lchan);
+		talloc_free(lchan->rqd_ref);
+		lchan->rqd_ref = NULL;
+		lchan->rqd_ta = 0;
 	}
 
-	send_lchan_signal(S_LCHAN_ACTIVATE_ACK, msg->lchan, NULL);
+	send_lchan_signal(S_LCHAN_ACTIVATE_ACK, lchan, NULL);
 
 	return 0;
 }
@@ -1555,7 +1541,7 @@ static int rsl_rx_chan_rqd(struct msgb *msg)
 		gsm_lchant_name(lchan->type), gsm_chreq_name(chreq_reason),
 		rqd_ref->ra, rqd_ta);
 
-	rsl_chan_activate_lchan(lchan, 0x00, 0);
+	rsl_chan_activate_lchan(lchan, RSL_ACT_INTRA_IMM_ASS, 0);
 
 	return 0;
 }
@@ -2042,6 +2028,8 @@ int rsl_ipacc_pdch_activate(struct gsm_bts_trx_ts *ts, int act)
 	}
 
 	if (act){
+		/* Callers should heed the GPRS mode. */
+		OSMO_ASSERT(ts->trx->bts->gprs.mode != BTS_GPRS_NONE);
 		msg_type = RSL_MT_IPAC_PDCH_ACT;
 		ts->flags |= TS_F_PDCH_ACT_PENDING;
 	} else {

@@ -51,7 +51,7 @@ static void gsm_mo_init(struct gsm_abis_mo *mo, struct gsm_bts *bts,
 	gsm_abis_mo_reset(mo);
 }
 
-const struct value_string gsm_pchant_names[12] = {
+const struct value_string gsm_pchant_names[13] = {
 	{ GSM_PCHAN_NONE,	"NONE" },
 	{ GSM_PCHAN_CCCH,	"CCCH" },
 	{ GSM_PCHAN_CCCH_SDCCH4,"CCCH+SDCCH4" },
@@ -63,10 +63,11 @@ const struct value_string gsm_pchant_names[12] = {
 	{ GSM_PCHAN_UNKNOWN,	"UNKNOWN" },
 	{ GSM_PCHAN_CCCH_SDCCH4_CBCH, "CCCH+SDCCH4+CBCH" },
 	{ GSM_PCHAN_SDCCH8_SACCH8C_CBCH, "SDCCH8+CBCH" },
+	{ GSM_PCHAN_TCH_F_TCH_H_PDCH, "TCH/F_TCH/H_PDCH" },
 	{ 0,			NULL }
 };
 
-const struct value_string gsm_pchant_descs[12] = {
+const struct value_string gsm_pchant_descs[13] = {
 	{ GSM_PCHAN_NONE,	"Physical Channel not configured" },
 	{ GSM_PCHAN_CCCH,	"FCCH + SCH + BCCH + CCCH (Comb. IV)" },
 	{ GSM_PCHAN_CCCH_SDCCH4,
@@ -79,6 +80,7 @@ const struct value_string gsm_pchant_descs[12] = {
 	{ GSM_PCHAN_UNKNOWN,	"Unknown / Unsupported channel combination" },
 	{ GSM_PCHAN_CCCH_SDCCH4_CBCH, "FCCH + SCH + BCCH + CCCH + CBCH + 3 SDCCH + 2 SACCH (Comb. V)" },
 	{ GSM_PCHAN_SDCCH8_SACCH8C_CBCH, "7 SDCCH + 4 SACCH + CBCH (Comb. VII)" },
+	{ GSM_PCHAN_TCH_F_TCH_H_PDCH, "Dynamic TCH/F or TCH/H or GPRS PDCH" },
 	{ 0,			NULL }
 };
 
@@ -167,6 +169,8 @@ struct gsm_bts_trx *gsm_bts_trx_alloc(struct gsm_bts *bts)
 		ts->trx = trx;
 		ts->nr = k;
 		ts->pchan = GSM_PCHAN_NONE;
+		ts->dyn.pchan_is = GSM_PCHAN_NONE;
+		ts->dyn.pchan_want = GSM_PCHAN_NONE;
 		ts->tsc = -1;
 
 		gsm_mo_init(&ts->mo, bts, NM_OC_CHANNEL,
@@ -335,6 +339,55 @@ char *gsm_ts_name(const struct gsm_bts_trx_ts *ts)
 {
 	snprintf(ts2str, sizeof(ts2str), "(bts=%d,trx=%d,ts=%d)",
 		 ts->trx->bts->nr, ts->trx->nr, ts->nr);
+
+	return ts2str;
+}
+
+/*! Log timeslot number with full pchan information */
+char *gsm_ts_and_pchan_name(const struct gsm_bts_trx_ts *ts)
+{
+	switch (ts->pchan) {
+	case GSM_PCHAN_TCH_F_TCH_H_PDCH:
+		if (ts->dyn.pchan_is == ts->dyn.pchan_want)
+			snprintf(ts2str, sizeof(ts2str),
+				 "(bts=%d,trx=%d,ts=%d,pchan=%s as %s)",
+				 ts->trx->bts->nr, ts->trx->nr, ts->nr,
+				 gsm_pchan_name(ts->pchan),
+				 gsm_pchan_name(ts->dyn.pchan_is));
+		else
+			snprintf(ts2str, sizeof(ts2str),
+				 "(bts=%d,trx=%d,ts=%d,pchan=%s"
+				 " switching %s -> %s)",
+				 ts->trx->bts->nr, ts->trx->nr, ts->nr,
+				 gsm_pchan_name(ts->pchan),
+				 gsm_pchan_name(ts->dyn.pchan_is),
+				 gsm_pchan_name(ts->dyn.pchan_want));
+		break;
+	case GSM_PCHAN_TCH_F_PDCH:
+		if ((ts->flags & TS_F_PDCH_PENDING_MASK) == 0)
+			snprintf(ts2str, sizeof(ts2str),
+				 "(bts=%d,trx=%d,ts=%d,pchan=%s as %s)",
+				 ts->trx->bts->nr, ts->trx->nr, ts->nr,
+				 gsm_pchan_name(ts->pchan),
+				 (ts->flags & TS_F_PDCH_ACTIVE)? "PDCH"
+							       : "TCH/F");
+		else
+			snprintf(ts2str, sizeof(ts2str),
+				 "(bts=%d,trx=%d,ts=%d,pchan=%s"
+				 " switching %s -> %s)",
+				 ts->trx->bts->nr, ts->trx->nr, ts->nr,
+				 gsm_pchan_name(ts->pchan),
+				 (ts->flags & TS_F_PDCH_ACTIVE)? "PDCH"
+							       : "TCH/F",
+				 (ts->flags & TS_F_PDCH_ACT_PENDING)? "PDCH"
+								    : "TCH/F");
+		break;
+	default:
+		snprintf(ts2str, sizeof(ts2str), "(bts=%d,trx=%d,ts=%d,pchan=%s)",
+			 ts->trx->bts->nr, ts->trx->nr, ts->nr,
+			 gsm_pchan_name(ts->pchan));
+		break;
+	}
 
 	return ts2str;
 }
@@ -558,4 +611,53 @@ struct gsm_lchan *gsm_bts_get_cbch(struct gsm_bts *bts)
 	}
 
 	return lchan;
+}
+
+/* determine logical channel based on TRX and channel number IE */
+struct gsm_lchan *rsl_lchan_lookup(struct gsm_bts_trx *trx, uint8_t chan_nr,
+				   int *rc)
+{
+	uint8_t ts_nr = chan_nr & 0x07;
+	uint8_t cbits = chan_nr >> 3;
+	uint8_t lch_idx;
+	struct gsm_bts_trx_ts *ts = &trx->ts[ts_nr];
+	bool ok = true;
+
+	if (rc)
+		*rc = -EINVAL;
+
+	if (cbits == 0x01) {
+		lch_idx = 0;	/* TCH/F */	
+		if (ts->pchan != GSM_PCHAN_TCH_F &&
+		    ts->pchan != GSM_PCHAN_PDCH &&
+		    ts->pchan != GSM_PCHAN_TCH_F_PDCH)
+			ok = false;
+	} else if ((cbits & 0x1e) == 0x02) {
+		lch_idx = cbits & 0x1;	/* TCH/H */
+		if (ts->pchan != GSM_PCHAN_TCH_H)
+			ok = false;
+	} else if ((cbits & 0x1c) == 0x04) {
+		lch_idx = cbits & 0x3;	/* SDCCH/4 */
+		if (ts->pchan != GSM_PCHAN_CCCH_SDCCH4 &&
+		    ts->pchan != GSM_PCHAN_CCCH_SDCCH4_CBCH)
+			ok = false;
+	} else if ((cbits & 0x18) == 0x08) {
+		lch_idx = cbits & 0x7;	/* SDCCH/8 */
+		if (ts->pchan != GSM_PCHAN_SDCCH8_SACCH8C &&
+		    ts->pchan != GSM_PCHAN_SDCCH8_SACCH8C_CBCH)
+			ok = false;
+	} else if (cbits == 0x10 || cbits == 0x11 || cbits == 0x12) {
+		lch_idx = 0;
+		if (ts->pchan != GSM_PCHAN_CCCH &&
+		    ts->pchan != GSM_PCHAN_CCCH_SDCCH4 &&
+		    ts->pchan != GSM_PCHAN_CCCH_SDCCH4_CBCH)
+			ok = false;
+		/* FIXME: we should not return first sdcch4 !!! */
+	} else
+		return NULL;
+
+	if (rc && ok)
+		*rc = 0;
+
+	return &ts->lchan[lch_idx];
 }

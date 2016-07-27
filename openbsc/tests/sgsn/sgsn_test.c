@@ -101,6 +101,25 @@ int bssgp_tx_dl_ud(struct msgb *msg, uint16_t pdu_lifetime,
 	return 0;
 }
 
+/* override, requires '-Wl,--wrap=RAND_bytes' */
+int __real_RAND_bytes(unsigned char *buf, int num);
+int mock_RAND_bytes(unsigned char *buf, int num);
+int (*RAND_bytes_cb)(unsigned char *, int) =
+  &mock_RAND_bytes;
+
+int __wrap_RAND_bytes(unsigned char *buf, int num)
+{
+	return (*RAND_bytes_cb)(buf, num);
+}
+/* make results of A&C ref predictable */
+int mock_RAND_bytes(unsigned char *buf, int num)
+{
+	if (num > 1)
+		return __real_RAND_bytes(buf, num);
+	buf[0] = 0;
+	return 1;
+}
+
 /* override, requires '-Wl,--wrap=sgsn_update_subscriber_data' */
 void __real_sgsn_update_subscriber_data(struct sgsn_mm_ctx *);
 void (*update_subscriber_data_cb)(struct sgsn_mm_ctx *) =
@@ -196,7 +215,7 @@ static void send_0408_message(struct gprs_llc_llme *llme, uint32_t tlli,
 	msg = create_msg(data, data_len);
 	msgb_tlli(msg) = tlli;
 	bssgp_create_cell_id(msgb_bcid(msg), bssgp_raid, 0);
-	gsm0408_gprs_rcvmsg_gb(msg, llme);
+	gsm0408_gprs_rcvmsg_gb(msg, llme, false);
 	msgb_free(msg);
 }
 
@@ -2410,6 +2429,7 @@ int main(int argc, char **argv)
 	tall_bsc_ctx = talloc_named_const(osmo_sgsn_ctx, 0, "bsc");
 	tall_msgb_ctx = talloc_named_const(osmo_sgsn_ctx, 0, "msgb");
 
+	sgsn_rate_ctr_init();
 	sgsn_auth_init();
 	gprs_subscr_init(sgsn);
 
@@ -2439,7 +2459,7 @@ int main(int argc, char **argv)
 
 	talloc_report_full(osmo_sgsn_ctx, stderr);
 	OSMO_ASSERT(talloc_total_blocks(tall_msgb_ctx) == 1);
-	OSMO_ASSERT(talloc_total_blocks(tall_bsc_ctx) == 1);
+	OSMO_ASSERT(talloc_total_blocks(tall_bsc_ctx) == 2);
 	return 0;
 }
 

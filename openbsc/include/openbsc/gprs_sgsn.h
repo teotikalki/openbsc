@@ -158,6 +158,8 @@ struct sgsn_mm_ctx {
 	/* Iu: CK, IK, KSI */
 	/* CKSN */
 	enum gprs_ciph_algo	ciph_algo;
+	/* Auth & Ciphering Request reference from 3GPP TS 24.008 § 10.5.5.19: */
+	uint8_t ac_ref_nr_used;
 
 	struct {
 		uint8_t	len;
@@ -355,9 +357,6 @@ int drop_all_pdp_for_ggsn(struct sgsn_ggsn_ctx *ggsn);
 
 char *gprs_pdpaddr2str(uint8_t *pdpa, uint8_t len);
 
-/* Force re-attachment based on msgb meta data */
-int sgsn_force_reattach_oldmsg(struct msgb *oldmsg);
-
 /*
  * ctrl interface related work
  */
@@ -453,5 +452,7 @@ void sgsn_update_subscriber_data(struct sgsn_mm_ctx *mmctx);
 int gprs_sndcp_vty_init(void);
 struct sgsn_instance;
 int sgsn_gtp_init(struct sgsn_instance *sgi);
+
+void sgsn_rate_ctr_init();
 
 #endif /* _GPRS_SGSN_H */

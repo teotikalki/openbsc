@@ -21,6 +21,7 @@
 
 #include <unistd.h>
 #include <stdio.h>
+#include <time.h>
 #include <stdlib.h>
 #include <string.h>
 #include <getopt.h>
@@ -306,6 +307,7 @@ int main(int argc, char **argv)
 	struct gsm_network dummy_network;
 	int rc;
 
+	srand(time(NULL));
 	tall_bsc_ctx = talloc_named_const(NULL, 0, "osmo_sgsn");
 	tall_msgb_ctx = talloc_named_const(tall_bsc_ctx, 0, "msgb");
 
@@ -340,6 +342,7 @@ int main(int argc, char **argv)
 	bssgp_nsi = sgsn_inst.cfg.nsi = sgsn_nsi;
 
 	gprs_llc_init("/usr/local/lib/osmocom/crypt/");
+	sgsn_rate_ctr_init();
 	sgsn_inst_init();
 
 	gprs_ns_vty_init(bssgp_nsi);

@@ -348,6 +348,12 @@ struct gsm_bts_trx_ts {
 
 	enum gsm_phys_chan_config pchan;
 
+	struct {
+		enum gsm_phys_chan_config pchan_is;
+		enum gsm_phys_chan_config pchan_want;
+		struct msgb *pending_chan_activ;
+	} dyn;
+
 	unsigned int flags;
 	struct gsm_abis_mo mo;
 	struct tlv_parsed nm_attr;
@@ -785,14 +791,15 @@ struct gsm_bts_trx *gsm_bts_trx_alloc(struct gsm_bts *bts);
 struct gsm_bts_trx *gsm_bts_trx_num(const struct gsm_bts *bts, int num);
 
 
-const struct value_string gsm_pchant_names[12];
-const struct value_string gsm_pchant_descs[12];
+const struct value_string gsm_pchant_names[13];
+const struct value_string gsm_pchant_descs[13];
 const char *gsm_pchan_name(enum gsm_phys_chan_config c);
 enum gsm_phys_chan_config gsm_pchan_parse(const char *name);
 const char *gsm_lchant_name(enum gsm_chan_t c);
 const char *gsm_chreq_name(enum gsm_chreq_reason_t c);
 char *gsm_trx_name(const struct gsm_bts_trx *trx);
 char *gsm_ts_name(const struct gsm_bts_trx_ts *ts);
+char *gsm_ts_and_pchan_name(const struct gsm_bts_trx_ts *ts);
 char *gsm_lchan_name_compute(const struct gsm_lchan *lchan);
 const char *gsm_lchans_name(enum gsm_lchan_state s);
 
@@ -837,5 +844,7 @@ static inline uint8_t gsm_ts_tsc(const struct gsm_bts_trx_ts *ts)
 		return ts->trx->bts->bsic & 7;
 }
 
+struct gsm_lchan *rsl_lchan_lookup(struct gsm_bts_trx *trx, uint8_t chan_nr,
+				   int *rc);
 
 #endif

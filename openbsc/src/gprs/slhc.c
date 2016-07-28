@@ -381,9 +381,6 @@ found:
 		goto uncompressed;
 	}
 
-	/* FIXME: For testing only, please remove for normal operation! */
-	goto uncompressed;
-
 	/*
 	 * Figure out which of the changing fields changed.  The
 	 * receiver expects changes in the order: urgent, window,

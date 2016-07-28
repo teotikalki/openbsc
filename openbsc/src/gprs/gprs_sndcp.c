@@ -407,7 +407,7 @@ struct sndcp_frag_state {
 };
 
 /* returns '1' if there are more fragments to send, '0' if none */
-static int sndcp_send_ud_frag(struct sndcp_frag_state *fs)
+static int sndcp_send_ud_frag(struct sndcp_frag_state *fs, int pcomp)
 {
 	struct gprs_sndcp_entity *sne = fs->sne;
 	struct gprs_llc_lle *lle = sne->lle;
@@ -444,7 +444,7 @@ static int sndcp_send_ud_frag(struct sndcp_frag_state *fs)
 	if (sch->first) {
 		scomph = (struct sndcp_comp_hdr *)
 				msgb_put(fmsg, sizeof(*scomph));
-		scomph->pcomp = 0;
+		scomph->pcomp = pcomp;
 		scomph->dcomp = 0;
 	}
 
@@ -549,7 +549,7 @@ int sndcp_unitdata_req(struct msgb *msg, struct gprs_llc_lle *lle, uint8_t nsapi
 		/* call function to generate and send fragments until all
 		 * of the N-PDU has been sent */
 		while (1) {
-			int rc = sndcp_send_ud_frag(&fs);
+			int rc = sndcp_send_ud_frag(&fs,pcomp);
 			if (rc == 0)
 				return 0;
 			if (rc < 0)

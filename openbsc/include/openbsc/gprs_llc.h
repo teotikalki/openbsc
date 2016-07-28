@@ -167,6 +167,10 @@ struct gprs_llc_llme {
 	uint16_t nsei;
 	struct gprs_llc_lle lle[NUM_SAPIS];
 
+	/* Compression entities */
+	struct llist_head protocol_conpression_entities;
+	struct llist_head data_conpression_entities;
+
 	/* Internal management */
 	uint32_t age_timestamp;
 };

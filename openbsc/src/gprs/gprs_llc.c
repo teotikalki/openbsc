@@ -517,11 +517,17 @@ static struct gprs_llc_llme *llme_alloc(uint32_t tlli)
 
 	llist_add(&llme->list, &gprs_llc_llmes);
 
+	INIT_LLIST_HEAD(&llme->protocol_conpression_entities);
+	INIT_LLIST_HEAD(&llme->data_conpression_entities);
+
 	return llme;
 }
 
 static void llme_free(struct gprs_llc_llme *llme)
 {
+	gprs_sndcp_comp_entities_free(llme->protocol_conpression_entities);
+	gprs_sndcp_comp_entities_free(llme->data_conpression_entities);
+
 	llist_del(&llme->list);
 	talloc_free(llme);
 }

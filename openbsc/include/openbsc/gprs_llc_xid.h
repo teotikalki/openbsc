@@ -24,7 +24,7 @@
 #define _GPRS_LLC_XID_H
 
 #include <stdint.h>
-#include <openbsc/gprs_sgsn.h>
+#include <osmocom/core/linuxlist.h>
 
 /* TS 101 351 6.4.1.6 Exchange Identification (XID) command/response parameter field */
 struct gprs_llc_xid_field {

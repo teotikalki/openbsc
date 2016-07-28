@@ -39,6 +39,7 @@
 #include <openbsc/gprs_llc_xid.h>
 #include <openbsc/gprs_sndcp_xid.h>
 #include <openbsc/gprs_sndcp_hdrcomp.h>
+#include <openbsc/gprs_sndcp_comp_entity.h>
 
 static void showPacketDetails(uint8_t *data, int len, int direction, char *info)
 {
@@ -230,7 +231,7 @@ static int defrag_segments(struct gprs_sndcp_entity *sne)
 	 * hands it off to the correcshowPacketDetailst GTP tunnel + GGSN via gtp_data_req() */
 	printf("\n\n\n////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
 	showPacketDetails(msg->data, msg->len,1,"defrag_segments()");
-	rc = gprs_sndcp_hdrcomp_expand(msg->data, msg->len, sne->pcomp);
+	rc = gprs_sndcp_hdrcomp_expand(msg->data, msg->len, sne->pcomp, NULL);
 	sne->pcomp = 0;
 	if (rc < 0)
 		return -EIO;
@@ -520,7 +521,7 @@ int sndcp_unitdata_req(struct msgb *msg, struct gprs_llc_lle *lle, uint8_t nsapi
 
 	printf("\n\n\n////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
 	showPacketDetails(msg->data, msg->len,0,"sndcp_initdata_req()");
-	rc = gprs_sndcp_hdrcomp_compress(msg->data, msg->len,&pcomp);
+	rc = gprs_sndcp_hdrcomp_compress(msg->data, msg->len,&pcomp, NULL, nsapi);
 	if (rc < 0)
 		return -EIO;
 	else
@@ -664,7 +665,7 @@ int sndcp_llunitdata_ind(struct msgb *msg, struct gprs_llc_lle *lle,
 
 	printf("\n\n\n////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
 	showPacketDetails(npdu, npdu_len,1,"sndcp_llunitdata_ind()");
-	rc = gprs_sndcp_hdrcomp_expand(npdu, npdu_len, sne->pcomp);
+	rc = gprs_sndcp_hdrcomp_expand(npdu, npdu_len, sne->pcomp, NULL);
 	if (rc < 0)
 		return -EIO;
 	else
@@ -854,7 +855,7 @@ static int gprs_llc_generate_sndcp_xid(uint8_t *bytes, int bytes_len, uint8_t ns
 }
 
 
-/* Set of SNDCP-XID negotiation (See also: TS 144 065, Section 6.8 XID parameter negotiation) */
+/* Set of SNDCP-XID bnegotiation (See also: TS 144 065, Section 6.8 XID parameter negotiation) */
 int sndcp_sn_xid_req(struct gprs_llc_lle *lle, uint8_t nsapi)
 {
 	uint8_t l3params_bytes[1024];
@@ -891,6 +892,7 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication, struct gpr
 	int rc;
 	LLIST_HEAD(comp_fields);
 	struct gprs_sndcp_comp_field *comp_field;
+	struct gprs_sndcp_comp_entity *comp_entity = NULL;
 
 	/* Parse SNDCP-CID XID-Field */
 	rc = gprs_sndcp_parse_xid(&comp_fields, xid_field_indication->data, xid_field_indication->data_len, NULL, 0);
@@ -902,7 +904,7 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication, struct gpr
 		printf("UNMODIFIED:\n");
 		gprs_sndcp_dump_comp_fields(&comp_fields);
 
-		/* FIXME: Do something useful here, other then rejecting everything! */
+
 		llist_for_each_entry(comp_field, &comp_fields, list) 
 		{
 			/* Delete propose bit */
@@ -915,20 +917,25 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication, struct gpr
 #if GPRS_SNDCP_HDRCOMP_BYPASS == 1
 					/* RFC 1144 is not yet supported, so we set applicable nsapis to zero */
 					comp_field->rfc1144_params->nsapi_len = 0;
-					LOGP(DSNDCP, LOGL_DEBUG, "Rejecting RFC1144 header conpression...");
+					LOGP(DSNDCP, LOGL_DEBUG, "Rejecting RFC1144 header conpression...\n");
+					gprs_sndcp_comp_entities_delete(&lle->llme->protocol_conpression_entities, comp_field->entity);
 #else
-					LOGP(DSNDCP, LOGL_DEBUG, "Accepting RFC1144 header conpression...");
+					LOGP(DSNDCP, LOGL_DEBUG, "Accepting RFC1144 header conpression...\n");
+					comp_entity = gprs_sndcp_comp_entities_add(&lle->llme->protocol_conpression_entities, comp_field);
+					gprs_sndcp_hdrcomp_init_rfc1144(comp_entity, comp_field->rfc1144_params->s01);
 #endif
 				break;
 				case RFC_2507:
 					/* RFC 2507 is not yet supported, so we set applicable nsapis to zero */
-					LOGP(DSNDCP, LOGL_DEBUG, "Rejecting RFC2507 header conpression...");
+					LOGP(DSNDCP, LOGL_DEBUG, "Rejecting RFC2507 header conpression...\n");
 					comp_field->rfc2507_params->nsapi_len = 0;
+					gprs_sndcp_comp_entities_delete(&lle->llme->protocol_conpression_entities, comp_field->entity);
 				break;
 				case ROHC:
 					/* ROHC is not yet supported, so we set applicable nsapis to zero */
-					LOGP(DSNDCP, LOGL_DEBUG, "Rejecting ROHC header conpression...");
+					LOGP(DSNDCP, LOGL_DEBUG, "Rejecting ROHC header conpression...\n");
 					comp_field->rohc_params->nsapi_len = 0;
+					gprs_sndcp_comp_entities_delete(&lle->llme->protocol_conpression_entities, comp_field->entity);
 				break;
 			}
 		}

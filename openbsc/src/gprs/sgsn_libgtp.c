@@ -328,9 +328,6 @@ static int send_act_pdp_cont_acc(struct sgsn_pdp_ctx *pctx)
 //	if(rc_xid < 0)
 //		return rc_xid;
 
-	/* FIXME! */
-	gprs_sndcp_hdrcomp_init();
-
 	return rc_pdp;
 }
 

@@ -419,8 +419,6 @@ static int encode_comp_field(uint8_t *bytes, int bytes_maxlen, struct gprs_sndcp
 	int payload_bytes_len = -1;
 
 	/* If possible, try do encode payload bytes first */
-	/* NOTE: New compression fields will be added here. If the pointer to the struct is NULL, the field will
-                 be ignored. The first field that has a pointer different from NULL will be picked for encoding. */
 	if(comp_field->rfc1144_params)
 		payload_bytes_len = encode_hdrcomp_rfc1144_params(payload_bytes, sizeof(payload_bytes), comp_field->rfc1144_params);
 	else if(comp_field->rfc2507_params)

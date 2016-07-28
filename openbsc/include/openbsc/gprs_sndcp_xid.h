@@ -1,9 +1,8 @@
 #ifndef _GPRS_SNDCP_XID_H
 #define _GPRS_SNDCP_XID_H
 
-
 #include <stdint.h>
-#include <openbsc/gprs_sgsn.h>
+#include <osmocom/core/linuxlist.h>
 
 #define CURRENT_SNDCP_VERSION 0	/* See TS 144 065, clause 8 */
 
@@ -79,9 +78,9 @@ struct gprs_sndcp_hdrcomp_rfc2507_params {
 	int nsapi_len;		/* Number of applicable NSAPIs (default 0) */
 	int nsapi[11];		/* Applicable NSAPIs (default 0) */
 	int f_max_period;	/* (default 256) */
-	int f_max_time;	/* (default 5) */
-	int max_header;	/* (default 168) */
-	int tcp_space;	/* (default 15) */
+	int f_max_time;		/* (default 5) */
+	int max_header;		/* (default 168) */
+	int tcp_space;		/* (default 15) */
 	int non_tcp_space;	/* (default 15) */
 };
 

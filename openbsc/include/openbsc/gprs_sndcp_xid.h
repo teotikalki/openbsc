@@ -51,8 +51,9 @@ enum gprs_sndcp_xid_param_types {
    for each algorithms. The following struct is used to pass the information
    about the referenced algorithm to the parser. */
 struct gprs_sndcp_hdrcomp_entity_algo_lookuptable {
-	int entity;
-	int algo;
+	int entity;	/* Entity number, see also: 6.5.1.1.3 and 6.6.1.1.3 */
+	int algo;	/* gorithm identifier, see also: 6.5.1.1.4 and 6.6.1.1.4 */
+	int compclass;	/* Can be either SNDCP_XID_DATA_COMPRESSION or SNDCP_XID_PROTOCOL_CONTROL_INFORMATION_COMPRESSION */
 };
 
 
@@ -147,7 +148,7 @@ struct gprs_sndcp_datacomp_v42bis_params {
 
 /* According to: ETSI TS 144 065 6.6.2.2 Assignment of DCOMP values (for V42bis) */
 enum gprs_sndcp_datacomp_v42bis_dcomp {
-	V42BIS_PCOMP1 = 0, 	/* V42bis enabled */
+	V42BIS_DCOMP1 = 0, 	/* V42bis enabled */
 	V42BIS_DCOMP_LEN = 1
 };
 
@@ -167,12 +168,10 @@ struct gprs_sndcp_datacomp_v44_params {
 
 /* According to: ETSI TS 144 065 6.6.3.2 Assignment of DCOMP values (for V44) */
 enum gprs_sndcp_datacomp_v44_dcomp {
-	V44_PCOMP1 = 0, 	/* Packet method compressed */
-	V44_PCOMP2 = 1, 	/* Multi packet method compressed */
+	V44_DCOMP1 = 0, 	/* Packet method compressed */
+	V44_DCOMP2 = 1, 	/* Multi packet method compressed */
 	V44_DCOMP_LEN = 2
 };
-
-
 
 /* Transform a list with compression fields into an SNDCP-XID message (bytes) */
 int gprs_sndcp_compile_xid(struct llist_head *comp_fields, uint8_t *bytes, int bytes_maxlen);

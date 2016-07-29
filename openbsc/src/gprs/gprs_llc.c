@@ -158,11 +158,10 @@ static int gprs_llc_process_xid_request(uint8_t *bytes_request, int bytes_reques
 	rc = gprs_llc_parse_xid(&xid_fields, bytes_request, bytes_request_len);
 	if (rc == 0)
 	{
+		gprs_llc_dump_xid_fields(&xid_fields);
+
 		llist_for_each_entry(xid_field, &xid_fields, list) 
 		{
-			/* FIXME: Remove debug output when done */
-			printf("==> xid->type=%i, xid->data_len=%i, xid->data=%s\n",xid_field->type,xid_field->data_len,osmo_hexdump_nospc(xid_field->data,xid_field->data_len));
-
 			/* Forward SNDCP-XID fields to Layer 3 (SNDCP) */
 			if(xid_field->type == GPRS_LLC_XID_T_L3_PAR)
 			{

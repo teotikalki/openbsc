@@ -31,10 +31,10 @@
 #include <osmocom/core/msgb.h>
 #include <osmocom/core/talloc.h>
 
+#include <openbsc/debug.h>
 #include <openbsc/gprs_llc.h>
 #include <openbsc/sgsn.h>
 #include <openbsc/gprs_llc_xid.h>
-
 
 
 /* Parse XID parameter field */
@@ -227,5 +227,15 @@ struct gprs_llc_xid_field *gprs_llc_duplicate_xid_field(struct gprs_llc_xid_fiel
 	return duplicate_of_xid_field;
 }
 
+/* Dump a list with XID fields (Debug) */
+void gprs_llc_dump_xid_fields(struct llist_head *xid_fields)
+{
+	struct gprs_llc_xid_field *xid_field;
+
+	llist_for_each_entry(xid_field, xid_fields, list) 
+	{
+		LOGP(DSNDCP, LOGL_DEBUG, "XID: type=%i, data_len=%i, data=%s\n",xid_field->type,xid_field->data_len,osmo_hexdump_nospc(xid_field->data,xid_field->data_len));
+	}
+}
 
 

@@ -179,14 +179,14 @@ int gprs_sndcp_compile_xid(struct llist_head *comp_fields, uint8_t *bytes, int b
 /* Transform an SNDCP-XID message (bytes) into a list of SNDCP-XID fields */
 int gprs_sndcp_parse_xid(struct llist_head *comp_fields, uint8_t *bytes, int bytes_len, struct gprs_sndcp_hdrcomp_entity_algo_lookuptable *lt, int lt_len);
 
-/* Dump a list with SNDCP-XID fields (Debug) */
-void gprs_sndcp_dump_comp_fields(struct llist_head *comp_fields);
-
 /* Free a list with SNDCP-XID fields */
 void gprs_sndcp_free_comp_fields(struct llist_head *comp_fields);
 
 /* Find out to which compression class the specified comp-field belongs (header compression or data compression?) */
 int gprs_sndcp_get_compression_class(struct gprs_sndcp_comp_field *comp_field);
+
+/* Dump a list with SNDCP-XID fields (Debug) */
+void gprs_sndcp_dump_comp_fields(struct llist_head *comp_fields);
 
 
 #endif

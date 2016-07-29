@@ -194,8 +194,6 @@ static int defrag_segments(struct gprs_sndcp_entity *sne, struct llist_head *com
 	uint8_t *npdu;
 	int rc;
 
-	printf("===============> defrag_segments()\n");
-
 	LOGP(DSNDCP, LOGL_DEBUG, "TLLI=0x%08x NSAPI=%u: Defragment output PDU %u "
 		"num_seg=%u tot_len=%u\n", sne->lle->llme->tlli, sne->nsapi,
 		sne->defrag.npdu, sne->defrag.highest_seg, sne->defrag.tot_len);
@@ -247,8 +245,6 @@ static int defrag_segments(struct gprs_sndcp_entity *sne, struct llist_head *com
 static int defrag_input(struct gprs_sndcp_entity *sne, struct msgb *msg, uint8_t *hdr,
 			unsigned int len, struct llist_head *comp_entities)
 {
-	printf("===============> defrag_input()\n");
-
 	struct sndcp_common_hdr *sch;
 	struct sndcp_udata_hdr *suh;
 	uint16_t npdu_num;
@@ -622,29 +618,8 @@ int sndcp_llunitdata_ind(struct msgb *msg, struct gprs_llc_lle *lle,
 	/* FIXME: move this RA_ID up to the LLME or even higher */
 	bssgp_parse_cell_id(&sne->ra_id, msgb_bcid(msg));
 
-
-
-	if (scomph && (scomph->pcomp || scomph->dcomp)) {
-		LOGP(DSNDCP, LOGL_ERROR, "We don't support compression yet\n");
-	//	return -EIO;
-	}
-
-	printf("===============> sne->pcomp = %i\n",sne->pcomp);
-
 	if(scomph)
-	{
-		if (scomph->pcomp)
-			printf("===============> HEADER COMPRESSION ON!\n");
-		else
-			printf("===============> HEADER COMPRESSION OFF!\n");
 		sne->pcomp = scomph->pcomp;
-	}
-	else
-		printf("===============> NO scomph!\n");
-	
-
-	printf("===============> sne->pcomp = %i\n",sne->pcomp);
-
 
 	/* any non-first segment is by definition something to defragment
 	 * as is any segment that tells us there are more segments */
@@ -899,9 +874,7 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication, struct gpr
 
 	if(rc >= 0)
 	{
-
-		/* FIXME: Remove debug output */
-		printf("UNMODIFIED:\n");
+		LOGP(DSNDCP, LOGL_DEBUG, "Unmodified SNDCP-XID as received:\n");
 		gprs_sndcp_dump_comp_fields(&comp_fields);
 
 
@@ -939,8 +912,7 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication, struct gpr
 			}
 		}
 
-		/* FIXME: Remove debug output */
-		printf("MODIFIED:\n");
+		LOGP(DSNDCP, LOGL_DEBUG, "Modified version of received SNDCP-XID to be sent back:\n");
 		gprs_sndcp_dump_comp_fields(&comp_fields);
 
 

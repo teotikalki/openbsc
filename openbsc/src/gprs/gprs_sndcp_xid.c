@@ -1266,6 +1266,7 @@ void gprs_sndcp_dump_comp_fields(struct llist_head *comp_fields)
 
 	llist_for_each_entry(comp_field, comp_fields, list) 
 	{
+		LOGP(DSNDCP, LOGL_DEBUG, "SNDCP-XID:\n");
 		LOGP(DSNDCP, LOGL_DEBUG, "struct gprs_sndcp_comp_field {\n");
 		LOGP(DSNDCP, LOGL_DEBUG, "   p=%i;\n",comp_field->p);
 		LOGP(DSNDCP, LOGL_DEBUG, "   entity=%i;\n",comp_field->entity);

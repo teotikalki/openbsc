@@ -32,6 +32,7 @@
 #include <osmocom/core/talloc.h>
 #include <osmocom/gsm/tlv.h>
 
+#include <openbsc/debug.h>
 #include <openbsc/gprs_llc.h>
 #include <openbsc/sgsn.h>
 #include <openbsc/gprs_sndcp_xid.h>
@@ -1080,60 +1081,60 @@ void gprs_sndcp_dump_comp_fields(struct llist_head *comp_fields)
 
 	llist_for_each_entry(comp_field, comp_fields, list) 
 	{
-		printf("struct gprs_sndcp_comp_field {\n");
-		printf("   p=%i;\n",comp_field->p);
-		printf("   entity=%i;\n",comp_field->entity);
-		printf("   algo=%i;\n",comp_field->algo);
-		printf("   comp_len=%i;\n",comp_field->comp_len);
+		LOGP(DSNDCP, LOGL_DEBUG, "struct gprs_sndcp_comp_field {\n");
+		LOGP(DSNDCP, LOGL_DEBUG, "   p=%i;\n",comp_field->p);
+		LOGP(DSNDCP, LOGL_DEBUG, "   entity=%i;\n",comp_field->entity);
+		LOGP(DSNDCP, LOGL_DEBUG, "   algo=%i;\n",comp_field->algo);
+		LOGP(DSNDCP, LOGL_DEBUG, "   comp_len=%i;\n",comp_field->comp_len);
 		if(comp_field->comp_len == 0)
-			printf("   comp[] = NULL;\n");
+			LOGP(DSNDCP, LOGL_DEBUG, "   comp[] = NULL;\n");
 		for(i=0;i<comp_field->comp_len;i++)
-			printf("   comp[%i]=%i;\n",i,comp_field->comp[i]);
+			LOGP(DSNDCP, LOGL_DEBUG, "   comp[%i]=%i;\n",i,comp_field->comp[i]);
 
 		switch(comp_field->algo)
 		{
 			case RFC_1144:
-				printf("   gprs_sndcp_hdrcomp_rfc1144_params {\n");
-				printf("      nsapi_len=%i;\n",comp_field->rfc1144_params->nsapi_len);
+				LOGP(DSNDCP, LOGL_DEBUG, "   gprs_sndcp_hdrcomp_rfc1144_params {\n");
+				LOGP(DSNDCP, LOGL_DEBUG, "      nsapi_len=%i;\n",comp_field->rfc1144_params->nsapi_len);
 				if(comp_field->rfc1144_params->nsapi_len == 0)
-					printf("      nsapi[] = NULL;\n");
+					LOGP(DSNDCP, LOGL_DEBUG, "      nsapi[] = NULL;\n");
 				for(i=0;i<comp_field->rfc1144_params->nsapi_len;i++)
-					printf("      nsapi[%i]=%i;\n",i,comp_field->rfc1144_params->nsapi[i]);
-				printf("      s01=%i;\n",comp_field->rfc1144_params->s01);
-				printf("   }\n");
+					LOGP(DSNDCP, LOGL_DEBUG, "      nsapi[%i]=%i;\n",i,comp_field->rfc1144_params->nsapi[i]);
+				LOGP(DSNDCP, LOGL_DEBUG, "      s01=%i;\n",comp_field->rfc1144_params->s01);
+				LOGP(DSNDCP, LOGL_DEBUG, "   }\n");
 			break;
 			case RFC_2507:
-				printf("   gprs_sndcp_hdrcomp_rfc2507_params {\n");
-				printf("      nsapi_len=%i;\n",comp_field->rfc2507_params->nsapi_len);
+				LOGP(DSNDCP, LOGL_DEBUG, "   gprs_sndcp_hdrcomp_rfc2507_params {\n");
+				LOGP(DSNDCP, LOGL_DEBUG, "      nsapi_len=%i;\n",comp_field->rfc2507_params->nsapi_len);
 				if(comp_field->rfc2507_params->nsapi_len == 0)
-					printf("      nsapi[] = NULL;\n");
+					LOGP(DSNDCP, LOGL_DEBUG, "      nsapi[] = NULL;\n");
 				for(i=0;i<comp_field->rfc2507_params->nsapi_len;i++)
-					printf("      nsapi[%i]=%i;\n",i,comp_field->rfc2507_params->nsapi[i]);
-				printf("      f_max_period=%i;\n",comp_field->rfc2507_params->f_max_period);
-				printf("      f_max_time=%i;\n",comp_field->rfc2507_params->f_max_time);
-				printf("      max_header=%i;\n",comp_field->rfc2507_params->max_header);
-				printf("      tcp_space=%i;\n",comp_field->rfc2507_params->tcp_space);
-				printf("      non_tcp_space=%i;\n",comp_field->rfc2507_params->non_tcp_space);
-				printf("   }\n");
+					LOGP(DSNDCP, LOGL_DEBUG, "      nsapi[%i]=%i;\n",i,comp_field->rfc2507_params->nsapi[i]);
+				LOGP(DSNDCP, LOGL_DEBUG, "      f_max_period=%i;\n",comp_field->rfc2507_params->f_max_period);
+				LOGP(DSNDCP, LOGL_DEBUG, "      f_max_time=%i;\n",comp_field->rfc2507_params->f_max_time);
+				LOGP(DSNDCP, LOGL_DEBUG, "      max_header=%i;\n",comp_field->rfc2507_params->max_header);
+				LOGP(DSNDCP, LOGL_DEBUG, "      tcp_space=%i;\n",comp_field->rfc2507_params->tcp_space);
+				LOGP(DSNDCP, LOGL_DEBUG, "      non_tcp_space=%i;\n",comp_field->rfc2507_params->non_tcp_space);
+				LOGP(DSNDCP, LOGL_DEBUG, "   }\n");
 			break;
 			case ROHC:
-				printf("   gprs_sndcp_hdrcomp_rohc_params {\n");
-				printf("      nsapi_len=%i;\n",comp_field->rohc_params->nsapi_len);
+				LOGP(DSNDCP, LOGL_DEBUG, "   gprs_sndcp_hdrcomp_rohc_params {\n");
+				LOGP(DSNDCP, LOGL_DEBUG, "      nsapi_len=%i;\n",comp_field->rohc_params->nsapi_len);
 				if(comp_field->rohc_params->nsapi_len == 0)
-					printf("      nsapi[] = NULL;\n");
+					LOGP(DSNDCP, LOGL_DEBUG, "      nsapi[] = NULL;\n");
 				for(i=0;i<comp_field->rohc_params->nsapi_len;i++)
-					printf("      nsapi[%i]=%i;\n",i,comp_field->rohc_params->nsapi[i]);
-				printf("      max_cid=%i;\n",comp_field->rohc_params->max_cid);
-				printf("      max_header=%i;\n",comp_field->rohc_params->max_header);
+					LOGP(DSNDCP, LOGL_DEBUG, "      nsapi[%i]=%i;\n",i,comp_field->rohc_params->nsapi[i]);
+				LOGP(DSNDCP, LOGL_DEBUG, "      max_cid=%i;\n",comp_field->rohc_params->max_cid);
+				LOGP(DSNDCP, LOGL_DEBUG, "      max_header=%i;\n",comp_field->rohc_params->max_header);
 				if(comp_field->rohc_params->profile_len == 0)
-					printf("      profile[] = NULL;\n");
+					LOGP(DSNDCP, LOGL_DEBUG, "      profile[] = NULL;\n");
 				for(i=0;i<comp_field->rohc_params->profile_len;i++)
-					printf("      profile[%i]=%04x;\n",i,comp_field->rohc_params->profile[i]);
-				printf("   }\n");
+					LOGP(DSNDCP, LOGL_DEBUG, "      profile[%i]=%04x;\n",i,comp_field->rohc_params->profile[i]);
+				LOGP(DSNDCP, LOGL_DEBUG, "   }\n");
 			break;
 		}
-		printf("}\n");
-		printf("\n");
+		LOGP(DSNDCP, LOGL_DEBUG, "}\n");
+		LOGP(DSNDCP, LOGL_DEBUG, "\n");
 	}
 
 }

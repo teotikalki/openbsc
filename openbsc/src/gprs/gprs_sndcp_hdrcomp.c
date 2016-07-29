@@ -36,16 +36,15 @@
 #include <openbsc/sgsn.h>
 #include <openbsc/gprs_sndcp_xid.h>
 #include <openbsc/slhc.h>
+#include <openbsc/debug.h>
 #include <openbsc/gprs_sndcp_comp_entity.h>
 #include <openbsc/gprs_sndcp_hdrcomp.h>
 
 /* Debug options */
 #define GPRS_SNDCP_HDRCOMP_DEBUG 1			/* Enable private debug messages */
-#define GPRS_SNDCP_HDRCOMP_HOLDDOWN_RFC1144 0		/* Artificically hold down RFC1144 compression by only transmitting TYPE_IP packets */
 #define GPRS_SNDCP_HDRCOMP_RFC1144_TEST 0		/* Test RFC1144 implementation (Caution: GPRS_SNDCP_HDRCOMP_BYPASS in .h file has to be set to 1!) */
 #define GPRS_SNDCP_HDRCOMP_RFC1144_TEST_EXITONERR 1	/* Exit immediately in case of RFC1144 test failure */
 
-static struct slcompress *compression_state;	/* FIXME: We need private compression states! */
 
 #if GPRS_SNDCP_HDRCOMP_RFC1144_TEST == 1
 static struct slcompress *test_compression_state_tx = NULL; /* For debug/test only! */
@@ -55,29 +54,53 @@ static int gprs_sndcp_hdrcomp_test_ind(uint8_t *packet, int packet_len); /* For 
 static int gprs_sndcp_hdrcomp_test_req(uint8_t *packet, int packet_len); /* For debug/test only! */
 #endif
 
-/* Initalize rfc1144 header compression */
-void gprs_sndcp_hdrcomp_init_rfc1144(struct gprs_sndcp_comp_entity *comp_entity, int s01)
+/* Initalize header compression */
+int gprs_sndcp_hdrcomp_init(struct gprs_sndcp_comp_entity *comp_entity, struct gprs_sndcp_comp_field *comp_field)
 {
-	printf("gprs_sndcp_hdrcomp_init_rfc1144()\n");
-	comp_entity->status = slhc_init(s01+1, s01+1);
+	/* Note: This function is automatically called from gprs_sndcp_comp_entity.c when a new header compression
+		 entity is created by gprs_sndcp.c */
 
+	if((comp_entity->compclass == SNDCP_XID_PROTOCOL_CONTROL_INFORMATION_COMPRESSION)&&(comp_entity->algo == RFC_1144))
+	{
+		comp_entity->status = slhc_init(comp_field->rfc1144_params->s01+1, comp_field->rfc1144_params->s01+1);
+		LOGP(DSNDCP, LOGL_INFO, "RFC1144 header compression initalized.\n");
+		return 0;
+	}
+	
+	/* Just in case someone tries to initalize an unknown or unsupported header compresson. Since everything
+           is checked during the SNDCP negotiation process, this should never happen! */
+	LOGP(DSNDCP, LOGL_ERROR, "Unknown or unsupported header compression type requested for initalization, could not initalize...\n");
+	return -EINVAL;
 
-	compression_state = slhc_init(s01+1, s01+1);
+}
+
+/* Terminate header compression */
+void gprs_sndcp_hdrcomp_term(struct gprs_sndcp_comp_entity *comp_entity)
+{
+	/* Note: This function is automatically called from gprs_sndcp_comp_entity.c when a header compression
+		 entity is deleted by gprs_sndcp.c */
+
+	if((comp_entity->compclass == SNDCP_XID_PROTOCOL_CONTROL_INFORMATION_COMPRESSION)&&(comp_entity->algo == RFC_1144))
+	{
+		if(comp_entity->status)
+		{
+			slhc_free((struct slcompress*) comp_entity->status);
+			comp_entity->status = NULL;
+		}
+		LOGP(DSNDCP, LOGL_INFO, "RFC1144 header compression terminated.\n");
+		return;
+	}
+
+	/* Just in case someone tries to initalize an unknown or unsupported header compresson. Since everything
+           is checked during the SNDCP negotiation process, this should never happen! */
+	LOGP(DSNDCP, LOGL_ERROR, "Unknown or unsupported header compression type requested for termiation, could not initalize...\n");
 }
 
 /* Display compressor status */
-static void gprs_sndcp_hdrcomp_stat(struct slcompress *comp)
+static void gprs_sndcp_hdrcomp_rfc1144_stat(struct slcompress *comp)
 {
-#if GPRS_SNDCP_HDRCOMP_DEBUG == 1
-	printf("gprs_sndcp_hdrcomp_stat(): ");
-	printf("Inbound:  ");
 	slhc_i_status(comp);
-	printf("\n");
-	printf("gprs_sndcp_hdrcomp_stat(): ");
-	printf("Outbound: ");
 	slhc_o_status(comp);
-	printf("\n");
-#endif
 }
 
 /* Compress a packet using Van Jacobson RFC1144 header compression */
@@ -86,19 +109,6 @@ static int gprs_sndcp_hdrcomp_rfc1144_compress(struct slcompress *comp, uint8_t 
 	uint8_t *packet_compressed;
 	uint8_t *packet_compressed_ptr;	/* Not used */
 	int packet_compressed_len;
-
-#if GPRS_SNDCP_HDRCOMP_DEBUG == 1
-		printf("gprs_sndcp_hdrcomp_rfc1144_compress(): packet_len=%i\n",packet_len);
-#endif
-
-#if GPRS_SNDCP_HDRCOMP_HOLDDOWN_RFC1144 == 1
-	/* For debugging purpose only: Never emit compressed or otherwise modified packets,
-           this will cause the compression scheme to stay in its initial state where only 
-           TYPE_IP or UNCOMPRESSESSED_TCP packets can be transmitted */
-	printf("gprs_sndcp_hdrcomp_rfc1144_compress(): holding down compression - packet not touched!\n");
-	*pcomp_index = 0;
-	return packet_len;
-#endif
 
 	/* Reserve some space for to store the compression result */
 	packet_compressed = talloc_zero_size(NULL,packet_len);
@@ -125,13 +135,6 @@ static int gprs_sndcp_hdrcomp_rfc1144_compress(struct slcompress *comp, uint8_t 
 	else
 		*pcomp_index = 0;
 
-
-
-#if GPRS_SNDCP_HDRCOMP_DEBUG == 1
-		printf("gprs_sndcp_hdrcomp_rfc1144_compress(): packet_compressed_len=%i\n",packet_compressed_len);
-		printf("gprs_sndcp_hdrcomp_rfc1144_compress(): pcomp_index=%i\n",*pcomp_index);
-#endif
-
 	return packet_compressed_len;
 }
 
@@ -141,27 +144,22 @@ static int gprs_sndcp_hdrcomp_rfc1144_expand(struct slcompress *comp, uint8_t *p
 	int packet_decompressed_len;
 	int type = -1;
 
+	/* Note: this function should never be called with pcomp_index=0, since this condition is already filtered
+		 out by gprs_sndcp_hdrcomp_expand() */
+
 	/* Determine the packet type by the PCOMP index */
 	switch(pcomp_index)
 	{
-		case 0: type = SL_TYPE_IP;
-		break;
 		case 1: type = SL_TYPE_UNCOMPRESSED_TCP;
 		break;
 		case 2: type = SL_TYPE_COMPRESSED_TCP;
 		break;
 	}
 
-#if GPRS_SNDCP_HDRCOMP_DEBUG == 1
-		printf("gprs_sndcp_hdrcomp_rfc1144_expand(): pcomp_index=%i\n",pcomp_index);
-#endif
-
 	/* Restore the original version nibble on marked uncompressed packets */
 	if(type == SL_TYPE_UNCOMPRESSED_TCP)
 	{
-#if GPRS_SNDCP_HDRCOMP_DEBUG == 1
-		printf("gprs_sndcp_hdrcomp_rfc1144_expand(): Received unconmpressed packet\n");
-#endif
+		LOGP(DSNDCP, LOGL_INFO, "Uncompressed rfc1144 packet received...\n");
 		packet[0] &= 0x4F;	/* Just in case the phone tags uncompressed tcp-packets 
 					   (normally this is handled by pcomp so there is no need for tagging the packets) */
 		packet_decompressed_len = slhc_remember(comp, packet, packet_len);
@@ -171,23 +169,14 @@ static int gprs_sndcp_hdrcomp_rfc1144_expand(struct slcompress *comp, uint8_t *p
 	/* Uncompress compressed packets */
 	else if(type == SL_TYPE_COMPRESSED_TCP)
 	{
-#if GPRS_SNDCP_HDRCOMP_DEBUG == 1
-		printf("gprs_sndcp_hdrcomp_rfc1144_expand(): Received compressed packet\n");
-#endif
+		LOGP(DSNDCP, LOGL_INFO, "Compressed rfc1144 packet received...\n");
 		packet_decompressed_len = slhc_uncompress(comp, packet, packet_len);
 		return  packet_decompressed_len;
 	}
 
+
 	/* Regular or unknown packets will not be touched */
-	else
-	{
-#if GPRS_SNDCP_HDRCOMP_DEBUG == 1
-		printf("gprs_sndcp_hdrcomp_rfc1144_expand(): Received transparent packet\n");
-#endif
-		return packet_len;
-	}
-
-
+	return packet_len;
 }
 
 
@@ -195,110 +184,79 @@ static int gprs_sndcp_hdrcomp_rfc1144_expand(struct slcompress *comp, uint8_t *p
 int gprs_sndcp_hdrcomp_expand(uint8_t *packet, int packet_len, int pcomp, struct llist_head *comp_entities)
 {
 	int rc;
-	/* FIXME: The pcomp value can be anything from 1-15, it has to 
-                  be dispatched correctly, for testing we just pass it to
-                  the decompressor because we choose matching pcomp
-                  values */
+	int pcomp_index = 0;
+	struct gprs_sndcp_comp_entity *comp_entity;
+
+	/* Skip on pcomp=0 */
+	if(pcomp == 0)
+	{
+		LOGP(DSNDCP, LOGL_INFO, "Uncompressed packet received (pcomp=0), skipping compression...\n");
+		return packet_len;
+	}
+
+	/* Find out which compression entity handles the packet */
+	comp_entity = gprs_sndcp_comp_entity_find_by_comp(comp_entities, pcomp);
+
+	/* Skip compression if no suitable compression entity can be found! */
+	if(comp_entity == NULL)
+	{
+		LOGP(DSNDCP, LOGL_ERROR, "Compressed packet received (pcomp=%i) but no suitable compression entity found, skipping compression...\n",pcomp);
+		return packet_len;
+	}
+
+	/* Find pcomp_index */
+	pcomp_index = gprs_sndcp_comp_entity_find_comp_index_by_comp(comp_entity, pcomp);
 
 #if GPRS_SNDCP_HDRCOMP_RFC1144_TEST == 1
-	printf("gprs_sndcp_hdrcomp_expand(): testing compression...!\n");
+	/* Test mode */
+	LOGP(DSNDCP, LOGL_INFO, "gprs_sndcp_hdrcomp_expand(): testing compression...!\n");
 	rc = gprs_sndcp_hdrcomp_test_ind(packet, packet_len);
-
-#elif GPRS_SNDCP_HDRCOMP_BYPASS == 1
-	/* Compression bypass */
-	printf("gprs_sndcp_hdrcomp_expand(): bypassing compression - packet not touched!\n");
-	rc = packet_len;
 #else
 	/* Normal operation: */
-	rc = gprs_sndcp_hdrcomp_rfc1144_expand(compression_state, packet, packet_len, pcomp);
-	printf("gprs_sndcp_hdrcomp_expand(): pcomp=%i\n",pcomp);
-	printf("gprs_sndcp_hdrcomp_expand(): rc=%i\n",rc);
-	gprs_sndcp_hdrcomp_stat(compression_state);
+	rc = gprs_sndcp_hdrcomp_rfc1144_expand((struct slcompress*) comp_entity->status, packet, packet_len, pcomp_index);
+	gprs_sndcp_hdrcomp_rfc1144_stat((struct slcompress*) comp_entity->status);
 #endif
 
+	LOGP(DSNDCP, LOGL_DEBUG, "Header expansion done, old length=%i, new length=%i, pcomp=%i, pcomp_index=%i\n",packet_len,rc,pcomp,pcomp_index);
 	return rc;
 }
+
 
 /* Expand header compressed packet */
 int gprs_sndcp_hdrcomp_compress(uint8_t *packet, int packet_len, int *pcomp, struct llist_head *comp_entities, int nsapi)
 {
 	int rc;
-	/* FIXME: The pcomp value can be anything from 1-15, it has to 
-                  be dispatched correctly, for testing we just pass it to
-                  the decompressor because we choose matching pcomp
-                  values */
+	int pcomp_index = 0;
+	struct gprs_sndcp_comp_entity *comp_entity;
+
+	/* Find out which compression entity handles the packet */
+	comp_entity = gprs_sndcp_comp_entity_find_by_nsapi(comp_entities, nsapi);
+
+	/* Skip compression if no suitable compression entity can be found! */
+	if(comp_entity == NULL)
+	{
+		LOGP(DSNDCP, LOGL_INFO, "No suitable compression entity found for nsapi %i, skipping compression...\n",nsapi);
+		*pcomp = 0;
+		return packet_len;
+	}
 
 #if GPRS_SNDCP_HDRCOMP_RFC1144_TEST == 1
-	printf("gprs_sndcp_hdrcomp_expand(): testing compression...!\n");
+	LOGP(DSNDCP, LOGL_INFO, "gprs_sndcp_hdrcomp_expand(): testing compression...!\n");
 	rc = gprs_sndcp_hdrcomp_test_req(packet, packet_len);
 	*pcomp=0;
 	return rc;
-
-#elif GPRS_SNDCP_HDRCOMP_BYPASS == 1
-	/* Compression bypass */
-	printf("gprs_sndcp_hdrcomp_compress(): bypassing compression - packet not touched!\n");
-	*pcomp = 0;
-	rc = packet_len;
 #else
 	/* Normal operation: */
-	rc = gprs_sndcp_hdrcomp_rfc1144_compress(compression_state, packet, packet_len, pcomp);
-	printf("gprs_sndcp_hdrcomp_compress(): pcomp=%i\n",*pcomp);
-	printf("gprs_sndcp_hdrcomp_compress(): rc=%i\n",rc);
-	gprs_sndcp_hdrcomp_stat(compression_state);
+	rc = gprs_sndcp_hdrcomp_rfc1144_compress((struct slcompress*) comp_entity->status, packet, packet_len, &pcomp_index);
+	gprs_sndcp_hdrcomp_rfc1144_stat((struct slcompress*) comp_entity->status);
 #endif
 
+	/* Find pcomp value */
+	*pcomp = gprs_sndcp_comp_entity_find_comp_by_comp_index(comp_entity, pcomp_index);
+
+	LOGP(DSNDCP, LOGL_DEBUG, "Header compression done, old length=%i, new length=%i, pcomp=%i, pcomp_index=%i\n",packet_len,rc,*pcomp,pcomp_index);
 	return rc;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -345,7 +303,7 @@ static int gprs_sndcp_hdrcomp_test_check_packet(uint8_t *packet, uint8_t *packet
 
 	if(packet_len != packet_len_uncompressed)
 	{
-		printf("prs_sndcp_hdrcomp_test_check_packet(): Error: Packet length mismatch!\n");
+		LOGP(DSNDCP, LOGL_INFO, "prs_sndcp_hdrcomp_test_check_packet(): Error: Packet length mismatch!\n");
 #if GPRS_SNDCP_HDRCOMP_RFC1144_TEST_EXITONERR == 1
 		exit(1);
 #endif
@@ -355,21 +313,21 @@ static int gprs_sndcp_hdrcomp_test_check_packet(uint8_t *packet, uint8_t *packet
 	/* Check packet integrety */
 	if(memcmp(packet,packet_backup,packet_len))
 	{
-		printf("prs_sndcp_hdrcomp_test_check_packet(): Warning: Packet content!\n");
-		printf("prs_sndcp_hdrcomp_test_check_packet(): %s\n",osmo_hexdump_nospc(packet_backup,80));
-		printf("prs_sndcp_hdrcomp_test_check_packet(): %s\n",osmo_hexdump_nospc(packet,80));
+		LOGP(DSNDCP, LOGL_INFO, "prs_sndcp_hdrcomp_test_check_packet(): Warning: Packet content!\n");
+		LOGP(DSNDCP, LOGL_INFO, "prs_sndcp_hdrcomp_test_check_packet(): %s\n",osmo_hexdump_nospc(packet_backup,80));
+		LOGP(DSNDCP, LOGL_INFO, "prs_sndcp_hdrcomp_test_check_packet(): %s\n",osmo_hexdump_nospc(packet,80));
 
 		checksum = header_checksum(packet,5);
-		printf("prs_sndcp_hdrcomp_test_check_packet():  %04x\n",checksum);
+		LOGP(DSNDCP, LOGL_INFO, "prs_sndcp_hdrcomp_test_check_packet():  %04x\n",checksum);
 
 		if(checksum == 0x0000)
 		{
-			printf("prs_sndcp_hdrcomp_test_check_packet(): Checksum looks good!\n");
+			LOGP(DSNDCP, LOGL_INFO, "prs_sndcp_hdrcomp_test_check_packet(): Checksum looks good!\n");
 			
 			if(memcmp(packet+20,packet_backup+20,packet_len-20))
 				test_errors++;
 			else
-				printf("prs_sndcp_hdrcomp_test_check_packet(): Packet looks also good!\n");
+				LOGP(DSNDCP, LOGL_INFO, "prs_sndcp_hdrcomp_test_check_packet(): Packet looks also good!\n");
 		}	
 		else
 		{
@@ -397,22 +355,22 @@ static int gprs_sndcp_hdrcomp_test_ind(uint8_t *packet, int packet_len)
 	if(test_compression_state_rx == NULL)
 		test_compression_state_rx = slhc_init(8, 8);
 
-	printf("gprs_sndcp_hdrcomp_test_ind(): packet_len=%i\n",packet_len);
+	LOGP(DSNDCP, LOGL_INFO, "gprs_sndcp_hdrcomp_test_ind(): packet_len=%i\n",packet_len);
 	packet_backup = talloc_zero_size(NULL,packet_len);
 	memcpy(packet_backup,packet,packet_len);
 
-	printf("gprs_sndcp_hdrcomp_test_ind(): IND:          %s\n",osmo_hexdump_nospc(packet,packet_len));
+	LOGP(DSNDCP, LOGL_INFO, "gprs_sndcp_hdrcomp_test_ind(): IND:          %s\n",osmo_hexdump_nospc(packet,packet_len));
 	packet_len_compressed = gprs_sndcp_hdrcomp_rfc1144_compress(test_compression_state_rx, packet, packet_len, &pcomp);
-	printf("gprs_sndcp_hdrcomp_test_ind(): IND (COMP):   %s\n",osmo_hexdump_nospc(packet,packet_len_compressed));
+	LOGP(DSNDCP, LOGL_INFO, "gprs_sndcp_hdrcomp_test_ind(): IND (COMP):   %s\n",osmo_hexdump_nospc(packet,packet_len_compressed));
 	packet_len_uncompressed = gprs_sndcp_hdrcomp_rfc1144_expand(test_compression_state_tx, packet, packet_len_compressed, pcomp);
-	printf("gprs_sndcp_hdrcomp_test_ind(): IND (DECOMP): %s\n",osmo_hexdump_nospc(packet,packet_len_uncompressed));
-	printf("gprs_sndcp_hdrcomp_test_ind(): packet_len=%i   packet_len_compressed=%i   packet_len_uncompressed=%i\n",packet_len, packet_len_compressed,packet_len_uncompressed);
+	LOGP(DSNDCP, LOGL_INFO, "gprs_sndcp_hdrcomp_test_ind(): IND (DECOMP): %s\n",osmo_hexdump_nospc(packet,packet_len_uncompressed));
+	LOGP(DSNDCP, LOGL_INFO, "gprs_sndcp_hdrcomp_test_ind(): packet_len=%i   packet_len_compressed=%i   packet_len_uncompressed=%i\n",packet_len, packet_len_compressed,packet_len_uncompressed);
 
 	gprs_sndcp_hdrcomp_test_check_packet(packet,packet_backup,packet_len,packet_len_uncompressed);
 	talloc_free(packet_backup);
-	gprs_sndcp_hdrcomp_stat(test_compression_state_rx);
-	gprs_sndcp_hdrcomp_stat(test_compression_state_tx);
-	printf("gprs_sndcp_hdrcomp_test_ind(): Test errors: %i\n",test_errors);
+	gprs_sndcp_hdrcomp_rfc1144_stat(test_compression_state_rx);
+	gprs_sndcp_hdrcomp_rfc1144_stat(test_compression_state_tx);
+	LOGP(DSNDCP, LOGL_INFO, "gprs_sndcp_hdrcomp_test_ind(): Test errors: %i\n",test_errors);
 	return packet_len;
 }
 
@@ -429,22 +387,22 @@ static int gprs_sndcp_hdrcomp_test_req(uint8_t *packet, int packet_len)
 	if(test_compression_state_rx == NULL)
 		test_compression_state_rx = slhc_init(8, 8);
 
-	printf("gprs_sndcp_hdrcomp_test_req(): packet_len=%i\n",packet_len);
+	LOGP(DSNDCP, LOGL_INFO, "gprs_sndcp_hdrcomp_test_req(): packet_len=%i\n",packet_len);
 	packet_backup = talloc_zero_size(NULL,packet_len);
 	memcpy(packet_backup,packet,packet_len);
 
-	printf("gprs_sndcp_hdrcomp_test_req(): REQ:          %s\n",osmo_hexdump_nospc(packet,packet_len));
+	LOGP(DSNDCP, LOGL_INFO, "gprs_sndcp_hdrcomp_test_req(): REQ:          %s\n",osmo_hexdump_nospc(packet,packet_len));
 	packet_len_compressed = gprs_sndcp_hdrcomp_rfc1144_compress(test_compression_state_tx, packet, packet_len,&pcomp);
-	printf("gprs_sndcp_hdrcomp_test_req(): REQ (COMP):   %s\n",osmo_hexdump_nospc(packet,packet_len_compressed));
+	LOGP(DSNDCP, LOGL_INFO, "gprs_sndcp_hdrcomp_test_req(): REQ (COMP):   %s\n",osmo_hexdump_nospc(packet,packet_len_compressed));
 	packet_len_uncompressed = gprs_sndcp_hdrcomp_rfc1144_expand(test_compression_state_rx, packet, packet_len_compressed,pcomp);
-	printf("gprs_sndcp_hdrcomp_test_req(): REQ (DECOMP): %s\n",osmo_hexdump_nospc(packet,packet_len_uncompressed));
-	printf("gprs_sndcp_hdrcomp_test_req(): packet_len=%i   packet_len_compressed=%i   packet_len_uncompressed=%i\n",packet_len, packet_len_compressed,packet_len_uncompressed);
+	LOGP(DSNDCP, LOGL_INFO, "gprs_sndcp_hdrcomp_test_req(): REQ (DECOMP): %s\n",osmo_hexdump_nospc(packet,packet_len_uncompressed));
+	LOGP(DSNDCP, LOGL_INFO, "gprs_sndcp_hdrcomp_test_req(): packet_len=%i   packet_len_compressed=%i   packet_len_uncompressed=%i\n",packet_len, packet_len_compressed,packet_len_uncompressed);
 
 	gprs_sndcp_hdrcomp_test_check_packet(packet,packet_backup,packet_len,packet_len_uncompressed);
 	talloc_free(packet_backup);
-	gprs_sndcp_hdrcomp_stat(test_compression_state_rx);
-	gprs_sndcp_hdrcomp_stat(test_compression_state_tx);
-	printf("gprs_sndcp_hdrcomp_test_ind(): Test errors: %i\n",test_errors);
+	gprs_sndcp_hdrcomp_rfc1144_stat(test_compression_state_rx);
+	gprs_sndcp_hdrcomp_rfc1144_stat(test_compression_state_tx);
+	LOGP(DSNDCP, LOGL_INFO, "gprs_sndcp_hdrcomp_test_ind(): Test errors: %i\n",test_errors);
 	return packet_len;
 }
 

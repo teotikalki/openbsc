@@ -46,8 +46,12 @@ struct gprs_sndcp_hdrcomp_compression_entity {
 	void *status;		/* Algorithm status and parameters */
 };
 
-/* Initalize rfc1144 header compression */
-void gprs_sndcp_hdrcomp_init_rfc1144(struct gprs_sndcp_comp_entity *comp_entity, int s01);
+
+/* Initalize header compression */
+int gprs_sndcp_hdrcomp_init(struct gprs_sndcp_comp_entity *comp_entity, struct gprs_sndcp_comp_field *comp_field);
+
+/* Terminate header compression */
+void gprs_sndcp_hdrcomp_term(struct gprs_sndcp_comp_entity *comp_entity);
 
 /* Expand header compressed packet */
 int gprs_sndcp_hdrcomp_expand(uint8_t *packet, int packet_len, int pcomp, struct llist_head *comp_entities);

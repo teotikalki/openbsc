@@ -39,6 +39,9 @@
 #include <openbsc/gprs_llc_xid.h>
 #include <openbsc/crc24.h>
 #include <openbsc/sgsn.h>
+#include <openbsc/gprs_sndcp.h>
+#include <openbsc/gprs_sndcp_comp_entity.h>
+
 
 static struct gprs_llc_llme *llme_alloc(uint32_t tlli);
 static int gprs_llc_tx_u(struct msgb *msg, uint8_t sapi, int command, enum gprs_llc_u_cmd u_cmd, int pf_bit);
@@ -525,8 +528,8 @@ static struct gprs_llc_llme *llme_alloc(uint32_t tlli)
 
 static void llme_free(struct gprs_llc_llme *llme)
 {
-	gprs_sndcp_comp_entities_free(llme->protocol_conpression_entities);
-	gprs_sndcp_comp_entities_free(llme->data_conpression_entities);
+	gprs_sndcp_comp_entities_free(&llme->protocol_conpression_entities);
+	gprs_sndcp_comp_entities_free(&llme->data_conpression_entities);
 
 	llist_del(&llme->list);
 	talloc_free(llme);

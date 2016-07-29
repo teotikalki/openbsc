@@ -25,6 +25,7 @@
 
 #include <stdint.h>
 #include <osmocom/core/linuxlist.h>
+#include <openbsc/gprs_sndcp_xid.h>
 
 /* Header / Data compression entity */
 struct gprs_sndcp_comp_entity {
@@ -62,7 +63,7 @@ struct gprs_sndcp_comp_entity *gprs_sndcp_comp_entity_find_by_entity(struct llis
 /* Find which compression entity handles the specified pcomp/dcomp */
 struct gprs_sndcp_comp_entity *gprs_sndcp_comp_entity_find_by_comp(struct llist_head *comp_entities, int comp);
 
-/* Find which compression entity handles the specified pcomp/dcomp */
+/* Find which compression entity handles the specified nsapi */
 struct gprs_sndcp_comp_entity *gprs_sndcp_comp_entity_find_by_nsapi(struct llist_head *comp_entities, int nsapi);
 
 /* Find a comp_index for a given pcomp/dcomp value */

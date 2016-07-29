@@ -58,8 +58,7 @@
 #include <osmocom/core/utils.h>
 #include <osmocom/core/talloc.h>
 #include <openbsc/slhc.h>
-
-#define SLHC_DEBUG 1	/* Enable private debug messages */
+#include <openbsc/debug.h>
 
 static uint8_t *encode(uint8_t *cp, uint16_t n);
 static long decode(uint8_t **cpp);
@@ -159,12 +158,15 @@ out_free:
 	talloc_free((uint8_t *)comp);
 out_fail:
 
+
 	return NULL;
 }
 
 /* Free a compression data structure */
 void slhc_free(struct slcompress *comp)
 {
+	LOGP(DSLHC, LOGL_DEBUG, "slhc_free(): Freeing compression states...\n");
+
 	if ( comp == NULLSLCOMPR )
 		return;
 
@@ -259,9 +261,7 @@ int slhc_compress(struct slcompress *comp, uint8_t *icp, int isize, uint8_t *ocp
 			comp->sls_o_nontcp++;
 		else
 			comp->sls_o_tcp++;
-#if SLHC_DEBUG == 1
-		printf("slhc_compress(): Not a TCP packat, will not touch...\n");
-#endif
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): Not a TCP packat, will not touch...\n");
 		return isize;
 	}
 
@@ -277,9 +277,7 @@ int slhc_compress(struct slcompress *comp, uint8_t *icp, int isize, uint8_t *ocp
 	    ! (th->ack)){
 		/* TCP connection stuff; send as regular IP */
 		comp->sls_o_tcp++;
-#if SLHC_DEBUG == 1
-		printf("slhc_compress(): Packet is part of a TCP connection, will not touch...\n");
-#endif
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): Packet is part of a TCP connection, will not touch...\n");
 		return isize;
 	}
 
@@ -298,9 +296,7 @@ int slhc_compress(struct slcompress *comp, uint8_t *icp, int isize, uint8_t *ocp
 	 * for the datagram, the oldest state is (re-)used.
 	 */
 
-#if SLHC_DEBUG == 1
-		printf("slhc_compress(): Compressible packet detected!\n");
-#endif
+	LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): Compressible packet detected!\n");
 
 	for ( ; ; ) {
 		if( ip->saddr == cs->cs_ip.saddr
@@ -326,18 +322,13 @@ int slhc_compress(struct slcompress *comp, uint8_t *icp, int isize, uint8_t *ocp
 	 * xmit_oldest to update the lru linkage.
 	 */
 
-#if SLHC_DEBUG == 1
-		printf("slhc_compress(): Header not yet seen, will memorize header for the next turn...\n");
-#endif
+	LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): Header not yet seen, will memorize header for the next turn...\n");
 	comp->sls_o_misses++;
 	comp->xmit_oldest = lcs->cs_this;
 	goto uncompressed;
 
 found:
-
-#if SLHC_DEBUG == 1
-		printf("slhc_compress(): Header already seen, trying to compress...\n");
-#endif
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): Header already seen, trying to compress...\n");
 	/*
 	 * Found it -- move to the front on the connection list.
 	 */
@@ -375,9 +366,7 @@ found:
 	 || th->doff != cs->cs_tcp.doff
 	 || (ip->ihl > 5 && memcmp(ip+1,cs->cs_ipopt,((ip->ihl)-5)*4) != 0)
 	 || (th->doff > 5 && memcmp(th+1,cs->cs_tcpopt,((th->doff)-5)*4) != 0)){
-#if SLHC_DEBUG == 1
-		printf("slhc_compress(): The header contains unexpected changes, can't compress...\n");
-#endif
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): The header contains unexpected changes, can't compress...\n");
 		goto uncompressed;
 	}
 
@@ -396,9 +385,7 @@ found:
 		 * implementation should never do this but RFC793
 		 * doesn't prohibit the change so we have to deal
 		 * with it. */
-#if SLHC_DEBUG == 1
-		printf("slhc_compress(): URG not set but urp changed, can't compress...\n");
-#endif
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): URG not set but urp changed, can't compress...\n");
 		goto uncompressed;
 	}
 	if((deltaS = ntohs(th->window) - ntohs(oth->window)) != 0){
@@ -408,9 +395,7 @@ found:
 	if((deltaA = ntohl(th->ack_seq) - ntohl(oth->ack_seq)) != 0L){
 		if(deltaA > 0x0000ffff)
 		{
-#if SLHC_DEBUG == 1
-			printf("slhc_compress(): (deltaA = ntohl(th->ack_seq) - ntohl(oth->ack_seq)) != 0L, can't compress...\n");
-#endif
+			LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): (deltaA = ntohl(th->ack_seq) - ntohl(oth->ack_seq)) != 0L, can't compress...\n");
 			goto uncompressed;
 		}
 		cp = encode(cp,deltaA);
@@ -419,9 +404,7 @@ found:
 	if((deltaS = ntohl(th->seq) - ntohl(oth->seq)) != 0L){
 		if(deltaS > 0x0000ffff)
 		{
-#if SLHC_DEBUG == 1
-		printf("slhc_compress(): (deltaS = ntohl(th->seq) - ntohl(oth->seq)) != 0L, can't compress...\n");
-#endif
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): (deltaS = ntohl(th->seq) - ntohl(oth->seq)) != 0L, can't compress...\n");
 			goto uncompressed;
 		}
 		cp = encode(cp,deltaS);
@@ -439,9 +422,7 @@ found:
 		if(ip->tot_len != cs->cs_ip.tot_len &&
 		   ntohs(cs->cs_ip.tot_len) == hlen)
 			break;
-#if SLHC_DEBUG == 1
-		printf("slhc_compress(): Retransmitted packet detected, can't compress...\n");
-#endif
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): Retransmitted packet detected, can't compress...\n");
 		goto uncompressed;
 		break;
 	case SPECIAL_I:
@@ -449,9 +430,7 @@ found:
 		/* actual changes match one of our special case encodings --
 		 * send packet uncompressed.
 		 */
-#if SLHC_DEBUG == 1
-		printf("slhc_compress(): Special case detected, can't compress...\n");
-#endif
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): Special case detected, can't compress...\n");
 		goto uncompressed;
 	case NEW_S|NEW_A:
 		if(deltaS == deltaA &&
@@ -512,9 +491,7 @@ found:
 	 * to use on future compressed packets in the protocol field).
 	 */
 uncompressed:
-#if SLHC_DEBUG == 1
-	printf("slhc_compress(): Packet will be sent uncompressed...\n");
-#endif
+	LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): Packet will be sent uncompressed...\n");
 	memcpy(&cs->cs_ip,ip,20);
 	memcpy(&cs->cs_tcp,th,20);
 	if (ip->ihl > 5)
@@ -587,9 +564,8 @@ int slhc_uncompress(struct slcompress *comp, uint8_t *icp, int isize)
 
 	switch(changes & SPECIALS_MASK){
 	case SPECIAL_I:		/* Echoed terminal traffic */
-#if SLHC_DEBUG == 1
-		printf("slhc_uncompress(): Echoed terminal traffic detected\n");
-#endif
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_uncompress(): Echoed terminal traffic detected\n");
+
 		{
 		register short i;
 		i = ntohs(ip->tot_len) - hdrlen;
@@ -599,17 +575,13 @@ int slhc_uncompress(struct slcompress *comp, uint8_t *icp, int isize)
 		break;
 
 	case SPECIAL_D:			/* Unidirectional data */
-#if SLHC_DEBUG == 1
-		printf("slhc_uncompress(): Unidirectional data detected\n");
-#endif
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_uncompress(): Unidirectional data detected\n");
 		thp->seq = htonl( ntohl(thp->seq) +
 				  ntohs(ip->tot_len) - hdrlen);
 		break;
 
 	default:
-#if SLHC_DEBUG == 1
-		printf("slhc_uncompress(): default packet type detected\n");
-#endif
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_uncompress(): default packet type detected\n");
 		if(changes & NEW_U){
 			thp->urg = 1;
 			if((x = decode(&cp)) == -1) {
@@ -659,9 +631,7 @@ int slhc_uncompress(struct slcompress *comp, uint8_t *icp, int isize)
 	ip->tot_len = htons(len);
 	ip->check = 0;
 
-#if SLHC_DEBUG == 1
-	printf("slhc_uncompress(): making space for the reconstructed header...\n");
-#endif
+	LOGP(DSLHC, LOGL_DEBUG, "slhc_uncompress(): making space for the reconstructed header...\n");
 	memmove(icp + hdrlen, cp, len - hdrlen);
 
 	cp = icp;
@@ -685,9 +655,7 @@ int slhc_uncompress(struct slcompress *comp, uint8_t *icp, int isize)
 
 	return len;
 bad:
-#if SLHC_DEBUG == 1
-	printf("slhc_uncompress(): bad packet detected!\n");
-#endif
+	LOGP(DSLHC, LOGL_DEBUG, "slhc_uncompress(): bad packet detected!\n");
 	comp->sls_i_error++;
 	return slhc_toss( comp );
 }
@@ -704,9 +672,7 @@ int slhc_remember(struct slcompress *comp, uint8_t *icp, int isize)
 	if(isize < 20) {
 		/* The packet is shorter than a legal IP header */
 		comp->sls_i_runt++;
-#if SLHC_DEBUG == 1
-		printf("slhc_remember(): The packet is shorter than a legal IP header ==> slhc_toss()\n");
-#endif
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_remember(): The packet is shorter than a legal IP header ==> slhc_toss()\n");
 		return slhc_toss( comp );
 	}
 	/* Peek at the IP header's IHL field to find its length */
@@ -714,9 +680,7 @@ int slhc_remember(struct slcompress *comp, uint8_t *icp, int isize)
 	if(ihl < 20 / 4){
 		/* The IP header length field is too small */
 		comp->sls_i_runt++;
-#if SLHC_DEBUG == 1
-		printf("slhc_remember(): The IP header length field is too small ==> slhc_toss()\n");
-#endif
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_remember(): The IP header length field is too small ==> slhc_toss()\n");
 		return slhc_toss( comp );
 	}
 
@@ -727,16 +691,12 @@ int slhc_remember(struct slcompress *comp, uint8_t *icp, int isize)
 	if (checksum) {
 		/* Bad IP header checksum; discard */
 		comp->sls_i_badcheck++;
-#if SLHC_DEBUG == 1
-		printf("slhc_remember(): Bad IP header checksum; discard ==> slhc_toss()\n");
-#endif
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_remember(): Bad IP header checksum; discard ==> slhc_toss()\n");
 		return slhc_toss( comp );
 	}
 	if(index > comp->rslot_limit) {
 		comp->sls_i_error++;
-#if SLHC_DEBUG == 1
-		printf("slhc_remember(): index > comp->rslot_limit ==> slhc_toss()\n");
-#endif
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_remember(): index > comp->rslot_limit ==> slhc_toss()\n");
 		return slhc_toss(comp);
 	}
 
@@ -759,9 +719,7 @@ int slhc_remember(struct slcompress *comp, uint8_t *icp, int isize)
 
 int slhc_toss(struct slcompress *comp)
 {
-#if SLHC_DEBUG == 1
-		printf("slhc_toss(): Reset compression state...\n");
-#endif
+	LOGP(DSLHC, LOGL_DEBUG, "slhc_toss(): Reset compression state...\n");
 	if ( comp == NULLSLCOMPR )
 		return 0;
 
@@ -772,7 +730,7 @@ int slhc_toss(struct slcompress *comp)
 void slhc_i_status(struct slcompress *comp)
 {
 	if (comp != NULLSLCOMPR) {
-		printf("%d Cmp, %d Uncmp, %d Bad, %d Tossed",
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_i_status(): %d Cmp, %d Uncmp, %d Bad, %d Tossed\n",
 			comp->sls_i_compressed,
 			comp->sls_i_uncompressed,
 			comp->sls_i_error,
@@ -783,12 +741,11 @@ void slhc_i_status(struct slcompress *comp)
 void slhc_o_status(struct slcompress *comp)
 {
 	if (comp != NULLSLCOMPR) {
-		printf("%d Cmp, %d Uncmp, %d AsIs, %d NotTCP",
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_o_status(): %d Cmp, %d Uncmp, %d AsIs, %d NotTCP %d Searches, %d Misses\n",
 			comp->sls_o_compressed,
 			comp->sls_o_uncompressed,
 			comp->sls_o_tcp,
-			comp->sls_o_nontcp);
-		printf(" %d Searches, %d Misses",
+			comp->sls_o_nontcp,
 			comp->sls_o_searches,
 			comp->sls_o_misses);
 	}

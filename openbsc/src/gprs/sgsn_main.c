@@ -282,6 +282,11 @@ static struct log_info_cat gprs_categories[] = {
 		.description = "GPRS Sub-Network Dependent Control Protocol (SNDCP)",
 		.enabled = 1, .loglevel = LOGL_DEBUG,
 	},
+	[DSLHC] = {
+		.name = "DSLHC",
+		.description = "Van Jacobson RFC1144 TCP/IP header compression (SLHC)",
+		.enabled = 1, .loglevel = LOGL_DEBUG,
+	},
 	[DRANAP] = {
 		.name = "DRANAP",
 		.description = "RAN Application Part (RANAP)",

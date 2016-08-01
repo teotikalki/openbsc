@@ -29,7 +29,7 @@ osmo_sgsn_SOURCES =	gprs_gmm.c gprs_sgsn.c gprs_sndcp.c gprs_sndcp_vty.c \
 			sgsn_ctrl.c sgsn_auth.c gprs_subscriber.c gprs_sndcp_comp_entity.c\
 			gprs_utils.c gprs_gsup_client.c \
 			sgsn_cdr.c sgsn_ares.c \
-			oap.c oap_messages.c
+			oap.c oap_messages.c v42bis.c
 osmo_sgsn_LDADD = 	\
 			$(top_builddir)/src/libcommon/libcommon.a \
 			-lgtp $(OSMO_LIBS) $(LIBOSMOABIS_LIBS) $(LIBCARES_LIBS) \

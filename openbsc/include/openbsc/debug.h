@@ -29,7 +29,6 @@ enum {
 	DBSSGP,
 	DLLC,
 	DSNDCP,
-	DSLHC,
 	DNAT,
 	DCTRL,
 	DSMPP,
@@ -37,6 +36,8 @@ enum {
 	DGTPHUB,
 	DRANAP,
 	DSUA,
+	DSLHC,
+	DV42BIS,
 	Debug_LastEntry,
 };
 

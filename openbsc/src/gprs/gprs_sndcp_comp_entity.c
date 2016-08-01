@@ -35,275 +35,297 @@
 #include <openbsc/gprs_sndcp_hdrcomp.h>
 
 /* Create a new compression entity from a XID-Field */
-static struct gprs_sndcp_comp_entity *gprs_sndcp_comp_entity_create(struct gprs_sndcp_comp_field *comp_field)
+static struct gprs_sndcp_comp_entity *
+gprs_sndcp_comp_entity_create (struct gprs_sndcp_comp_field *comp_field)
 {
 	struct gprs_sndcp_comp_entity *comp_entity;
-	comp_entity = talloc_zero(NULL, struct gprs_sndcp_comp_entity);
+	comp_entity = talloc_zero (NULL, struct gprs_sndcp_comp_entity);
 
 	/* Copy relevant information from the SNDCP-XID field */
-	comp_entity->entity=comp_field->entity;
-	comp_entity->comp_len=comp_field->comp_len;
-	memcpy(comp_entity->comp,comp_field->comp,comp_field->comp_len*sizeof(int));
+	comp_entity->entity = comp_field->entity;
+	comp_entity->comp_len = comp_field->comp_len;
+	memcpy (comp_entity->comp, comp_field->comp,
+		comp_field->comp_len * sizeof (int));
 
-	if(comp_field->rfc1144_params)
-	{
-		comp_entity->nsapi_len = comp_field->rfc1144_params->nsapi_len;
-		memcpy(comp_entity->nsapi,comp_field->rfc1144_params->nsapi,comp_entity->nsapi_len*sizeof(int));
+	if (comp_field->rfc1144_params) {
+		comp_entity->nsapi_len =
+			comp_field->rfc1144_params->nsapi_len;
+		memcpy (comp_entity->nsapi,
+			comp_field->rfc1144_params->nsapi,
+			comp_entity->nsapi_len * sizeof (int));
 	}
-	else if(comp_field->rfc2507_params)
-	{
-		comp_entity->nsapi_len = comp_field->rfc2507_params->nsapi_len;
-		memcpy(comp_entity->nsapi,comp_field->rfc2507_params->nsapi,comp_entity->nsapi_len*sizeof(int));
+	else if (comp_field->rfc2507_params) {
+		comp_entity->nsapi_len =
+			comp_field->rfc2507_params->nsapi_len;
+		memcpy (comp_entity->nsapi,
+			comp_field->rfc2507_params->nsapi,
+			comp_entity->nsapi_len * sizeof (int));
 	}
-	else if(comp_field->rohc_params)
-	{
+	else if (comp_field->rohc_params) {
 		comp_entity->nsapi_len = comp_field->rohc_params->nsapi_len;
-		memcpy(comp_entity->nsapi,comp_field->rohc_params->nsapi,comp_entity->nsapi_len*sizeof(int));
+		memcpy (comp_entity->nsapi, comp_field->rohc_params->nsapi,
+			comp_entity->nsapi_len * sizeof (int));
 	}
-	else if(comp_field->v42bis_params)
-	{
+	else if (comp_field->v42bis_params) {
 		comp_entity->nsapi_len = comp_field->v42bis_params->nsapi_len;
-		memcpy(comp_entity->nsapi,comp_field->v42bis_params->nsapi,comp_entity->nsapi_len*sizeof(int));
+		memcpy (comp_entity->nsapi,
+			comp_field->v42bis_params->nsapi,
+			comp_entity->nsapi_len * sizeof (int));
 	}
-	else if(comp_field->v44_params)
-	{
+	else if (comp_field->v44_params) {
 		comp_entity->nsapi_len = comp_field->v42bis_params->nsapi_len;
-		memcpy(comp_entity->nsapi,comp_field->v42bis_params->nsapi,comp_entity->nsapi_len*sizeof(int));
+		memcpy (comp_entity->nsapi,
+			comp_field->v42bis_params->nsapi,
+			comp_entity->nsapi_len * sizeof (int));
 	}
-	else
-	{
-		talloc_free(comp_entity);
-		LOGP(DSNDCP, LOGL_ERROR, "Comp field contained invalid parameters, compression entity not created!\n");
+	else {
+		talloc_free (comp_entity);
+		LOGP (DSNDCP, LOGL_ERROR,
+		      "Comp field contained invalid parameters, compression entity not created!\n");
 		return NULL;
 	}
 
-	comp_entity->algo=comp_field->algo;
-	comp_entity->status = NULL;	/* To be filled by the caller manually! */
+	comp_entity->algo = comp_field->algo;
+	comp_entity->status = NULL;
 
-	/* Determine of which class our compression entity will be (Protocol or Data compresson ?) */
-	comp_entity->compclass = gprs_sndcp_get_compression_class(comp_field);
+	/* Determine of which class our compression entity will be 
+	   (Protocol or Data compresson ?) */
+	comp_entity->compclass =
+		gprs_sndcp_get_compression_class (comp_field);
 
-	if(comp_entity->compclass == SNDCP_XID_PROTOCOL_CONTROL_INFORMATION_COMPRESSION)
-	{
-		if(gprs_sndcp_hdrcomp_init(comp_entity, comp_field) == 0)
-			LOGP(DSNDCP, LOGL_INFO, "New header compression entity (%i) created.\n",comp_entity->entity);
-		else
-		{
-			talloc_free(comp_entity);
-			LOGP(DSNDCP, LOGL_ERROR, "Header compression entity (%i) creation failed!\n",comp_entity->entity);
+	if (comp_entity->compclass == SNDCP_XID_PROTOCOL_COMPRESSION) {
+		if (gprs_sndcp_hdrcomp_init (comp_entity, comp_field) == 0)
+			LOGP (DSNDCP, LOGL_INFO,
+			      "New header compression entity (%i) created.\n",
+			      comp_entity->entity);
+		else {
+			talloc_free (comp_entity);
+			LOGP (DSNDCP, LOGL_ERROR,
+			      "Header compression entity (%i) creation failed!\n",
+			      comp_entity->entity);
 			return NULL;
 		}
 	}
 	else
-		LOGP(DSNDCP, LOGL_INFO, "New data compression entity (%i) created.\n",comp_entity->entity);
+		LOGP (DSNDCP, LOGL_INFO,
+		      "New data compression entity (%i) created.\n",
+		      comp_entity->entity);
 
 	return comp_entity;
 }
 
-
 /* Free a list with compression entities */
-void gprs_sndcp_comp_entities_free(struct llist_head *comp_entities)
+void
+gprs_sndcp_comp_entities_free (struct llist_head *comp_entities)
 {
-	if(comp_entities)
-	{
+	if (comp_entities) {
 		struct gprs_sndcp_comp_entity *comp_entity;
 
-		llist_for_each_entry(comp_entity, comp_entities, list) 
-		{
+		llist_for_each_entry (comp_entity, comp_entities, list) {
 			/* Free compression entity */
-			if(comp_entity->compclass == SNDCP_XID_PROTOCOL_CONTROL_INFORMATION_COMPRESSION)
-			{
-				LOGP(DSNDCP, LOGL_INFO, "Deleting (free) header compression entity %i ...\n",comp_entity->entity);
-				gprs_sndcp_hdrcomp_term(comp_entity);
+			if (comp_entity->compclass ==
+			    SNDCP_XID_PROTOCOL_COMPRESSION) {
+				LOGP (DSNDCP, LOGL_INFO,
+				      "Deleting (free) header compression entity %i ...\n",
+				      comp_entity->entity);
+				gprs_sndcp_hdrcomp_term (comp_entity);
 			}
 			else
-				LOGP(DSNDCP, LOGL_INFO, "Deleting (free) data compression entity %i ...\n",comp_entity->entity);
+				LOGP (DSNDCP, LOGL_INFO,
+				      "Deleting (free) data compression entity %i ...\n",
+				      comp_entity->entity);
 
-			talloc_free(comp_entity);
+			talloc_free (comp_entity);
 		}
 
 	}
 }
 
-
 /* Delete a compression entity */
-void gprs_sndcp_comp_entities_delete(struct llist_head *comp_entities, int entity)
+void
+gprs_sndcp_comp_entities_delete (struct llist_head *comp_entities, int entity)
 {
 	struct gprs_sndcp_comp_entity *comp_entity;
 	struct gprs_sndcp_comp_entity *comp_entity_to_delete = NULL;
 
-	if(comp_entities)
-	{
+	if (comp_entities) {
 
-		llist_for_each_entry(comp_entity, comp_entities, list) 
-		{
-			if(comp_entity->entity == entity)
+		llist_for_each_entry (comp_entity, comp_entities, list) {
+			if (comp_entity->entity == entity)
 				comp_entity_to_delete = comp_entity;
 		}
 
-		if(comp_entity_to_delete)
-		{
-			if(comp_entity_to_delete->compclass == SNDCP_XID_PROTOCOL_CONTROL_INFORMATION_COMPRESSION)
-			{
-				LOGP(DSNDCP, LOGL_INFO, "Deleting header compression entity %i ...\n",comp_entity_to_delete->entity);
-				gprs_sndcp_hdrcomp_term(comp_entity_to_delete);
+		if (comp_entity_to_delete) {
+			if (comp_entity_to_delete->compclass ==
+			    SNDCP_XID_PROTOCOL_COMPRESSION) {
+				LOGP (DSNDCP, LOGL_INFO,
+				      "Deleting header compression entity %i ...\n",
+				      comp_entity_to_delete->entity);
+				gprs_sndcp_hdrcomp_term
+					(comp_entity_to_delete);
 			}
 			else
-				LOGP(DSNDCP, LOGL_INFO, "Deleting data compression entity %i ...\n",comp_entity_to_delete->entity);
+				LOGP (DSNDCP, LOGL_INFO,
+				      "Deleting data compression entity %i ...\n",
+				      comp_entity_to_delete->entity);
 
 			/* Delete compression entity */
-			llist_del(&comp_entity_to_delete->list);
-			talloc_free(comp_entity_to_delete);
+			llist_del (&comp_entity_to_delete->list);
+			talloc_free (comp_entity_to_delete);
 		}
 	}
 }
 
-
-/* Create and Add a new compression entity (returns a pointer to the compression entity that has just been created) */
-struct gprs_sndcp_comp_entity *gprs_sndcp_comp_entities_add(struct llist_head *comp_entities, struct gprs_sndcp_comp_field *comp_field)
+/* Create and Add a new compression entity
+(returns a pointer to the compression entity that has just been created) */
+struct gprs_sndcp_comp_entity *
+gprs_sndcp_comp_entities_add (struct
+			      llist_head
+			      *comp_entities, struct
+			      gprs_sndcp_comp_field *comp_field)
 {
 	struct gprs_sndcp_comp_entity *comp_entity;
 
-	/* Just to be sure, if the entity is already in the list it will be deleted now */
-	gprs_sndcp_comp_entities_delete(comp_entities, comp_field->entity);
+	/* Just to be sure, if the entity is already in
+	   the list it will be deleted now */
+	gprs_sndcp_comp_entities_delete (comp_entities, comp_field->entity);
 
 	/* Create and add a new entity to the list */
-	comp_entity = gprs_sndcp_comp_entity_create(comp_field);
+	comp_entity = gprs_sndcp_comp_entity_create (comp_field);
 
-	if(comp_entity)
-	{
-		llist_add(&comp_entity->list, comp_entities);
+	if (comp_entity) {
+		llist_add (&comp_entity->list, comp_entities);
 		return comp_entity;
 	}
 
 	return NULL;
 }
 
-
 /* Find compression entity by its entity number */
-struct gprs_sndcp_comp_entity *gprs_sndcp_comp_entity_find_by_entity(struct llist_head *comp_entities, int entity)
+struct gprs_sndcp_comp_entity *
+gprs_sndcp_comp_entity_find_by_entity (struct
+				       llist_head *comp_entities, int entity)
 {
 	struct gprs_sndcp_comp_entity *comp_entity;
 
-	if(comp_entities)
-	{
-		llist_for_each_entry(comp_entity, comp_entities, list) 
-		{
-			if(comp_entity->entity == entity)
+	if (comp_entities) {
+		llist_for_each_entry (comp_entity, comp_entities, list) {
+			if (comp_entity->entity == entity)
 				return comp_entity;
 		}
 	}
 
-	LOGP(DSNDCP, LOGL_ERROR, "Could not find a matching compression entity for given entity number %i.\n",entity);
+	LOGP (DSNDCP, LOGL_ERROR,
+	      "Could not find a matching compression entity for given entity number %i.\n",
+	      entity);
 	return NULL;
 }
 
-
 /* Find which compression entity handles the specified pcomp/dcomp */
-struct gprs_sndcp_comp_entity *gprs_sndcp_comp_entity_find_by_comp(struct llist_head *comp_entities, int comp)
+struct gprs_sndcp_comp_entity *
+gprs_sndcp_comp_entity_find_by_comp (struct
+				     llist_head *comp_entities, int comp)
 {
 	struct gprs_sndcp_comp_entity *comp_entity;
 	int i;
 
-	if(comp_entities)
-	{
-		llist_for_each_entry(comp_entity, comp_entities, list) 
-		{
-			for(i=0;i<comp_entity->comp_len;i++)
-			{
-				if(comp_entity->comp[i] == comp)
+	if (comp_entities) {
+		llist_for_each_entry (comp_entity, comp_entities, list) {
+			for (i = 0; i < comp_entity->comp_len; i++) {
+				if (comp_entity->comp[i] == comp)
 					return comp_entity;
 			}
 		}
 	}
 
-	/* No comp entity für the specified pcomp found - this is an error condition! */
-	LOGP(DSNDCP, LOGL_ERROR, "Could not find a matching compression entity for given pcomp/dcomp value %i.\n",comp);
+	LOGP (DSNDCP, LOGL_ERROR,
+	      "Could not find a matching compression entity for given pcomp/dcomp value %i.\n",
+	      comp);
 	return NULL;
 }
 
 /* Find which compression entity handles the specified nsapi */
-struct gprs_sndcp_comp_entity *gprs_sndcp_comp_entity_find_by_nsapi(struct llist_head *comp_entities, int nsapi)
+struct gprs_sndcp_comp_entity *
+gprs_sndcp_comp_entity_find_by_nsapi (struct
+				      llist_head *comp_entities, int nsapi)
 {
 	struct gprs_sndcp_comp_entity *comp_entity;
 	int i;
 
-	if(comp_entities)
-	{
-		llist_for_each_entry(comp_entity, comp_entities, list) 
-		{
-			for(i=0;i<comp_entity->nsapi_len;i++)
-			{
-				if(comp_entity->nsapi[i] == nsapi)
+	if (comp_entities) {
+		llist_for_each_entry (comp_entity, comp_entities, list) {
+			for (i = 0; i < comp_entity->nsapi_len; i++) {
+				if (comp_entity->nsapi[i] == nsapi)
 					return comp_entity;
 			}
 		}
 
-		/* No comp entity for the specified nsapi found - this is an error condition! */
-		LOGP(DSNDCP, LOGL_ERROR, "Could not find a matching compression entity for given nsapi value %i\n",nsapi);
+		LOGP (DSNDCP, LOGL_ERROR,
+		      "Could not find a matching compression entity for given nsapi value %i\n",
+		      nsapi);
 		return NULL;
 	}
 
-	LOGP(DSNDCP, LOGL_ERROR, "Compression entity list contained null-pointer!\n");
+	LOGP (DSNDCP, LOGL_ERROR,
+	      "Compression entity list contained null-pointer!\n");
 	return NULL;
 }
 
-
 /* Find a comp_index for a given pcomp/dcomp value */
-int gprs_sndcp_comp_entity_find_comp_index_by_comp(struct gprs_sndcp_comp_entity *comp_entity, int comp)
+int
+gprs_sndcp_comp_entity_find_comp_index_by_comp (struct
+						gprs_sndcp_comp_entity
+						*comp_entity, int comp)
 {
 	int i;
 
-	if(comp_entity)
-	{
-		/* A pcomp/dcomp field set to zero always disables all sort of compression and is
-		   assigned fix. So we just return zero in this case */ 
-		if(comp == 0)
+	if (comp_entity) {
+		/* A pcomp/dcomp field set to zero always disables
+		   all sort of compression and is assigned fix. So we
+		   just return zero in this case */
+		if (comp == 0)
 			return 0;
 
 		/* Look in the pcomp/dcomp list for the index */
-		for(i=0;i<comp_entity->comp_len;i++)
-		{
-			if(comp_entity->comp[i] == comp)
-				return i+1;
+		for (i = 0; i < comp_entity->comp_len; i++) {
+			if (comp_entity->comp[i] == comp)
+				return i + 1;
 		}
 
-		/* No pcomp_index for specified pcomp found - this is an error condition! */
-		LOGP(DSNDCP, LOGL_ERROR, "Could not find a matching comp_index for given pcomp/dcomp value %i\n",comp);
+		LOGP (DSNDCP, LOGL_ERROR,
+		      "Could not find a matching comp_index for given pcomp/dcomp value %i\n",
+		      comp);
 		return 0;
 	}
 
-	LOGP(DSNDCP, LOGL_ERROR, "Compression entity contained null-pointer!\n");
+	LOGP (DSNDCP, LOGL_ERROR,
+	      "Compression entity contained null-pointer!\n");
 	return 0;
 }
 
-
 /* Find a pcomp/dcomp value for a given comp_index */
-int gprs_sndcp_comp_entity_find_comp_by_comp_index(struct gprs_sndcp_comp_entity *comp_entity, int comp_index)
+int
+gprs_sndcp_comp_entity_find_comp_by_comp_index (struct
+						gprs_sndcp_comp_entity
+						*comp_entity, int comp_index)
 {
-	if(comp_entity)
-	{
-		/* A comp_index of zero translates to zero right away. */ 
-		if(comp_index == 0)
+	if (comp_entity) {
+		/* A comp_index of zero translates to zero right away. */
+		if (comp_index == 0)
 			return 0;
 
-		/* No pcomp/dcomp for specified pcomp_index found - this is an error condition! */
-		if(comp_index > comp_entity->comp_len)
-		{
-			LOGP(DSNDCP, LOGL_ERROR, "Could not find a matching pcomp/dcomp value for given comp_index value %i.\n",comp_index);
+		if (comp_index > comp_entity->comp_len) {
+			LOGP (DSNDCP, LOGL_ERROR,
+			      "Could not find a matching pcomp/dcomp value for given comp_index value %i.\n",
+			      comp_index);
 			return 0;
 		}
 
 		/* Look in the pcomp/dcomp list for the comp_index */
-		return comp_entity->comp[comp_index-1];
+		return comp_entity->comp[comp_index - 1];
 	}
 
-	LOGP(DSNDCP, LOGL_ERROR, "Compression entity contained null-pointer!\n");
+	LOGP (DSNDCP, LOGL_ERROR,
+	      "Compression entity contained null-pointer!\n");
 	return 0;
 }
-
-
-
-
-
-

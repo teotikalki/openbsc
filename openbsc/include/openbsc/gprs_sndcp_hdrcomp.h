@@ -27,7 +27,8 @@
 #include <osmocom/core/linuxlist.h>
 #include <openbsc/gprs_sndcp_comp_entity.h>
 
-#define GPRS_SNDCP_HDRCOMP_BYPASS 0 /* 1=Bypass any header compression, 0=Normal */
+/* 1=Bypass any header compression, 0=Normal */
+#define GPRS_SNDCP_HDRCOMP_BYPASS 0	
 
 /* Header compression entity */
 struct gprs_sndcp_hdrcomp_compression_entity {
@@ -38,7 +39,7 @@ struct gprs_sndcp_hdrcomp_compression_entity {
 
 	/* Assigned pcomp values */
 	int pcomp_len;		/* Number of contained PCOMP / DCOMP values */
-	int pcomp[16];		/* PCOMP / DCOMP values, see also: 6.5.1.1.5 and 6.6.1.1.5 */
+	int pcomp[16];		/* see also: 6.5.1.1.5 and 6.6.1.1.5 */
 
 	/* Algorithm parameters */
 	int compclass;		/* 1=Header compression, 2=Data compression */
@@ -48,16 +49,20 @@ struct gprs_sndcp_hdrcomp_compression_entity {
 
 
 /* Initalize header compression */
-int gprs_sndcp_hdrcomp_init(struct gprs_sndcp_comp_entity *comp_entity, struct gprs_sndcp_comp_field *comp_field);
+int gprs_sndcp_hdrcomp_init(struct gprs_sndcp_comp_entity *comp_entity,
+			    struct gprs_sndcp_comp_field *comp_field);
 
 /* Terminate header compression */
 void gprs_sndcp_hdrcomp_term(struct gprs_sndcp_comp_entity *comp_entity);
 
 /* Expand header compressed packet */
-int gprs_sndcp_hdrcomp_expand(uint8_t *packet, int packet_len, int pcomp, struct llist_head *comp_entities);
+int gprs_sndcp_hdrcomp_expand(uint8_t * packet, int packet_len, int pcomp,
+			      struct llist_head *comp_entities);
 
 /* Expand header compressed packet */
-int gprs_sndcp_hdrcomp_compress(uint8_t *packet, int packet_len, int *pcomp, struct llist_head *comp_entities, int nsapi);
+int gprs_sndcp_hdrcomp_compress(uint8_t * packet, int packet_len,
+				int *pcomp,
+				struct llist_head *comp_entities,
+				int nsapi);
 
 #endif
-

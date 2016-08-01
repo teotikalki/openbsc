@@ -49,6 +49,7 @@ struct gprs_sndcp_entity {
 
 	/* Specifies which compression is used once the packet is re-assembled */
 	int pcomp;
+	int dcomp;
 };
 
 extern struct llist_head gprs_sndcp_entities;

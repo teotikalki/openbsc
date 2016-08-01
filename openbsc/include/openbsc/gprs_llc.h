@@ -147,6 +147,12 @@ struct gprs_llc_lle {
 
 #define NUM_SAPIS	16
 
+/* Lists holding the compression entities */
+struct comp_ent {
+	struct llist_head proto;
+	struct llist_head data;
+};
+
 struct gprs_llc_llme {
 	struct llist_head list;
 
@@ -168,8 +174,7 @@ struct gprs_llc_llme {
 	struct gprs_llc_lle lle[NUM_SAPIS];
 
 	/* Compression entities */
-	struct llist_head protocol_conpression_entities;
-	struct llist_head data_conpression_entities;
+	struct comp_ent comp;
 
 	/* Internal management */
 	uint32_t age_timestamp;

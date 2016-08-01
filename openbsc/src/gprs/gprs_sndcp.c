@@ -41,6 +41,7 @@
 #include <openbsc/gprs_sndcp_hdrcomp.h>
 #include <openbsc/gprs_sndcp_comp_entity.h>
 
+/* FIXME: Remove this debug code when done */
 static void showPacketDetails(uint8_t *data, int len, int direction, char *info)
 {
 	uint8_t tcp_flags;
@@ -404,7 +405,7 @@ struct sndcp_frag_state {
 };
 
 /* returns '1' if there are more fragments to send, '0' if none */
-static int sndcp_send_ud_frag(struct sndcp_frag_state *fs, int pcomp)
+static int sndcp_send_ud_frag(struct sndcp_frag_state *fs, int pcomp, int dcomp)
 {
 	struct gprs_sndcp_entity *sne = fs->sne;
 	struct gprs_llc_lle *lle = sne->lle;
@@ -442,7 +443,7 @@ static int sndcp_send_ud_frag(struct sndcp_frag_state *fs, int pcomp)
 		scomph = (struct sndcp_comp_hdr *)
 				msgb_put(fmsg, sizeof(*scomph));
 		scomph->pcomp = pcomp;
-		scomph->dcomp = 0;
+		scomph->dcomp = dcomp;
 	}
 
 	/* append the user-data header */
@@ -510,14 +511,15 @@ int sndcp_unitdata_req(struct msgb *msg, struct gprs_llc_lle *lle, uint8_t nsapi
 	struct sndcp_comp_hdr *scomph;
 	struct sndcp_udata_hdr *suh;
 	struct sndcp_frag_state fs;
-	int pcomp;
+	int pcomp = 0;
+	int dcomp = 0;
 	int rc;
 
 	/* Identifiers from UP: (TLLI, SAPI) + (BVCI, NSEI) */
 
 	printf("\n\n\n////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
 	showPacketDetails(msg->data, msg->len,0,"sndcp_initdata_req()");
-	rc = gprs_sndcp_hdrcomp_compress(msg->data, msg->len,&pcomp, &lle->llme->protocol_conpression_entities, nsapi);
+	rc = gprs_sndcp_hdrcomp_compress(msg->data, msg->len,&pcomp, &lle->llme->comp.proto, nsapi);
 	if (rc < 0)
 		return -EIO;
 	else
@@ -546,7 +548,7 @@ int sndcp_unitdata_req(struct msgb *msg, struct gprs_llc_lle *lle, uint8_t nsapi
 		/* call function to generate and send fragments until all
 		 * of the N-PDU has been sent */
 		while (1) {
-			int rc = sndcp_send_ud_frag(&fs,pcomp);
+			int rc = sndcp_send_ud_frag(&fs,pcomp,dcomp);
 			if (rc == 0)
 				return 0;
 			if (rc < 0)
@@ -567,7 +569,7 @@ int sndcp_unitdata_req(struct msgb *msg, struct gprs_llc_lle *lle, uint8_t nsapi
 
 	scomph = (struct sndcp_comp_hdr *) msgb_push(msg, sizeof(*scomph));
 	scomph->pcomp = pcomp;
-	scomph->dcomp = 0;
+	scomph->dcomp = dcomp;
 
 	/* prepend common SNDCP header */
 	sch = (struct sndcp_common_hdr *) msgb_push(msg, sizeof(*sch));
@@ -619,12 +621,15 @@ int sndcp_llunitdata_ind(struct msgb *msg, struct gprs_llc_lle *lle,
 	bssgp_parse_cell_id(&sne->ra_id, msgb_bcid(msg));
 
 	if(scomph)
+	{
 		sne->pcomp = scomph->pcomp;
+		sne->dcomp = scomph->dcomp;
+	}
 
 	/* any non-first segment is by definition something to defragment
 	 * as is any segment that tells us there are more segments */
 	if (!sch->first || sch->more)
-		return defrag_input(sne, msg, hdr, len, &lle->llme->protocol_conpression_entities);
+		return defrag_input(sne, msg, hdr, len, &lle->llme->comp.proto);
 
 	npdu_num = (suh->npdu_high << 8) | suh->npdu_low;
 	npdu = (uint8_t *)suh + sizeof(*suh);
@@ -640,7 +645,7 @@ int sndcp_llunitdata_ind(struct msgb *msg, struct gprs_llc_lle *lle,
 
 	printf("\n\n\n////////////////////////////////////////////////////////////////////////////////////////////////////////////////\n");
 	showPacketDetails(npdu, npdu_len,1,"sndcp_llunitdata_ind()");
-	rc = gprs_sndcp_hdrcomp_expand(npdu, npdu_len, sne->pcomp, &lle->llme->protocol_conpression_entities);
+	rc = gprs_sndcp_hdrcomp_expand(npdu, npdu_len, sne->pcomp, &lle->llme->comp.proto);
 	if (rc < 0)
 		return -EIO;
 	else
@@ -891,23 +896,23 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication, struct gpr
 					/* RFC 1144 is not yet supported, so we set applicable nsapis to zero */
 					comp_field->rfc1144_params->nsapi_len = 0;
 					LOGP(DSNDCP, LOGL_DEBUG, "Rejecting RFC1144 header conpression...\n");
-					gprs_sndcp_comp_entities_delete(&lle->llme->protocol_conpression_entities, comp_field->entity);
+					gprs_sndcp_comp_entities_delete(&lle->llme->comp.proto, comp_field->entity);
 #else
 					LOGP(DSNDCP, LOGL_DEBUG, "Accepting RFC1144 header conpression...\n");
-					gprs_sndcp_comp_entities_add(&lle->llme->protocol_conpression_entities, comp_field);
+					gprs_sndcp_comp_entities_add(&lle->llme->comp.proto, comp_field);
 #endif
 				break;
 				case RFC_2507:
 					/* RFC 2507 is not yet supported, so we set applicable nsapis to zero */
 					LOGP(DSNDCP, LOGL_DEBUG, "Rejecting RFC2507 header conpression...\n");
 					comp_field->rfc2507_params->nsapi_len = 0;
-					gprs_sndcp_comp_entities_delete(&lle->llme->protocol_conpression_entities, comp_field->entity);
+					gprs_sndcp_comp_entities_delete(&lle->llme->comp.proto, comp_field->entity);
 				break;
 				case ROHC:
 					/* ROHC is not yet supported, so we set applicable nsapis to zero */
 					LOGP(DSNDCP, LOGL_DEBUG, "Rejecting ROHC header conpression...\n");
 					comp_field->rohc_params->nsapi_len = 0;
-					gprs_sndcp_comp_entities_delete(&lle->llme->protocol_conpression_entities, comp_field->entity);
+					gprs_sndcp_comp_entities_delete(&lle->llme->comp.proto, comp_field->entity);
 				break;
 			}
 		}

@@ -149,6 +149,10 @@ struct gprs_llc_lle {
 
 /* Lists holding the compression entities */
 struct comp_ent {
+	/*
+	 * In this two list_heads we will store the data and protocol
+	 * compression entities, together with their compression states 
+	 */
 	struct llist_head proto;
 	struct llist_head data;
 };
@@ -175,6 +179,9 @@ struct gprs_llc_llme {
 
 	/* Compression entities */
 	struct comp_ent comp;
+
+	/* Copy of the XID fields we sent */
+	struct llist_head xid;
 
 	/* Internal management */
 	uint32_t age_timestamp;

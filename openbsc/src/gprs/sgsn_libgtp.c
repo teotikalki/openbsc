@@ -323,10 +323,10 @@ static int send_act_pdp_cont_acc(struct sgsn_pdp_ctx *pctx)
 		return rc_pdp;
 
 	/* Send SNDCP XID to MS */
-//	lle = &pctx->mm->gb.llme->lle[pctx->sapi];
-//	rc_xid = sndcp_sn_xid_req(lle,pctx->nsapi);
-//	if(rc_xid < 0)
-//		return rc_xid;
+	lle = &pctx->mm->gb.llme->lle[pctx->sapi];
+	rc_xid = sndcp_sn_xid_req(lle,pctx->nsapi);
+	if(rc_xid < 0)
+		return rc_xid;
 
 	return rc_pdp;
 }

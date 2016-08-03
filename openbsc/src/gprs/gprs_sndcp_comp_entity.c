@@ -118,26 +118,29 @@ gprs_sndcp_comp_entity_create (struct gprs_sndcp_comp_field *comp_field)
 void
 gprs_sndcp_comp_entities_free (struct llist_head *comp_entities)
 {
-	if (comp_entities) {
-		struct gprs_sndcp_comp_entity *comp_entity;
+	struct llist_head *lh, *lh2;
+	struct gprs_sndcp_comp_entity *comp_entity;
 
+	if (comp_entities) {
 		llist_for_each_entry (comp_entity, comp_entities, list) {
 			/* Free compression entity */
 			if (comp_entity->compclass ==
 			    SNDCP_XID_PROTOCOL_COMPRESSION) {
 				LOGP (DSNDCP, LOGL_INFO,
-				      "Deleting (free) header compression entity %i ...\n",
+				      "Deleting header compression entity %i ...\n",
 				      comp_entity->entity);
 				gprs_sndcp_hdrcomp_term (comp_entity);
 			}
 			else
 				LOGP (DSNDCP, LOGL_INFO,
-				      "Deleting (free) data compression entity %i ...\n",
+				      "Deleting data compression entity %i ...\n",
 				      comp_entity->entity);
-
-			talloc_free (comp_entity);
 		}
 
+		llist_for_each_safe(lh, lh2, comp_entities) {
+			llist_del(lh);
+			talloc_free(lh);
+		}
 	}
 }
 

@@ -741,7 +741,7 @@ static int gprs_llc_generate_sndcp_xid(uint8_t *bytes, int bytes_len, uint8_t ns
 	rfc1144_params.nsapi_len = 1;
 
 	/* Setup rfc1144 operating parameters */
-	rfc1144_params.s01 = 3;
+	rfc1144_params.s01 = 7;
 
 	/* Setup rfc1144 compression field */
 	rfc1144_comp_field.p = 1;
@@ -827,8 +827,8 @@ static int gprs_llc_generate_sndcp_xid(uint8_t *bytes, int bytes_len, uint8_t ns
 
 	/* Add compression field(s) to list */
 	llist_add(&rfc1144_comp_field.list, &comp_fields);
-	llist_add(&rfc2507_comp_field.list, &comp_fields);
-	llist_add(&rohc_comp_field.list, &comp_fields);
+//	llist_add(&rfc2507_comp_field.list, &comp_fields);
+//	llist_add(&rohc_comp_field.list, &comp_fields);
 
 	/* Comile bytestream */
 	return gprs_sndcp_compile_xid(&comp_fields, bytes, bytes_len);
@@ -838,6 +838,13 @@ static int gprs_llc_generate_sndcp_xid(uint8_t *bytes, int bytes_len, uint8_t ns
 /* Set of SNDCP-XID bnegotiation (See also: TS 144 065, Section 6.8 XID parameter negotiation) */
 int sndcp_sn_xid_req(struct gprs_llc_lle *lle, uint8_t nsapi)
 {
+	/* Note: The specification requires the SNDCP-User to set of an 
+         * SNDCP xid request. See also 3GPP TS 44.065, 6.8 XID parameter
+         * negotiation, Figure 11: SNDCP XID negotiation procedure. In
+         * our case the SNDCP-User is sgsn_libgtp.c, which calls
+         * sndcp_sn_xid_req directly.
+         */
+
 	uint8_t l3params_bytes[1024];
 	int sndcp_xid_bytes_len;
 	struct gprs_llc_xid_field xid_field_request;
@@ -867,7 +874,10 @@ int sndcp_sn_xid_req(struct gprs_llc_lle *lle, uint8_t nsapi)
 int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication, struct gprs_llc_xid_field *xid_field_response, struct gprs_llc_lle *lle)
 {
 	/* Note: This function computes the SNDCP-XID response that is sent 
-                 back to the phone when an phone originated XID is received */
+         * back to the phone when a phone originated XID is received. The
+         * Input XID fields are directly processed and the result is directly
+         * handed back.
+         */
 
 	int rc;
 	LLIST_HEAD(comp_fields);
@@ -879,7 +889,7 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication, struct gpr
 
 	if(rc >= 0)
 	{
-		LOGP(DSNDCP, LOGL_DEBUG, "Unmodified SNDCP-XID as received:\n");
+		LOGP(DSNDCP, LOGL_DEBUG, "Unmodified SNDCP-XID as received from the phone:\n");
 		gprs_sndcp_dump_comp_fields(&comp_fields);
 
 
@@ -917,7 +927,7 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication, struct gpr
 			}
 		}
 
-		LOGP(DSNDCP, LOGL_DEBUG, "Modified version of received SNDCP-XID to be sent back:\n");
+		LOGP(DSNDCP, LOGL_DEBUG, "Modified version of received SNDCP-XID to be sent back from the ggsn:\n");
 		gprs_sndcp_dump_comp_fields(&comp_fields);
 
 
@@ -942,6 +952,46 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication, struct gpr
 	}
 
 	gprs_sndcp_free_comp_fields(&comp_fields);
+
+	return 0;
+}
+
+
+/* Process SNDCP-XID indication (See also: TS 144 065, Section 6.8 XID parameter negotiation) */
+int sndcp_sn_xid_conf(struct gprs_llc_xid_field *xid_field_confirmation, struct gprs_llc_xid_field *xid_field_request, struct gprs_llc_lle *lle)
+{
+	LLIST_HEAD(comp_fields_req);
+	LLIST_HEAD(comp_fields_conf);
+	int rc;
+	int lt_len = 0;
+	struct gprs_sndcp_hdrcomp_entity_algo_table lt[MAX_ENTITIES];
+
+	if(xid_field_confirmation && xid_field_request)
+	{
+		/* Parse SNDCP-CID XID-Field */
+		rc = gprs_sndcp_parse_xid(&comp_fields_req, xid_field_request->data, xid_field_request->data_len, NULL, 0);
+		if(rc < 0)
+			return -EINVAL;
+
+		/* Generate lookup table */
+		lt_len = gprs_sndcp_fill_table(lt,MAX_ENTITIES,&comp_fields_req);
+		if(lt_len < 0)
+			return -EINVAL;
+
+		LOGP(DSNDCP, LOGL_DEBUG, "Unmodified SNDCP-XID as sent from the ggsn:\n");
+		gprs_sndcp_dump_comp_fields(&comp_fields_req);
+
+		/* Parse SNDCP-CID XID-Field */
+		rc = gprs_sndcp_parse_xid(&comp_fields_conf, xid_field_confirmation->data, xid_field_confirmation->data_len, lt, lt_len);
+		if(rc < 0)
+			return -EINVAL;
+
+		LOGP(DSNDCP, LOGL_DEBUG, "Modified version of received SNDCP-XID as received back from the phone:\n");
+		gprs_sndcp_dump_comp_fields(&comp_fields_conf);
+	}
+
+	gprs_sndcp_free_comp_fields(&comp_fields_req);
+	gprs_sndcp_free_comp_fields(&comp_fields_conf);
 
 	return 0;
 }

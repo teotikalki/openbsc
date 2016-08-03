@@ -5,6 +5,7 @@
 #include <osmocom/core/linuxlist.h>
 
 #define CURRENT_SNDCP_VERSION 0	/* See TS 144 065, clause 8 */
+#define MAX_ENTITIES 32	/* TS 144 065 reserves 5 bit for compr. entity num. */
 
 /* According to: TS 144 065 6.5.1.1 Format of the protocol control information 
 				    compression field (Figure 7) 
@@ -21,7 +22,7 @@ struct gprs_sndcp_comp_field {
 	/* Entity number, see also: 6.5.1.1.3 and 6.6.1.1.3 */
 	unsigned int entity;
 
-	/* gorithm identifier, see also: 6.5.1.1.4 and 6.6.1.1.4 */
+	/* Algorithm identifier, see also: 6.5.1.1.4 and 6.6.1.1.4 */
 	unsigned int algo;
 
 	/* Number of contained PCOMP / DCOMP values */
@@ -188,13 +189,13 @@ enum gprs_sndcp_datacomp_v44_dcomp {
 	V44_DCOMP_LEN = 2
 };
 
-/* Transform a list with compression fields into an SNDCP-XID message (bytes) */
-int gprs_sndcp_compile_xid(struct llist_head *comp_fields, uint8_t * bytes,
-			   unsigned int bytes_maxlen);
+/* Transform a list with compression fields into an SNDCP-XID message (dst) */
+int gprs_sndcp_compile_xid(struct llist_head *comp_fields, uint8_t *dst,
+			   unsigned int dst_maxlen);
 
-/* Transform an SNDCP-XID message (bytes) into a list of SNDCP-XID fields */
-int gprs_sndcp_parse_xid(struct llist_head *comp_fields, uint8_t * bytes,
-			 unsigned int bytes_len,
+/* Transform an SNDCP-XID message (src) into a list of SNDCP-XID fields */
+int gprs_sndcp_parse_xid(struct llist_head *comp_fields, uint8_t *src,
+			 unsigned int dst_len,
 			 struct gprs_sndcp_hdrcomp_entity_algo_table *lt,
 			 unsigned int lt_len);
 
@@ -205,6 +206,10 @@ void gprs_sndcp_free_comp_fields(struct llist_head *comp_fields);
    (header compression or data compression?) */
 int gprs_sndcp_get_compression_class(struct gprs_sndcp_comp_field
 				     *comp_field);
+
+/* Fill up lookutable from a list with comression entitiy fields */
+int gprs_sndcp_fill_table(struct gprs_sndcp_hdrcomp_entity_algo_table *lt,
+			   unsigned int lt_len, struct llist_head *comp_fields);
 
 /* Dump a list with SNDCP-XID fields (Debug) */
 void gprs_sndcp_dump_comp_fields(struct llist_head *comp_fields);

@@ -180,7 +180,7 @@ struct gprs_llc_llme {
 	/* Compression entities */
 	struct comp_ent comp;
 
-	/* Copy of the XID fields we sent */
+	/* Copy of the XID fields we have sent */
 	struct llist_head xid;
 
 	/* Internal management */

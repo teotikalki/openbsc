@@ -232,7 +232,7 @@ static int gprs_llc_process_xid_ind(uint8_t *bytes_request, int bytes_request_le
  				 * when a phone submits values which defer from
 				 * the default! 
 				 */
-				LOGP(DLLC, LOGL_NOTICE, "Echoing XID-Field: XID: type=%i, data_len=%i, data=%s\n",xid_field->type,xid_field->data_len,xid_field->data);
+				LOGP(DLLC, LOGL_NOTICE, "Echoing XID-Field: XID: type=%i, data_len=%i, data=%s\n",xid_field->type,xid_field->data_len,osmo_hexdump_nospc(xid_field->data,xid_field->data_len));
 				xid_field_response = gprs_llc_duplicate_xid_field(xid_field);
 				llist_add(&xid_field_response->list, &xid_fields_response);
 			}

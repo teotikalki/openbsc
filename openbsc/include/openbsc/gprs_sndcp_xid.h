@@ -23,7 +23,7 @@ struct gprs_sndcp_comp_field {
 	unsigned int entity;
 
 	/* Algorithm identifier, see also: 6.5.1.1.4 and 6.6.1.1.4 */
-	unsigned int algo;
+	int algo;
 
 	/* Number of contained PCOMP / DCOMP values */
 	unsigned int comp_len;
@@ -59,19 +59,6 @@ enum gprs_sndcp_xid_param_types {
 	SNDCP_XID_DATA_COMPRESSION = 1,		/* See also: subclause 6.6.1 */
 	SNDCP_XID_PROTOCOL_COMPRESSION = 2,	/* See also: subclause 6.5.1 */
 };
-
-/* When the propose bit in an SNDCP-XID compression field is set to zero,
-   the algorithm identifier is stripped. The algoritm parameters are specific
-   for each algorithms. The following struct is used to pass the information
-   about the referenced algorithm to the parser. */
-struct gprs_sndcp_hdrcomp_entity_algo_table {
-	unsigned int entity;	/* see also: 6.5.1.1.3 and 6.6.1.1.3 */
-	unsigned int algo;	/* see also: 6.5.1.1.4 and 6.6.1.1.4 */
-	unsigned int compclass;	/* Can be either SNDCP_XID_DATA_COMPRESSION or
-				   SNDCP_XID_PROTOCOL_COMPRESSION */
-};
-
-
 
 /* According to: TS 144 065 6.5.2.1 Parameters (Table 5) */
 struct gprs_sndcp_hdrcomp_rfc1144_params {
@@ -194,10 +181,9 @@ int gprs_sndcp_compile_xid(const struct llist_head *comp_fields, uint8_t *dst,
 			   unsigned int dst_maxlen);
 
 /* Transform an SNDCP-XID message (src) into a list of SNDCP-XID fields */
-int gprs_sndcp_parse_xid(struct llist_head *comp_fields, const uint8_t *src,
-			 unsigned int dst_len,
-			 struct gprs_sndcp_hdrcomp_entity_algo_table *lt,
-			 unsigned int lt_len);
+int gprs_sndcp_parse_xid(struct llist_head *comp_fields,
+			 const uint8_t *src, unsigned int src_len,
+			 const struct llist_head *comp_fields_req);
 
 /* Free a list with SNDCP-XID fields */
 void gprs_sndcp_free_comp_fields(struct llist_head *comp_fields);
@@ -206,11 +192,6 @@ void gprs_sndcp_free_comp_fields(struct llist_head *comp_fields);
    (header compression or data compression?) */
 int gprs_sndcp_get_compression_class(const struct gprs_sndcp_comp_field
 				     *comp_field);
-
-/* Fill up lookutable from a list with comression entitiy fields */
-int gprs_sndcp_fill_table(struct gprs_sndcp_hdrcomp_entity_algo_table *lt,
-			  unsigned int lt_len, 
-			  const struct llist_head *comp_fields);
 
 /* Dump a list with SNDCP-XID fields (Debug) */
 void gprs_sndcp_dump_comp_fields(const struct llist_head *comp_fields, 

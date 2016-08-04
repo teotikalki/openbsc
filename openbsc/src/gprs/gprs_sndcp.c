@@ -885,11 +885,11 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication, struct gpr
 
 
 	/* Parse SNDCP-CID XID-Field */
-	rc = gprs_sndcp_parse_xid(&comp_fields, xid_field_indication->data, xid_field_indication->data_len, NULL, 0);
+	rc = gprs_sndcp_parse_xid(&comp_fields, xid_field_indication->data, xid_field_indication->data_len, NULL);
 
 	if(rc >= 0)
 	{
-		LOGP(DSNDCP, LOGL_DEBUG, "Unmodified SNDCP-XID as received from the phone:\n");
+		LOGP(DSNDCP, LOGL_DEBUG, "Unmodified SNDCP-XID received from the phone:\n");
 		gprs_sndcp_dump_comp_fields(&comp_fields, LOGL_DEBUG);
 
 
@@ -963,33 +963,24 @@ int sndcp_sn_xid_conf(struct gprs_llc_xid_field *xid_field_confirmation, struct 
 	LLIST_HEAD(comp_fields_req);
 	LLIST_HEAD(comp_fields_conf);
 	int rc;
-	int lt_len = 0;
-	struct gprs_sndcp_hdrcomp_entity_algo_table lt[MAX_ENTITIES];
 
 	if(xid_field_confirmation && xid_field_request)
 	{
 		/* Parse SNDCP-CID XID-Field */
-		rc = gprs_sndcp_parse_xid(&comp_fields_req, xid_field_request->data, xid_field_request->data_len, NULL, 0);
+		rc = gprs_sndcp_parse_xid(&comp_fields_req, xid_field_request->data, xid_field_request->data_len, NULL);
 		if(rc < 0)
 			return -EINVAL;
 
-		/* Generate lookup table */
-		lt_len = gprs_sndcp_fill_table(lt,MAX_ENTITIES,&comp_fields_req);
-		if(lt_len < 0)
-			return -EINVAL;
-
-		LOGP(DSNDCP, LOGL_DEBUG, "Unmodified SNDCP-XID as sent from the ggsn:\n");
+		LOGP(DSNDCP, LOGL_DEBUG, "Unmodified SNDCP-XID sent from the ggsn:\n");
 		gprs_sndcp_dump_comp_fields(&comp_fields_req, LOGL_DEBUG);
 
 		/* Parse SNDCP-CID XID-Field */
-		rc = gprs_sndcp_parse_xid(&comp_fields_conf, xid_field_confirmation->data, xid_field_confirmation->data_len, lt, lt_len);
+		rc = gprs_sndcp_parse_xid(&comp_fields_conf, xid_field_confirmation->data, xid_field_confirmation->data_len, &comp_fields_req);
 		if(rc < 0)
 			return -EINVAL;
 
-		LOGP(DSNDCP, LOGL_DEBUG, "Modified version of received SNDCP-XID as received back from the phone:\n");
+		LOGP(DSNDCP, LOGL_DEBUG, "Modified version of received SNDCP-XID received from the phone:\n");
 		gprs_sndcp_dump_comp_fields(&comp_fields_conf, LOGL_DEBUG);
-
-
 	}
 
 	gprs_sndcp_free_comp_fields(&comp_fields_req);

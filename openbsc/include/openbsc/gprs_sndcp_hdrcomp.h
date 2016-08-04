@@ -50,19 +50,19 @@ struct gprs_sndcp_hdrcomp_compression_entity {
 
 /* Initalize header compression */
 int gprs_sndcp_hdrcomp_init(struct gprs_sndcp_comp_entity *comp_entity,
-			    struct gprs_sndcp_comp_field *comp_field);
+			    const struct gprs_sndcp_comp_field *comp_field);
 
 /* Terminate header compression */
 void gprs_sndcp_hdrcomp_term(struct gprs_sndcp_comp_entity *comp_entity);
 
 /* Expand header compressed packet */
 int gprs_sndcp_hdrcomp_expand(uint8_t * packet, int packet_len, int pcomp,
-			      struct llist_head *comp_entities);
+			      const struct llist_head *comp_entities);
 
 /* Expand header compressed packet */
 int gprs_sndcp_hdrcomp_compress(uint8_t * packet, int packet_len,
 				int *pcomp,
-				struct llist_head *comp_entities,
+				const struct llist_head *comp_entities,
 				int nsapi);
 
 #endif

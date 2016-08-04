@@ -36,27 +36,28 @@ struct gprs_llc_xid_field {
 	unsigned int data_len;	/* Payload length */
 };
 
-/* Transform a list with XID fields into a XID message (src) */
-int gprs_llc_compile_xid(struct llist_head *xid_fields, uint8_t *src,
+/* Transform a list with XID fields into a XID message (dst) */
+int gprs_llc_compile_xid(const struct llist_head *xid_fields, uint8_t *dst,
 			 int bytes_maxlen);
 
 /* Transform a XID message (dst) into a list of XID fields */
-int gprs_llc_parse_xid(struct llist_head *xid_fields, uint8_t *dst,
+int gprs_llc_parse_xid(struct llist_head *xid_fields, const uint8_t *src,
 		       int bytes_len);
 
 /* Free llist with xid fields */
 void gprs_llc_free_xid(struct llist_head *xid_fields);
 
 /* Create a duplicate of an XID-Field */
-struct gprs_llc_xid_field *gprs_llc_duplicate_xid_field(struct
+struct gprs_llc_xid_field *gprs_llc_duplicate_xid_field(const struct
 							gprs_llc_xid_field
 							*xid_field);
 
 /* Copy an llist with xid fields */
 void gprs_llc_copy_xid(struct llist_head *xid_fields_copy, 
-		       struct llist_head *xid_fields_orig);
+		       const struct llist_head *xid_fields_orig);
 
 /* Dump a list with XID fields (Debug) */
-void gprs_llc_dump_xid_fields(struct llist_head *xid_fields);
+void gprs_llc_dump_xid_fields(const struct llist_head *xid_fields,
+			      unsigned int logl);
 
 #endif

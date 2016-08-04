@@ -749,7 +749,7 @@ static int gprs_llc_generate_sndcp_xid(uint8_t *bytes, int bytes_len, uint8_t ns
 	rfc1144_comp_field.algo = RFC_1144;
 	rfc1144_comp_field.comp[RFC1144_PCOMP1] = 1;
 	rfc1144_comp_field.comp[RFC1144_PCOMP2] = 2;
-	rfc1144_comp_field.comp_len = RFC1144_PCOMP_LEN;
+	rfc1144_comp_field.comp_len = RFC1144_PCOMP_NUM;
 	rfc1144_comp_field.rfc1144_params = &rfc1144_params;
 
 
@@ -774,7 +774,7 @@ static int gprs_llc_generate_sndcp_xid(uint8_t *bytes, int bytes_len, uint8_t ns
 	rfc2507_comp_field.comp[RFC2507_PCOMP3] = 5;
 	rfc2507_comp_field.comp[RFC2507_PCOMP4] = 6;
 	rfc2507_comp_field.comp[RFC2507_PCOMP5] = 7;
-	rfc2507_comp_field.comp_len = RFC2507_PCOMP_LEN;
+	rfc2507_comp_field.comp_len = RFC2507_PCOMP_NUM;
 	rfc2507_comp_field.rfc2507_params = &rfc2507_params;
 
 
@@ -820,7 +820,7 @@ static int gprs_llc_generate_sndcp_xid(uint8_t *bytes, int bytes_len, uint8_t ns
 	rohc_comp_field.algo = ROHC;
 	rohc_comp_field.comp[ROHC_PCOMP1] = 8;
 	rohc_comp_field.comp[ROHC_PCOMP2] = 9;
-	rohc_comp_field.comp_len = ROHC_PCOMP_LEN;
+	rohc_comp_field.comp_len = ROHC_PCOMP_NUM;
 	rohc_comp_field.rohc_params = &rohc_params;
 
 
@@ -890,7 +890,7 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication, struct gpr
 	if(rc >= 0)
 	{
 		LOGP(DSNDCP, LOGL_DEBUG, "Unmodified SNDCP-XID as received from the phone:\n");
-		gprs_sndcp_dump_comp_fields(&comp_fields);
+		gprs_sndcp_dump_comp_fields(&comp_fields, LOGL_DEBUG);
 
 
 		llist_for_each_entry(comp_field, &comp_fields, list) 
@@ -928,7 +928,7 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication, struct gpr
 		}
 
 		LOGP(DSNDCP, LOGL_DEBUG, "Modified version of received SNDCP-XID to be sent back from the ggsn:\n");
-		gprs_sndcp_dump_comp_fields(&comp_fields);
+		gprs_sndcp_dump_comp_fields(&comp_fields, LOGL_DEBUG);
 
 
 		/* Reserve some memory to store the modified SNDCP-XID bytes */
@@ -979,7 +979,7 @@ int sndcp_sn_xid_conf(struct gprs_llc_xid_field *xid_field_confirmation, struct 
 			return -EINVAL;
 
 		LOGP(DSNDCP, LOGL_DEBUG, "Unmodified SNDCP-XID as sent from the ggsn:\n");
-		gprs_sndcp_dump_comp_fields(&comp_fields_req);
+		gprs_sndcp_dump_comp_fields(&comp_fields_req, LOGL_DEBUG);
 
 		/* Parse SNDCP-CID XID-Field */
 		rc = gprs_sndcp_parse_xid(&comp_fields_conf, xid_field_confirmation->data, xid_field_confirmation->data_len, lt, lt_len);
@@ -987,7 +987,9 @@ int sndcp_sn_xid_conf(struct gprs_llc_xid_field *xid_field_confirmation, struct 
 			return -EINVAL;
 
 		LOGP(DSNDCP, LOGL_DEBUG, "Modified version of received SNDCP-XID as received back from the phone:\n");
-		gprs_sndcp_dump_comp_fields(&comp_fields_conf);
+		gprs_sndcp_dump_comp_fields(&comp_fields_conf, LOGL_DEBUG);
+
+
 	}
 
 	gprs_sndcp_free_comp_fields(&comp_fields_req);

@@ -46,7 +46,7 @@ struct gprs_sndcp_comp_entity
 	/* Algorithm parameters */
 	int algo;		/* Algorithm type (see gprs_sndcp_xid.h) */
 	int compclass;		/* See gprs_sndcp_xid.h/c */
-	void *status;		/* Algorithm status and parameters */
+	void *state;		/* Algorithm status and parameters */
 };
 
 /* Free a list with compression entities */
@@ -60,31 +60,31 @@ void gprs_sndcp_comp_entities_delete (struct llist_head *comp_entities,
 (returns a pointer to the compression entity that has just been created) */
 struct gprs_sndcp_comp_entity *
 gprs_sndcp_comp_entities_add (struct llist_head *comp_entities,
-			      struct gprs_sndcp_comp_field *comp_field);
+			      const struct gprs_sndcp_comp_field *comp_field);
 
 /* Find compression entity by its entity number */
 struct gprs_sndcp_comp_entity *
-gprs_sndcp_comp_entity_find_by_entity (struct llist_head*comp_entities,
+gprs_sndcp_comp_entity_find_by_entity (const struct llist_head*comp_entities,
 				       int entity);
 
 /* Find which compression entity handles the specified pcomp/dcomp */
 struct gprs_sndcp_comp_entity *
-gprs_sndcp_comp_entity_find_by_comp (struct llist_head *comp_entities,
+gprs_sndcp_comp_entity_find_by_comp (const struct llist_head *comp_entities,
 				     int comp);
 
 /* Find which compression entity handles the specified nsapi */
 struct gprs_sndcp_comp_entity *
-gprs_sndcp_comp_entity_find_by_nsapi (struct llist_head *comp_entities,
+gprs_sndcp_comp_entity_find_by_nsapi (const struct llist_head *comp_entities,
 				      int nsapi);
 
 /* Find a comp_index for a given pcomp/dcomp value */
 int 
-gprs_sndcp_comp_entity_find_comp_index_by_comp (struct gprs_sndcp_comp_entity
+gprs_sndcp_comp_entity_find_comp_index_by_comp (const struct gprs_sndcp_comp_entity
 						*comp_entity, int comp);
 
 /* Find a pcomp/dcomp value for a given comp_index */
 int 
-gprs_sndcp_comp_entity_find_comp_by_comp_index (struct gprs_sndcp_comp_entity
+gprs_sndcp_comp_entity_find_comp_by_comp_index (const struct gprs_sndcp_comp_entity
 						*comp_entity,
 						int comp_index);
 

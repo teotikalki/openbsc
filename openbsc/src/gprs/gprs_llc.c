@@ -152,7 +152,7 @@ static int gprs_llc_process_xid_conf(uint8_t *bytes, int bytes_len, struct gprs_
 	rc = gprs_llc_parse_xid(&xid_fields, bytes, bytes_len);
 	if (rc == 0)
 	{
-		gprs_llc_dump_xid_fields(&xid_fields);
+		gprs_llc_dump_xid_fields(&xid_fields, LOGL_DEBUG);
 
 		llist_for_each_entry(xid_field, &xid_fields, list) 
 		{
@@ -207,7 +207,7 @@ static int gprs_llc_process_xid_ind(uint8_t *bytes_request, int bytes_request_le
 	rc = gprs_llc_parse_xid(&xid_fields, bytes_request, bytes_request_len);
 	if (rc == 0)
 	{
-		gprs_llc_dump_xid_fields(&xid_fields);
+		gprs_llc_dump_xid_fields(&xid_fields, LOGL_DEBUG);
 
 		llist_for_each_entry(xid_field, &xid_fields, list) 
 		{
@@ -311,7 +311,7 @@ int gprs_ll_xid_req(struct gprs_llc_lle *lle, struct gprs_llc_xid_field *l3_xid_
 		msg = msgb_alloc_headroom(4096, 1024, "LLC_XID");
 		xid = msgb_put(msg, xid_bytes_len);
 		memcpy(xid, xid_bytes, xid_bytes_len);
-		LOGP(DLLC, LOGL_NOTICE, "Sending XID respone to phone...\n");
+		LOGP(DLLC, LOGL_NOTICE, "Sending XID request to phone...\n");
 		gprs_llc_tx_xid(lle, msg, 1);
 	}
 	else

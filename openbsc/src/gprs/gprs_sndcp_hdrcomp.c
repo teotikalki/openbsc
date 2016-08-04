@@ -62,7 +62,7 @@ static int gprs_sndcp_hdrcomp_test_req(uint8_t * packet, int packet_len);
 
 /* Initalize header compression */
 int gprs_sndcp_hdrcomp_init(struct gprs_sndcp_comp_entity *comp_entity,
-			    struct gprs_sndcp_comp_field *comp_field)
+			    const struct gprs_sndcp_comp_field *comp_field)
 {
 	/* Note: This function is automatically called from
 		 gprs_sndcp_comp_entity.c when a new header compression
@@ -70,7 +70,7 @@ int gprs_sndcp_hdrcomp_init(struct gprs_sndcp_comp_entity *comp_entity,
 
 	if ((comp_entity->compclass == SNDCP_XID_PROTOCOL_COMPRESSION)
 	    && (comp_entity->algo == RFC_1144)) {
-		comp_entity->status =
+		comp_entity->state =
 		    slhc_init(comp_field->rfc1144_params->s01 + 1,
 			      comp_field->rfc1144_params->s01 + 1);
 		LOGP(DSNDCP, LOGL_INFO,
@@ -97,10 +97,10 @@ void gprs_sndcp_hdrcomp_term(struct gprs_sndcp_comp_entity *comp_entity)
 
 	if ((comp_entity->compclass == SNDCP_XID_PROTOCOL_COMPRESSION)
 	    && (comp_entity->algo == RFC_1144)) {
-		if (comp_entity->status) {
+		if (comp_entity->state) {
 			slhc_free((struct slcompress *) comp_entity->
-				  status);
-			comp_entity->status = NULL;
+				  state);
+			comp_entity->state = NULL;
 		}
 		LOGP(DSNDCP, LOGL_INFO,
 		     "RFC1144 header compression terminated.\n");
@@ -222,7 +222,7 @@ static int gprs_sndcp_hdrcomp_rfc1144_expand(struct slcompress *comp,
 
 /* Expand header compressed packet */
 int gprs_sndcp_hdrcomp_expand(uint8_t * packet, int packet_len, int pcomp,
-			      struct llist_head *comp_entities)
+			      const struct llist_head *comp_entities)
 {
 	int rc;
 	int pcomp_index = 0;
@@ -260,10 +260,10 @@ int gprs_sndcp_hdrcomp_expand(uint8_t * packet, int packet_len, int pcomp,
 #else
 	/* Normal operation: */
 	rc = gprs_sndcp_hdrcomp_rfc1144_expand((struct slcompress *)
-					       comp_entity->status, packet,
+					       comp_entity->state, packet,
 					       packet_len, pcomp_index);
 	gprs_sndcp_hdrcomp_rfc1144_stat((struct slcompress *) comp_entity->
-					status);
+					state);
 #endif
 
 	LOGP(DSNDCP, LOGL_DEBUG,
@@ -276,7 +276,7 @@ int gprs_sndcp_hdrcomp_expand(uint8_t * packet, int packet_len, int pcomp,
 /* Expand header compressed packet */
 int gprs_sndcp_hdrcomp_compress(uint8_t * packet, int packet_len,
 				int *pcomp,
-				struct llist_head *comp_entities,
+				const struct llist_head *comp_entities,
 				int nsapi)
 {
 	int rc;
@@ -304,11 +304,11 @@ int gprs_sndcp_hdrcomp_compress(uint8_t * packet, int packet_len,
 #else
 	/* Normal operation: */
 	rc = gprs_sndcp_hdrcomp_rfc1144_compress((struct slcompress *)
-						 comp_entity->status,
+						 comp_entity->state,
 						 packet, packet_len,
 						 &pcomp_index);
 	gprs_sndcp_hdrcomp_rfc1144_stat((struct slcompress *) comp_entity->
-					status);
+					state);
 #endif
 
 	/* Find pcomp value */

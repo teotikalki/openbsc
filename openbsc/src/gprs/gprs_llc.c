@@ -36,26 +36,35 @@
 #include <openbsc/gprs_sgsn.h>
 #include <openbsc/gprs_gmm.h>
 #include <openbsc/gprs_llc.h>
-#include <openbsc/gprs_llc_xid.h>
 #include <openbsc/crc24.h>
 #include <openbsc/sgsn.h>
-#include <openbsc/gprs_sndcp.h>
+#include <openbsc/gprs_llc_xid.h>
 #include <openbsc/gprs_sndcp_comp_entity.h>
+#include <openbsc/gprs_sndcp.h>
 
+/* 
+ * FIXME: Remove this switch as soon as the XID integration in 
+ * gprs_sndcp.c h is done
+ */
+#define WITH_SNDCP_XID 1
 
 static struct gprs_llc_llme *llme_alloc(uint32_t tlli);
-static int gprs_llc_tx_u(struct msgb *msg, uint8_t sapi, int command, enum gprs_llc_u_cmd u_cmd, int pf_bit);
-static struct gprs_llc_lle *lle_for_rx_by_tlli_sapi(const uint32_t tlli, uint8_t sapi, enum gprs_llc_cmd cmd);
+static int gprs_llc_tx_xid(struct gprs_llc_lle *lle, struct msgb *msg,
+			   int command);
+static int gprs_llc_tx_u(struct msgb *msg, uint8_t sapi, 
+			 int command, enum gprs_llc_u_cmd u_cmd, int pf_bit);
 
 /*
  * BEGIN XID RELATED 
  */
 
 /* Generate XID message */
-static int gprs_llc_generate_xid(uint8_t *bytes, int bytes_len, struct gprs_llc_xid_field *l3_xid_field, struct gprs_llc_llme *llme)
+static int gprs_llc_generate_xid(uint8_t * bytes, int bytes_len,
+				 struct gprs_llc_xid_field *l3_xid_field,
+				 struct gprs_llc_llme *llme)
 {
 	/* Note: Called by gprs_ll_xid_req() */
-	
+
 	LLIST_HEAD(xid_fields);
 
 	struct gprs_llc_xid_field xid_version;
@@ -63,22 +72,21 @@ static int gprs_llc_generate_xid(uint8_t *bytes, int bytes_len, struct gprs_llc_
 	struct gprs_llc_xid_field xid_n201i;
 
 	xid_version.type = GPRS_LLC_XID_T_VERSION;
-	xid_version.data = (uint8_t*) "\x00";
+	xid_version.data = (uint8_t *) "\x00";
 	xid_version.data_len = 1;
 
 	xid_n201u.type = GPRS_LLC_XID_T_N201_U;
-	xid_n201u.data = (uint8_t*) "\x05\xf0";
+	xid_n201u.data = (uint8_t *) "\x05\xf0";
 	xid_n201u.data_len = 2;
 
 	xid_n201i.type = GPRS_LLC_XID_T_N201_I;
-	xid_n201i.data = (uint8_t*) "\x05\xf0";
+	xid_n201i.data = (uint8_t *) "\x05\xf0";
 	xid_n201i.data_len = 2;
 
 	/* Add layer 3 XID field (if present) */
-	if(l3_xid_field)
-	{
+	if (l3_xid_field) {
 		/* Enforce layer 3 XID type (just to be sure) */
-		l3_xid_field->type=GPRS_LLC_XID_T_L3_PAR;
+		l3_xid_field->type = GPRS_LLC_XID_T_L3_PAR;
 
 		/* Add Layer 3 XID field to the list */
 		llist_add(&l3_xid_field->list, &xid_fields);
@@ -89,18 +97,20 @@ static int gprs_llc_generate_xid(uint8_t *bytes, int bytes_len, struct gprs_llc_
 	llist_add(&xid_n201u.list, &xid_fields);
 	llist_add(&xid_version.list, &xid_fields);
 
-	gprs_llc_copy_xid(&llme->xid,&xid_fields);
+	gprs_llc_copy_xid(&llme->xid, &xid_fields);
 
 	return gprs_llc_compile_xid(&xid_fields, bytes, bytes_len);
 }
 
 /* Generate XID message that will cause the GMM to reset */
-static int gprs_llc_generate_xid_for_gmm_reset(uint8_t *bytes, int bytes_len, int iov_ui, struct gprs_llc_llme *llme)
+static int gprs_llc_generate_xid_for_gmm_reset(uint8_t * bytes,
+					       int bytes_len, int iov_ui,
+					       struct gprs_llc_llme *llme)
 {
 	/* 
 	 * Called by gprs_llgmm_reset() and
-         * gprs_llgmm_reset_oldmsg()
-         */
+	 * gprs_llgmm_reset_oldmsg()
+	 */
 
 	LLIST_HEAD(xid_fields);
 
@@ -114,20 +124,21 @@ static int gprs_llc_generate_xid_for_gmm_reset(uint8_t *bytes, int bytes_len, in
 
 	/* randomly select new IOV-UI */
 	xid_iovui.type = GPRS_LLC_XID_T_IOV_UI;
-	xid_iovui.data = (uint8_t *) &iov_ui;
+	xid_iovui.data = (uint8_t *) & iov_ui;
 	xid_iovui.data_len = 4;
 
 	/* Add locally managed XID Fields */
 	llist_add(&xid_iovui.list, &xid_fields);
 	llist_add(&xid_reset.list, &xid_fields);
 
-	gprs_llc_copy_xid(&llme->xid,&xid_fields);
+	gprs_llc_copy_xid(&llme->xid, &xid_fields);
 
 	return gprs_llc_compile_xid(&xid_fields, bytes, bytes_len);
 }
 
 /* Process an incoming XID confirmation */
-static int gprs_llc_process_xid_conf(uint8_t *bytes, int bytes_len, struct gprs_llc_lle *lle)
+static int gprs_llc_process_xid_conf(uint8_t * bytes, int bytes_len,
+				     struct gprs_llc_lle *lle)
 {
 	/* 
 	 * Note: This function handles the response of a network originated
@@ -142,27 +153,30 @@ static int gprs_llc_process_xid_conf(uint8_t *bytes, int bytes_len, struct gprs_
 	struct gprs_llc_xid_field *xid_field_request_l3 = NULL;
 
 	/* Pick layer3 XID from the XID request we have sent last */
-	llist_for_each_entry(xid_field_request, &lle->llme->xid, list) 
-	{
-		if(xid_field_request->type == GPRS_LLC_XID_T_L3_PAR)
+	llist_for_each_entry(xid_field_request, &lle->llme->xid, list) {
+		if (xid_field_request->type == GPRS_LLC_XID_T_L3_PAR)
 			xid_field_request_l3 = xid_field_request;
 	}
-	
+
 	/* Parse and analyze XID-Response */
 	rc = gprs_llc_parse_xid(&xid_fields, bytes, bytes_len);
-	if (rc == 0)
-	{
+	if (rc == 0) {
 		gprs_llc_dump_xid_fields(&xid_fields, LOGL_DEBUG);
 
-		llist_for_each_entry(xid_field, &xid_fields, list) 
-		{
+		llist_for_each_entry(xid_field, &xid_fields, list) {
+
 			/* Forward SNDCP-XID fields to Layer 3 (SNDCP) */
-			if (xid_field->type == GPRS_LLC_XID_T_L3_PAR)
-				sndcp_sn_xid_conf(xid_field, xid_field_request_l3, lle);
+			if (xid_field->type == GPRS_LLC_XID_T_L3_PAR) {
+#if WITH_SNDCP_XID == 1
+				sndcp_sn_xid_conf(xid_field,
+						  xid_field_request_l3,
+						  lle);
+#endif
+			}
 
 			/* Process LLC-XID fields: */
-			else
-			{
+			else {
+
 				/* 
 				 * FIXME: Do something more useful with the 
 				 * echoed XID-Information. Currently we 
@@ -172,7 +186,11 @@ static int gprs_llc_process_xid_conf(uint8_t *bytes, int bytes_len, struct gprs_
 				 * inquiry. There is a remainig risk of 
 				 * malfunction!
 				 */
-				LOGP(DLLC, LOGL_NOTICE, "Ignoring XID-Field: XID: type=%i, data_len=%i, data=%s\n",xid_field->type,xid_field->data_len,xid_field->data);
+				LOGP(DLLC, LOGL_NOTICE,
+				     "Ignoring XID-Field: XID: type=%i, data_len=%i, data=%s\n",
+				     xid_field->type, xid_field->data_len,
+				     xid_field->data);
+
 			}
 		}
 	}
@@ -185,7 +203,11 @@ static int gprs_llc_process_xid_conf(uint8_t *bytes, int bytes_len, struct gprs_
 
 
 /* Process an incoming XID indication and generate an appropiate response */
-static int gprs_llc_process_xid_ind(uint8_t *bytes_request, int bytes_request_len, uint8_t *bytes_response, int bytes_response_maxlen, struct gprs_llc_lle *lle)
+static int gprs_llc_process_xid_ind(uint8_t * bytes_request,
+				    int bytes_request_len,
+				    uint8_t * bytes_response,
+				    int bytes_response_maxlen,
+				    struct gprs_llc_lle *lle)
 {
 	/* 
 	 * Note: This function computes the response that is sent back to the
@@ -204,41 +226,56 @@ static int gprs_llc_process_xid_ind(uint8_t *bytes_request, int bytes_request_le
 	gprs_llc_free_xid(&lle->llme->xid);
 
 	/* Parse and analyze XID-Request */
-	rc = gprs_llc_parse_xid(&xid_fields, bytes_request, bytes_request_len);
-	if (rc == 0)
-	{
+	rc = gprs_llc_parse_xid(&xid_fields, bytes_request,
+				bytes_request_len);
+	if (rc == 0) {
 		gprs_llc_dump_xid_fields(&xid_fields, LOGL_DEBUG);
 
-		llist_for_each_entry(xid_field, &xid_fields, list) 
-		{
+		llist_for_each_entry(xid_field, &xid_fields, list) {
 			/* Forward SNDCP-XID fields to Layer 3 (SNDCP) */
-			if(xid_field->type == GPRS_LLC_XID_T_L3_PAR)
-			{
-				xid_field_response = talloc_zero(NULL, struct gprs_llc_xid_field);
-				rc = sndcp_sn_xid_ind(xid_field, xid_field_response, lle);
-				if(rc == 0)
-					llist_add(&xid_field_response->list, &xid_fields_response);
+			if (xid_field->type == GPRS_LLC_XID_T_L3_PAR) {
+#if WITH_SNDCP_XID == 1
+				xid_field_response =
+				    talloc_zero(NULL,
+						struct gprs_llc_xid_field);
+				rc = sndcp_sn_xid_ind(xid_field,
+						      xid_field_response,
+						      lle);
+				if (rc == 0)
+					llist_add(&xid_field_response->
+						  list,
+						  &xid_fields_response);
 				else
 					talloc_free(xid_field_response);
+#endif
 			}
 
 			/* Process LLC-XID fields: */
-			else
-			{
+			else {
 				/* FIXME: Check the incoming XID parameters for
 				 * for validity. Currently we just blindly 
 				 * accept all XID fields by just echoing them.
 				 * There is a remaining risk of malfunction
- 				 * when a phone submits values which defer from
+				 * when a phone submits values which defer from
 				 * the default! 
 				 */
-				LOGP(DLLC, LOGL_NOTICE, "Echoing XID-Field: XID: type=%i, data_len=%i, data=%s\n",xid_field->type,xid_field->data_len,osmo_hexdump_nospc(xid_field->data,xid_field->data_len));
-				xid_field_response = gprs_llc_duplicate_xid_field(xid_field);
-				llist_add(&xid_field_response->list, &xid_fields_response);
+				LOGP(DLLC, LOGL_NOTICE,
+				     "Echoing XID-Field: XID: type=%i, data_len=%i, data=%s\n",
+				     xid_field->type, xid_field->data_len,
+				     osmo_hexdump_nospc(xid_field->data,
+							xid_field->
+							data_len));
+				xid_field_response =
+				    gprs_llc_duplicate_xid_field
+				    (xid_field);
+				llist_add(&xid_field_response->list,
+					  &xid_fields_response);
 			}
 		}
 
-		rc = gprs_llc_compile_xid(&xid_fields_response, bytes_response, bytes_response_maxlen);
+		rc = gprs_llc_compile_xid(&xid_fields_response,
+					  bytes_response,
+					  bytes_response_maxlen);
 		gprs_llc_free_xid(&xid_fields_response);
 	}
 	gprs_llc_free_xid(&xid_fields);
@@ -246,44 +283,34 @@ static int gprs_llc_process_xid_ind(uint8_t *bytes_request, int bytes_request_le
 	return rc;
 }
 
-
-/* Send XID response to LLE */
-static int gprs_llc_tx_xid(struct gprs_llc_lle *lle, struct msgb *msg,
-			   int command)
-{
-	/* copy identifiers from LLE to ensure lower layers can route */
-	msgb_tlli(msg) = lle->llme->tlli;
-	msgb_bvci(msg) = lle->llme->bvci;
-	msgb_nsei(msg) = lle->llme->nsei;
-
-	return gprs_llc_tx_u(msg, lle->sapi, command, GPRS_LLC_U_XID, 1);
-}
-
-
 /* Dispatch XID indications and responses comming from the Phone */
 static void rx_llc_xid(struct gprs_llc_lle *lle,
-			struct gprs_llc_hdr_parsed *gph)
+		       struct gprs_llc_hdr_parsed *gph)
 {
 	uint8_t response[1024];
 	int response_len;
 
 	/* FIXME: 8.5.3.3: check if XID is invalid */
 	if (gph->is_cmd) {
-		LOGP(DLLC, LOGL_NOTICE, "Received XID indication from phone.\n");
+		LOGP(DLLC, LOGL_NOTICE,
+		     "Received XID indication from phone.\n");
 
-		/* FIXME: implement XID negotiation using SNDCP */
 		struct msgb *resp;
 		uint8_t *xid;
 		resp = msgb_alloc_headroom(4096, 1024, "LLC_XID");
 
-		response_len = gprs_llc_process_xid_ind(gph->data, gph->data_len,response,sizeof(response), lle);
+		response_len =
+		    gprs_llc_process_xid_ind(gph->data, gph->data_len,
+					     response, sizeof(response),
+					     lle);
 		xid = msgb_put(resp, response_len);
 		memcpy(xid, response, response_len);
 
 		gprs_llc_tx_xid(lle, resp, 0);
 	} else {
-		LOGP(DLLC, LOGL_NOTICE, "Received XID confirmation from phone.\n");
-		gprs_llc_process_xid_conf(gph->data, gph->data_len,lle);
+		LOGP(DLLC, LOGL_NOTICE,
+		     "Received XID confirmation from phone.\n");
+		gprs_llc_process_xid_conf(gph->data, gph->data_len, lle);
 		/* FIXME: if we had sent a XID reset, send
 		 * LLGMM-RESET.conf to GMM */
 	}
@@ -291,7 +318,8 @@ static void rx_llc_xid(struct gprs_llc_lle *lle,
 
 
 /* Set of LL-XID negotiation (See also: TS 101 351, Section 7.2.2.4) */
-int gprs_ll_xid_req(struct gprs_llc_lle *lle, struct gprs_llc_xid_field *l3_xid_field)
+int gprs_ll_xid_req(struct gprs_llc_lle *lle,
+		    struct gprs_llc_xid_field *l3_xid_field)
 {
 	/* Note: This functions is calle from gprs_sndcp.c */
 
@@ -301,28 +329,28 @@ int gprs_ll_xid_req(struct gprs_llc_lle *lle, struct gprs_llc_xid_field *l3_xid_
 	struct msgb *msg;
 
 	/* Generate XID */
-	xid_bytes_len = gprs_llc_generate_xid(xid_bytes,sizeof(xid_bytes),l3_xid_field,lle->llme);
+	xid_bytes_len =
+	    gprs_llc_generate_xid(xid_bytes, sizeof(xid_bytes),
+				  l3_xid_field, lle->llme);
 
 
 	/* Only perform XID sending if the XID message contains something */
-	if(xid_bytes_len > 0)
-	{
+	if (xid_bytes_len > 0) {
 		/* Transmit XID bytes */
 		msg = msgb_alloc_headroom(4096, 1024, "LLC_XID");
 		xid = msgb_put(msg, xid_bytes_len);
 		memcpy(xid, xid_bytes, xid_bytes_len);
-		LOGP(DLLC, LOGL_NOTICE, "Sending XID request to phone...\n");
+		LOGP(DLLC, LOGL_NOTICE,
+		     "Sending XID request to phone...\n");
 		gprs_llc_tx_xid(lle, msg, 1);
-	}
-	else
-	{
-		LOGP(DLLC, LOGL_ERROR, "XID-Message generation failed, XID not sent!\n");
+	} else {
+		LOGP(DLLC, LOGL_ERROR,
+		     "XID-Message generation failed, XID not sent!\n");
 		return -EINVAL;
 	}
 
 	return 0;
 }
-
 
 /*
  * END XID RELATED 
@@ -330,44 +358,6 @@ int gprs_ll_xid_req(struct gprs_llc_lle *lle, struct gprs_llc_xid_field *l3_xid_
 
 
 
-static int apply_gea(struct gprs_llc_lle *lle, uint16_t crypt_len, uint16_t nu,
-                     uint32_t oc, uint8_t sapi, uint8_t *fcs, uint8_t *data)
-{
-        uint8_t cipher_out[GSM0464_CIPH_MAX_BLOCK];
-
-        if (lle->llme->algo == GPRS_ALGO_GEA0)
-                return -EINVAL;
-
-        /* Compute the 'Input' Paraemeter */
-        uint32_t fcs_calc, iv = gprs_cipher_gen_input_ui(lle->llme->iov_ui, sapi,
-                                                         nu, oc);
-        /* Compute gamma that we need to XOR with the data */
-        int r = gprs_cipher_run(cipher_out, crypt_len, lle->llme->algo,
-                                lle->llme->kc, iv,
-                                fcs ? GPRS_CIPH_SGSN2MS : GPRS_CIPH_MS2SGSN);
-        if (r < 0) {
-                LOGP(DLLC, LOGL_ERROR, "Error producing %s gamma for UI "
-                     "frame: %d\n", get_value_string(gprs_cipher_names,
-                                                     lle->llme->algo), r);
-                return -ENOMSG;
-        }
-
-        if (fcs) {
-                /* Mark frame as encrypted and update FCS */
-                data[2] |= 0x02;
-                fcs_calc = gprs_llc_fcs(data, fcs - data);
-                fcs[0] = fcs_calc & 0xff;
-                fcs[1] = (fcs_calc >> 8) & 0xff;
-                fcs[2] = (fcs_calc >> 16) & 0xff;
-                data += 3;
-        }
-
-        /* XOR the cipher output with the data */
-        for (r = 0; r < crypt_len; r++)
-                *(data + r) ^= cipher_out[r];
-
-        return 0;
-}
 
 /* Entry function from upper level (LLC), asking us to transmit a BSSGP PDU
  * to a remote MS (identified by TLLI) at a BTS identified by its BVCI and NSEI */
@@ -489,7 +479,7 @@ struct gprs_llc_lle *gprs_lle_get_or_create(const uint32_t tlli, uint8_t sapi)
 	if (lle)
 		return lle;
 
-	LOGP(DLLC, LOGL_NOTICE, "LLgprs_llc_transmit_xid(C: unknown TLLI 0x%08x, "
+	LOGP(DLLC, LOGL_NOTICE, "LLC: unknown TLLI 0x%08x, "
 		"creating LLME on the fly\n", tlli);
 	llme = llme_alloc(tlli);
 	lle = &llme->lle[sapi];
@@ -586,7 +576,6 @@ static void llme_free(struct gprs_llc_llme *llme)
 	gprs_sndcp_comp_entities_free(&llme->comp.proto);
 	gprs_sndcp_comp_entities_free(&llme->comp.data);
 	gprs_llc_free_xid(&llme->xid);
-
 	llist_del(&llme->list);
 	talloc_free(llme);
 }
@@ -634,7 +623,7 @@ static void t201_expired(void *data)
 }
 #endif
 
-static int gprs_llc_tx_u(struct msgb *msg, uint8_t sapi, int command,
+int gprs_llc_tx_u(struct msgb *msg, uint8_t sapi, int command,
 		  enum gprs_llc_u_cmd u_cmd, int pf_bit)
 {
 	uint8_t *fcs, *llch;
@@ -671,11 +660,62 @@ static int gprs_llc_tx_u(struct msgb *msg, uint8_t sapi, int command,
 	return _bssgp_tx_dl_ud(msg, NULL);
 }
 
+/* Send XID response to LLE */
+static int gprs_llc_tx_xid(struct gprs_llc_lle *lle, struct msgb *msg,
+			   int command)
+{
+	/* copy identifiers from LLE to ensure lower layers can route */
+	msgb_tlli(msg) = lle->llme->tlli;
+	msgb_bvci(msg) = lle->llme->bvci;
+	msgb_nsei(msg) = lle->llme->nsei;
+
+	return gprs_llc_tx_u(msg, lle->sapi, command, GPRS_LLC_U_XID, 1);
+}
+
+/* encrypt information field + FCS, if needed! */
+static int apply_gea(struct gprs_llc_lle *lle, uint16_t crypt_len, uint16_t nu,
+		     uint32_t oc, uint8_t sapi, uint8_t *fcs, uint8_t *data)
+{
+	uint8_t cipher_out[GSM0464_CIPH_MAX_BLOCK];
+
+	if (lle->llme->algo == GPRS_ALGO_GEA0)
+		return -EINVAL;
+
+	/* Compute the 'Input' Paraemeter */
+	uint32_t fcs_calc, iv = gprs_cipher_gen_input_ui(lle->llme->iov_ui, sapi,
+							 nu, oc);
+	/* Compute gamma that we need to XOR with the data */
+	int r = gprs_cipher_run(cipher_out, crypt_len, lle->llme->algo,
+				lle->llme->kc, iv,
+				fcs ? GPRS_CIPH_SGSN2MS : GPRS_CIPH_MS2SGSN);
+	if (r < 0) {
+		LOGP(DLLC, LOGL_ERROR, "Error producing %s gamma for UI "
+		     "frame: %d\n", get_value_string(gprs_cipher_names,
+						     lle->llme->algo), r);
+		return -ENOMSG;
+	}
+
+	if (fcs) {
+		/* Mark frame as encrypted and update FCS */
+		data[2] |= 0x02;
+		fcs_calc = gprs_llc_fcs(data, fcs - data);
+		fcs[0] = fcs_calc & 0xff;
+		fcs[1] = (fcs_calc >> 8) & 0xff;
+		fcs[2] = (fcs_calc >> 16) & 0xff;
+		data += 3;
+	}
+
+	/* XOR the cipher output with the data */
+	for (r = 0; r < crypt_len; r++)
+		*(data + r) ^= cipher_out[r];
+
+	return 0;
+}
+
 /* Transmit a UI frame over the given SAPI:
    'encryptable' indicates whether particular message can be encrypted according
    to 3GPP TS 24.008 § 4.7.1.2
  */
-
 int gprs_llc_tx_ui(struct msgb *msg, uint8_t sapi, int command,
 		   struct sgsn_mm_ctx *mmctx, bool encryptable)
 {
@@ -1026,7 +1066,6 @@ int gprs_llgmm_reset(struct gprs_llc_llme *llme)
 	uint8_t *xid;
 
 	LOGP(DLLC, LOGL_NOTICE, "LLGM Reset\n");
-
 	if (RAND_bytes((uint8_t *) &llme->iov_ui, 4) != 1) {
 		LOGP(DLLC, LOGL_NOTICE, "RAND_bytes failed for LLC XID reset, "
 		     "falling back to rand()\n");
@@ -1034,7 +1073,8 @@ int gprs_llgmm_reset(struct gprs_llc_llme *llme)
 	}
 
 	/* Generate XID message */
-	xid_bytes_len = gprs_llc_generate_xid_for_gmm_reset(xid_bytes,sizeof(xid_bytes),llme->iov_ui,llme);
+	xid_bytes_len = gprs_llc_generate_xid_for_gmm_reset(xid_bytes,
+					sizeof(xid_bytes),llme->iov_ui,llme);
 	if(xid_bytes_len < 0)
 		return -EINVAL;
 	xid = msgb_put(msg, xid_bytes_len);
@@ -1047,7 +1087,6 @@ int gprs_llgmm_reset(struct gprs_llc_llme *llme)
 	lle->oc_ui_recv = 0;
 
 	/* FIXME: Start T200, wait for XID response */
-
 	return gprs_llc_tx_xid(lle, msg, 1);
 }
 
@@ -1060,7 +1099,6 @@ int gprs_llgmm_reset_oldmsg(struct msgb* oldmsg, uint8_t sapi,
 	uint8_t *xid;
 
 	LOGP(DLLC, LOGL_NOTICE, "LLGM Reset\n");
-
 	if (RAND_bytes((uint8_t *) &llme->iov_ui, 4) != 1) {
 		LOGP(DLLC, LOGL_NOTICE, "RAND_bytes failed for LLC XID reset, "
 		     "falling back to rand()\n");
@@ -1068,7 +1106,8 @@ int gprs_llgmm_reset_oldmsg(struct msgb* oldmsg, uint8_t sapi,
 	}
 
 	/* Generate XID message */
-	xid_bytes_len = gprs_llc_generate_xid_for_gmm_reset(xid_bytes,sizeof(xid_bytes),llme->iov_ui,llme);
+	xid_bytes_len = gprs_llc_generate_xid_for_gmm_reset(xid_bytes,
+					sizeof(xid_bytes),llme->iov_ui,llme);
 	if(xid_bytes_len < 0)
 		return -EINVAL;
 	xid = msgb_put(msg, xid_bytes_len);
@@ -1087,19 +1126,3 @@ int gprs_llc_init(const char *cipher_plugin_path)
 {
 	return gprs_cipher_load(cipher_plugin_path);
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

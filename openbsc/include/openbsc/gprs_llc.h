@@ -180,7 +180,7 @@ struct gprs_llc_llme {
 	/* Compression entities */
 	struct comp_ent comp;
 
-	/* Copy of the XID fields we have sent */
+	/* Copy of the XID fields we sent */
 	struct llist_head xid;
 
 	/* Internal management */
@@ -236,16 +236,14 @@ int gprs_llgmm_reset(struct gprs_llc_llme *llme);
 int gprs_llgmm_reset_oldmsg(struct msgb* oldmsg, uint8_t sapi,
 			    struct gprs_llc_llme *llme);
 
+/* Set of LL-XID negotiation (See also: TS 101 351, Section 7.2.2.4) */
+int gprs_ll_xid_req(struct gprs_llc_lle *lle, 
+		    struct gprs_llc_xid_field *l3_xid_field);
+
 /* 04.64 Chapter 7.2.1.1 LLGMM-ASSIGN */
 int gprs_llgmm_assign(struct gprs_llc_llme *llme,
 		      uint32_t old_tlli, uint32_t new_tlli);
 int gprs_llgmm_unassign(struct gprs_llc_llme *llme);
-
-/* Set of LL-XID negotiation (See also: TS 101 351, Section 7.2.2.4) */
-int gprs_ll_xid_req(struct gprs_llc_lle *lle, struct gprs_llc_xid_field *l3_xid_field);
-
-
-
 
 int gprs_llc_init(const char *cipher_plugin_path);
 int gprs_llc_vty_init(void);

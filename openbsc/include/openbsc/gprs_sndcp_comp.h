@@ -20,16 +20,15 @@
  *
  */
 
-#ifndef _GPRS_SNDCP_COMP_ENTITY_H
-#define _GPRS_SNDCP_COMP_ENTITY_H
+#ifndef _GPRS_SNDCP_COMP_H
+#define _GPRS_SNDCP_COMP_H
 
 #include <stdint.h>
 #include <osmocom/core/linuxlist.h>
 #include <openbsc/gprs_sndcp_xid.h>
 
 /* Header / Data compression entity */
-struct gprs_sndcp_comp_entity
-{
+struct gprs_sndcp_comp {
 	struct llist_head list;
 
 	/* Serves as an ID in case we want to delete this entity later */
@@ -50,42 +49,37 @@ struct gprs_sndcp_comp_entity
 };
 
 /* Free a list with compression entities */
-void gprs_sndcp_comp_entities_free (struct llist_head *comp_entities);
+void gprs_sndcp_comp_free(struct llist_head *comp_entities);
 
 /* Delete a compression entity */
-void gprs_sndcp_comp_entities_delete (struct llist_head *comp_entities,
-				      int entity);
+void gprs_sndcp_comp_delete(struct llist_head *comp_entities, int entity);
 
 /* Create and Add a new compression entity
  * (returns a pointer to the compression entity that has just been created) */
-struct gprs_sndcp_comp_entity *
-gprs_sndcp_comp_entities_add (struct llist_head *comp_entities,
-			      const struct gprs_sndcp_comp_field *comp_field);
+struct gprs_sndcp_comp *gprs_sndcp_comp_entities_add(const void *ctx, struct
+						     llist_head
+						     *comp_entities, const struct
+						     gprs_sndcp_comp_field
+						     *comp_field);
 
 /* Find compression entity by its entity number */
-struct gprs_sndcp_comp_entity *
-gprs_sndcp_comp_entity_find_by_entity (const struct llist_head*comp_entities,
-				       int entity);
+struct gprs_sndcp_comp *gprs_sndcp_comp_by_entity(const struct llist_head
+						  *comp_entities, int entity);
 
 /* Find which compression entity handles the specified pcomp/dcomp */
-struct gprs_sndcp_comp_entity *
-gprs_sndcp_comp_entity_find_by_comp (const struct llist_head *comp_entities,
-				     int comp);
+struct gprs_sndcp_comp *gprs_sndcp_comp_by_comp(const struct llist_head
+						*comp_entities, int comp);
 
 /* Find which compression entity handles the specified nsapi */
-struct gprs_sndcp_comp_entity *
-gprs_sndcp_comp_entity_find_by_nsapi (const struct llist_head *comp_entities,
-				      int nsapi);
+struct gprs_sndcp_comp *gprs_sndcp_comp_by_nsapi(const struct llist_head
+						 *comp_entities, int nsapi);
 
 /* Find a comp_index for a given pcomp/dcomp value */
-int 
-gprs_sndcp_comp_entity_find_comp_index_by_comp (const struct gprs_sndcp_comp_entity
-						*comp_entity, int comp);
+int gprs_sndcp_comp_get_idx(const struct gprs_sndcp_comp
+			    *comp_entity, int comp);
 
 /* Find a pcomp/dcomp value for a given comp_index */
-int 
-gprs_sndcp_comp_entity_find_comp_by_comp_index (const struct gprs_sndcp_comp_entity
-						*comp_entity,
-						int comp_index);
+int gprs_sndcp_comp_get_comp(const struct gprs_sndcp_comp
+			     *comp_entity, int comp_index);
 
 #endif

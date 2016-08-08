@@ -172,7 +172,7 @@ struct gprs_llc_llme {
 	 * may strip the optional fields in the confirmation
 	 * we need to remeber those fields in order to be 
 	 * able to create the compression entity. */
-	struct llist_head xid;
+	struct llist_head *xid;
 
 	/* Compression entities */
 	struct {

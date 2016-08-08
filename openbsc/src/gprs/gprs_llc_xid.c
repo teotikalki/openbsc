@@ -47,13 +47,12 @@ decode_xid_field(const uint8_t *src, uint8_t src_len,
 	uint8_t len;
 	int src_counter = 0;
 
+	OSMO_ASSERT(xid_field);
+	OSMO_ASSERT(src);
+
 	/* Exit immediately if it is clear that no
 	 * parseable data is present */
 	if (src_len < 1 || !src)
-		return -EINVAL;
-
-	/* Exit immediately if no result can be stored */
-	if (!xid_field)
 		return -EINVAL;
 
 	/* Extract header info */
@@ -97,9 +96,8 @@ encode_xid_field(uint8_t *dst, int dst_maxlen,
 {
 	int xl = 0;
 
-	/* Exit immediately if no source struct is available */
-	if (!xid_field)
-		return -EINVAL;
+	OSMO_ASSERT(xid_field);
+	OSMO_ASSERT(dst);
 
 	/* When the length does not fit into 2 bits,
 	 * we need extended length fields */
@@ -146,6 +144,9 @@ gprs_llc_compile_xid(const struct llist_head *xid_fields, uint8_t *dst,
 	int rc;
 	int byte_counter = 0;
 
+	OSMO_ASSERT(xid_fields);
+	OSMO_ASSERT(dst);
+
 	llist_for_each_entry(xid_field, xid_fields, list) {
 		/* Encode XID-Field */
 		rc = encode_xid_field(dst, dst_maxlen, xid_field);
@@ -172,7 +173,9 @@ struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t *src,
 
 	int rc;
 	int max_loops = src_len;
-	
+
+	OSMO_ASSERT(src);
+
 	xid_fields = talloc_zero(ctx,struct llist_head);
 	INIT_LLIST_HEAD(xid_fields);
 
@@ -210,18 +213,12 @@ struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t *src,
 }
 
 
-/* Free all xid-fields the list contains */
-void gprs_llc_free_xid(struct llist_head *xid_fields)
+/* Free XID-list with including all its XID-Fields */
+struct llist_head *gprs_llc_free_xid(struct llist_head *xid_fields)
 {
-	struct gprs_llc_xid_field *xid_field;
-	struct llist_head *lh, *lh2;
-
-	if (xid_fields) {
-		llist_for_each_safe(lh, lh2, xid_fields) {
-			llist_del(lh);
-			talloc_free(lh);
-		}
-	}
+	if(xid_fields != NULL)
+		talloc_free(xid_fields);
+	return NULL;
 }
 
 
@@ -232,6 +229,8 @@ struct gprs_llc_xid_field *gprs_llc_duplicate_xid_field(const void *ctx,
 							*xid_field)
 {
 	struct gprs_llc_xid_field *duplicate_of_xid_field;
+
+	OSMO_ASSERT(xid_field);
 
 	/* Create a copy of the XID field in memory */
 	duplicate_of_xid_field =
@@ -250,18 +249,22 @@ struct gprs_llc_xid_field *gprs_llc_duplicate_xid_field(const void *ctx,
 }
 
 /* Copy an llist with xid fields */
-void gprs_llc_copy_xid(const void *ctx, struct llist_head *xid_fields_copy, 
-		       const struct llist_head *xid_fields_orig)
+struct llist_head *gprs_llc_copy_xid(const void *ctx, const struct llist_head *xid_fields)
 {
 	struct gprs_llc_xid_field *xid_field;
+	struct llist_head *xid_fields_copy;
 
-	/* Make sure that the target list is empty */
-	gprs_llc_free_xid(xid_fields_copy);
+	OSMO_ASSERT(xid_fields);
+
+	xid_fields_copy = talloc_zero(ctx,struct llist_head);
+	INIT_LLIST_HEAD(xid_fields_copy);
 
 	/* Create duplicates and add them to the target list */
-	llist_for_each_entry(xid_field, xid_fields_orig, list) {
+	llist_for_each_entry(xid_field, xid_fields, list) {
 		llist_add(&gprs_llc_duplicate_xid_field(ctx,xid_field)->list, xid_fields_copy);
 	}
+
+	return xid_fields_copy;
 }
 
 /* Dump a list with XID fields (Debug) */
@@ -269,11 +272,20 @@ void gprs_llc_dump_xid_fields(const struct llist_head *xid_fields, unsigned int 
 {
 	struct gprs_llc_xid_field *xid_field;
 
+	OSMO_ASSERT(xid_fields);
+
 	llist_for_each_entry(xid_field, xid_fields, list) {
-		LOGP(DSNDCP, logl,
-		     "XID: type=%i, data_len=%i, data=%s\n",
-		     xid_field->type, xid_field->data_len,
-		     osmo_hexdump_nospc(xid_field->data,
-					xid_field->data_len));
+		if(xid_field->data_len) {
+			OSMO_ASSERT(xid_field->data);
+			LOGP(DSNDCP, logl,
+			     "XID: type=%i, data_len=%i, data=%s\n",
+			     xid_field->type, xid_field->data_len,
+			     osmo_hexdump_nospc(xid_field->data,
+						xid_field->data_len));
+		} else {
+			LOGP(DSNDCP, logl,
+			     "XID: type=%i, data_len=%i, data=NULL\n",
+			     xid_field->type, xid_field->data_len);
+		}
 	}
 }

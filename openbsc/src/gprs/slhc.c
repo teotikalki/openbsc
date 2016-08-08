@@ -101,20 +101,20 @@ static void put_unaligned(uint16_t val, void *ptr)
 /* Initialize compression data structure
  *	slots must be in range 0 to 255 (zero meaning no compression)
  */
-struct slcompress *slhc_init(int rslots, int tslots)
+struct slcompress *slhc_init(const void *ctx, int rslots, int tslots)
 {
 	register short i;
 	register struct cstate *ts;
 	struct slcompress *comp;
 
-	comp = (struct slcompress *)talloc_zero_size(NULL,sizeof(struct slcompress));
+	comp = (struct slcompress *)talloc_zero_size(ctx,sizeof(struct slcompress));
 	if (! comp)
 		goto out_fail;
 	memset(comp, 0, sizeof(struct slcompress));
 
 	if ( rslots > 0  &&  rslots < 256 ) {
 		size_t rsize = rslots * sizeof(struct cstate);
-		comp->rstate = (struct cstate *) talloc_zero_size(NULL, rsize);
+		comp->rstate = (struct cstate *) talloc_zero_size(ctx, rsize);
 		if (! comp->rstate)
 			goto out_free;
 		memset(comp->rstate, 0, rsize);
@@ -123,7 +123,7 @@ struct slcompress *slhc_init(int rslots, int tslots)
 
 	if ( tslots > 0  &&  tslots < 256 ) {
 		size_t tsize = tslots * sizeof(struct cstate);
-		comp->tstate = (struct cstate *) talloc_zero_size(NULL, tsize);
+		comp->tstate = (struct cstate *) talloc_zero_size(ctx, tsize);
 		if (! comp->tstate)
 			goto out_free2;
 		memset(comp->tstate, 0, tsize);

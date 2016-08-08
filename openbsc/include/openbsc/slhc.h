@@ -172,7 +172,7 @@ struct slcompress {
 #define __ARGS(x) x
 
 /* In slhc.c: */
-struct slcompress *slhc_init(int rslots, int tslots);
+struct slcompress *slhc_init(const void *ctx, int rslots, int tslots);
 
 void slhc_free(struct slcompress *comp);
 

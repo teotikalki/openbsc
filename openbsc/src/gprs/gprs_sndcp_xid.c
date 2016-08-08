@@ -537,7 +537,7 @@ int gprs_sndcp_get_compression_class(const struct gprs_sndcp_comp_field
 	else if (comp_field->v44_params)
 		return SNDCP_XID_DATA_COMPRESSION;
 	else
-		OSMO_ASSERT(false);
+		return -EINVAL;
 }
 
 /* Convert all compression fields to bytstreams */
@@ -596,16 +596,24 @@ int gprs_sndcp_compile_xid(const struct llist_head *comp_fields,
 				    sizeof(comp_bytes),
 				    SNDCP_XID_DATA_COMPRESSION);
 	OSMO_ASSERT(rc >= 0);
+
+	if(rc > 0)
+	{
 	dst = tlv_put(dst, SNDCP_XID_DATA_COMPRESSION, rc, comp_bytes);
 	byte_counter += rc + 2;
+	}
 
 	/* Add header compression fields */
 	rc = gprs_sndcp_pack_fields(comp_fields, comp_bytes,
 				    sizeof(comp_bytes),
 				    SNDCP_XID_PROTOCOL_COMPRESSION);
 	OSMO_ASSERT(rc >= 0);
+
+	if(rc > 0)
+	{
 	dst = tlv_put(dst, SNDCP_XID_PROTOCOL_COMPRESSION, rc, comp_bytes);
 	byte_counter += rc + 2;
+	}
 
 	/* Return generated length */
 	return byte_counter;
@@ -1304,8 +1312,6 @@ static int decode_xid_block(struct llist_head *comp_fields, uint8_t tag,
 
 	byte_counter = 0;
 	do {
-		printf("DEC..\n");
-
 		/* Bail if more than the maximum number of
 		   comp_fields is generated */
 		if (comp_field_count > MAX_ENTITIES * 2) {
@@ -1314,17 +1320,13 @@ static int decode_xid_block(struct llist_head *comp_fields, uint8_t tag,
 		}
 
 		/* Parse and add comp_field */
-		printf("talloc_zero()\n");
 		comp_field =
 		    talloc_zero(comp_fields, struct gprs_sndcp_comp_field);
-		printf("talloc_zero()...done!\n");
 
-		printf("decode_comp_field()..\n");
 		rc = decode_comp_field(val + byte_counter,
 				       tag_len -
 				       byte_counter,
 				       comp_field, lt, lt_len, tag);
-		printf("decode_comp_field() done..\n");
 
 		if (rc < 0) {
 			talloc_free(comp_field);
@@ -1338,8 +1340,6 @@ static int decode_xid_block(struct llist_head *comp_fields, uint8_t tag,
 	}
 	while (tag_len - byte_counter > 0);
 
-
-	printf("We are done!\n");
 	return byte_counter;
 }
 
@@ -1355,6 +1355,7 @@ static int gprs_sndcp_decode_xid(struct llist_head *comp_fields,
 	uint16_t tag_len;
 	const uint8_t *val;
 	int byte_counter = 0;
+	int rc;
 
 	/* Valid TLV-Tag and types */
 	static const struct tlv_definition sndcp_xid_def = {
@@ -1375,9 +1376,13 @@ static int gprs_sndcp_decode_xid(struct llist_head *comp_fields,
 		/* Decode compression parameters */
 		if ((tag == SNDCP_XID_PROTOCOL_COMPRESSION)
 		    || (tag == SNDCP_XID_DATA_COMPRESSION)) {
-			byte_counter +=
-			    decode_xid_block(comp_fields, tag, tag_len, val, lt,
+			rc = decode_xid_block(comp_fields, tag, tag_len, val, lt,
 					     lt_len);
+
+			if(rc < 0)
+				return -EINVAL;
+			else
+				byte_counter += rc;
 		}
 
 		/* Stop when no further TLV elements can be expected */
@@ -1427,6 +1432,9 @@ static int complete_comp_field_params(struct gprs_sndcp_comp_field
 				      *comp_field_dst, const struct gprs_sndcp_comp_field
 				      *comp_field_src)
 {
+	OSMO_ASSERT(comp_field_dst);
+	OSMO_ASSERT(comp_field_src);
+
 	if (comp_field_dst->algo < 0)
 		return -EINVAL;
 
@@ -1462,7 +1470,7 @@ static int complete_comp_field_params(struct gprs_sndcp_comp_field
 	}
 
 	if (comp_field_dst->rohc_params && comp_field_src->rohc_params) {
-		if (comp_field_dst->rfc1144_params->s01 < 0)
+		if (comp_field_dst->rohc_params->max_cid < 0)
 
 			if (comp_field_dst->rohc_params->max_cid < 0)
 				comp_field_dst->rohc_params->max_cid =
@@ -1532,8 +1540,8 @@ static int gprs_sndcp_complete_comp_field(struct gprs_sndcp_comp_field
 	struct gprs_sndcp_comp_field *comp_field_src;
 	int rc = 0;
 
-	if (!comp_field || !comp_fields)
-		return -EINVAL;
+	OSMO_ASSERT(comp_field);
+	OSMO_ASSERT(comp_fields);
 
 	llist_for_each_entry(comp_field_src, comp_fields, list) {
 		if (comp_field_src->entity == comp_field->entity) {
@@ -1563,8 +1571,8 @@ static int gprs_sndcp_complete_comp_fields(struct llist_head
 	struct gprs_sndcp_comp_field *comp_field_incomplete;
 	int rc;
 
-	if (!comp_fields_incomplete || !comp_fields)
-		return -EINVAL;
+	OSMO_ASSERT(comp_fields_incomplete);
+	OSMO_ASSERT(comp_fields);
 
 	llist_for_each_entry(comp_field_incomplete, comp_fields_incomplete,
 			     list) {
@@ -1593,10 +1601,6 @@ struct llist_head *gprs_sndcp_parse_xid(const void *ctx,
 
 	OSMO_ASSERT(src);
 
-	printf("======> %s\n", osmo_hexdump_nospc(src,src_len));
-
-	printf("Go ahead!\n");
-
 	comp_fields = talloc_zero(ctx, struct llist_head);
 	INIT_LLIST_HEAD(comp_fields);
 
@@ -1618,10 +1622,9 @@ struct llist_head *gprs_sndcp_parse_xid(const void *ctx,
 						     comp_fields_req);
 		if (rc < 0)
 			return NULL;
+
 	} else {
 		/* Parse SNDCP-CID XID-Field */
-
-		printf("Go ahead!\n");
 		rc = gprs_sndcp_decode_xid(comp_fields, src, src_len, NULL, 0);
 		if (rc < 0)
 			return NULL;
@@ -1704,6 +1707,9 @@ static void dump_pcomp_params(const struct gprs_sndcp_comp_field
 		LOGP(DSNDCP, logl,
 		     "      max_header=%i;\n",
 		     comp_field->rohc_params->max_header);
+		LOGP(DSNDCP, logl,
+		     "      profile_len=%i;\n",
+		     comp_field->rohc_params->profile_len);
 		if (comp_field->rohc_params->profile_len == 0)
 			LOGP(DSNDCP, logl, "      profile[] = NULL;\n");
 		for (i = 0; i < comp_field->rohc_params->profile_len; i++)

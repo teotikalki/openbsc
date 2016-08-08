@@ -854,7 +854,7 @@ static int gprs_llc_generate_sndcp_xid(uint8_t * bytes, int bytes_len,
 	/* Add compression field(s) to list */
 	llist_add(&rfc1144_comp_field.list, &comp_fields);
 //      llist_add(&rfc2507_comp_field.list, &comp_fields);
-//      llist_add(&rohc_comp_field.list, &comp_fields);
+	llist_add(&rohc_comp_field.list, &comp_fields);
 
 	/* Comile bytestream */
 	return gprs_sndcp_compile_xid(&comp_fields, bytes, bytes_len);
@@ -1097,19 +1097,13 @@ int sndcp_sn_xid_conf(struct gprs_llc_xid_field *xid_field_confirmation,
 	int rc;
 	int compclass;
 
-	printf("sndcp_sn_xid_conf()!\n");
-
 	if (xid_field_confirmation && xid_field_request) {
 		/* Parse SNDCP-CID XID-Field */
 
-
-		printf("gprs_sndcp_parse_xid!\n");
-		comp_fields_req = gprs_sndcp_parse_xid(NULL,
+		comp_fields_req = gprs_sndcp_parse_xid(lle->llme,
 					  xid_field_request->data,
 					  xid_field_request->data_len,
 					  NULL);
-
-		printf("gprs_sndcp_parse_xid! DONE!\n");
 
 		if (!comp_fields_req)
 			return -EINVAL;
@@ -1119,7 +1113,7 @@ int sndcp_sn_xid_conf(struct gprs_llc_xid_field *xid_field_confirmation,
 		gprs_sndcp_dump_comp_fields(comp_fields_req, LOGL_DEBUG);
 
 		/* Parse SNDCP-CID XID-Field */
-		comp_fields_conf = gprs_sndcp_parse_xid(NULL,
+		comp_fields_conf = gprs_sndcp_parse_xid(lle->llme,
 					  xid_field_confirmation->data,
 					  xid_field_confirmation->data_len,
 					  comp_fields_req);

@@ -65,11 +65,11 @@ int gprs_sndcp_hdrcomp_init(struct gprs_sndcp_comp_entity *comp_entity,
 			    const struct gprs_sndcp_comp_field *comp_field)
 {
 	/* Note: This function is automatically called from
-		 gprs_sndcp_comp_entity.c when a new header compression
-		 entity is created by gprs_sndcp.c */
+	 * gprs_sndcp_comp_entity.c when a new header compression
+	 * entity is created by gprs_sndcp.c */
 
-	if ((comp_entity->compclass == SNDCP_XID_PROTOCOL_COMPRESSION)
-	    && (comp_entity->algo == RFC_1144)) {
+	if (comp_entity->compclass == SNDCP_XID_PROTOCOL_COMPRESSION
+	    && comp_entity->algo == RFC_1144) {
 		comp_entity->state =
 		    slhc_init(comp_field->rfc1144_params->s01 + 1,
 			      comp_field->rfc1144_params->s01 + 1);
@@ -79,8 +79,8 @@ int gprs_sndcp_hdrcomp_init(struct gprs_sndcp_comp_entity *comp_entity,
 	}
 
 	/* Just in case someone tries to initalize an unknown or unsupported
-	   header compresson. Since everything is checked during the SNDCP
-	   negotiation process, this should never happen! */
+	 * header compresson. Since everything is checked during the SNDCP
+	 * negotiation process, this should never happen! */
 	LOGP(DSNDCP, LOGL_ERROR,
 	     "Unknown or unsupported header compression type requested for initalization, could not initalize...\n");
 	return -EINVAL;
@@ -92,11 +92,11 @@ int gprs_sndcp_hdrcomp_init(struct gprs_sndcp_comp_entity *comp_entity,
 void gprs_sndcp_hdrcomp_term(struct gprs_sndcp_comp_entity *comp_entity)
 {
 	/* Note: This function is automatically called from
-	   gprs_sndcp_comp_entity.c when a header compression
-	   entity is deleted by gprs_sndcp.c */
+	 * gprs_sndcp_comp_entity.c when a header compression
+	 * entity is deleted by gprs_sndcp.c */
 
-	if ((comp_entity->compclass == SNDCP_XID_PROTOCOL_COMPRESSION)
-	    && (comp_entity->algo == RFC_1144)) {
+	if (comp_entity->compclass == SNDCP_XID_PROTOCOL_COMPRESSION
+	    && comp_entity->algo == RFC_1144) {
 		if (comp_entity->state) {
 			slhc_free((struct slcompress *) comp_entity->
 				  state);
@@ -108,8 +108,8 @@ void gprs_sndcp_hdrcomp_term(struct gprs_sndcp_comp_entity *comp_entity)
 	}
 
 	/* Just in case someone tries to initalize an unknown or unsupported
-	   header compresson. Since everything is checked during the SNDCP
-	   negotiation process, this should never happen! */
+	 * header compresson. Since everything is checked during the SNDCP
+	 * negotiation process, this should never happen! */
 	LOGP(DSNDCP, LOGL_ERROR,
 	     "Unknown or unsupported header compression type requested for termiation, could not initalize...\n");
 }
@@ -150,15 +150,12 @@ static int gprs_sndcp_hdrcomp_rfc1144_compress(struct slcompress *comp,
 	/* Generate pcomp_index */
 	if ((packet[0] & SL_TYPE_COMPRESSED_TCP) == SL_TYPE_COMPRESSED_TCP) {
 		*pcomp_index = 2;
-		/* Remove tag for compressed TCP, because the packet
-		   type is already define by pcomp */
-		//      packet[0] &= 0x7F;      
 	} else if ((packet[0] & SL_TYPE_UNCOMPRESSED_TCP) ==
 		   SL_TYPE_UNCOMPRESSED_TCP) {
 		*pcomp_index = 1;
 
 		/* Remove tag for uncompressed TCP, because the
-		   packet type is already define by pcomp */
+		 * packet type is already define by pcomp */
 		packet[0] &= 0x4F;	
 	} else
 		*pcomp_index = 0;
@@ -176,8 +173,8 @@ static int gprs_sndcp_hdrcomp_rfc1144_expand(struct slcompress *comp,
 	int type = -1;
 
 	/* Note: this function should never be called with pcomp_index=0,
-	   since this condition is already filtered
-	   out by gprs_sndcp_hdrcomp_expand() */
+	 * since this condition is already filtered
+	 * out by gprs_sndcp_hdrcomp_expand() */
 
 	/* Determine the packet type by the PCOMP index */
 	switch (pcomp_index) {
@@ -190,15 +187,15 @@ static int gprs_sndcp_hdrcomp_rfc1144_expand(struct slcompress *comp,
 	}
 
 	/* Restore the original version nibble on
-	   marked uncompressed packets */
+	 * marked uncompressed packets */
 	if (type == SL_TYPE_UNCOMPRESSED_TCP) {
 		LOGP(DSNDCP, LOGL_INFO,
 		     "Uncompressed rfc1144 packet received...\n");
 
 
 		/* Just in case the phone tags uncompressed tcp-packets
-		   (normally this is handled by pcomp so there is
-		   no need for tagging the packets) */
+		 * (normally this is handled by pcomp so there is
+		 * no need for tagging the packets) */
 		packet[0] &= 0x4F;
 		packet_decompressed_len =
 		    slhc_remember(comp, packet, packet_len);
@@ -330,11 +327,9 @@ int gprs_sndcp_hdrcomp_compress(uint8_t * packet, int packet_len,
 
 #if GPRS_SNDCP_HDRCOMP_RFC1144_TEST == 1
 
-/* 
- * This is a test implementation to make sure the rfc1144 compression
+/* This is a test implementation to make sure the rfc1144 compression
  * implementation works as expected. All data is first compressed and
- * decompressed on both directions. 
- */
+ * decompressed on both directions. */
 
 /* FIXME: FOR EXPERIMENTATION ONLY! REMOVE AS SOON AS POSSIBLE */
 static uint16_t header_checksum(uint8_t * iph, unsigned int ihl)

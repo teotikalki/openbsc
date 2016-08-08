@@ -57,7 +57,7 @@ void gprs_sndcp_comp_entities_delete (struct llist_head *comp_entities,
 				      int entity);
 
 /* Create and Add a new compression entity
-(returns a pointer to the compression entity that has just been created) */
+ * (returns a pointer to the compression entity that has just been created) */
 struct gprs_sndcp_comp_entity *
 gprs_sndcp_comp_entities_add (struct llist_head *comp_entities,
 			      const struct gprs_sndcp_comp_field *comp_field);

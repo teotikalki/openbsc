@@ -1,4 +1,4 @@
-/* GPRS LLC XID field encoding/decoding as per 3GPP TS 04.64 */
+/* GPRS LLC XID field encoding/decoding as per 3GPP TS 44.064 */
 
 /* (C) 2016 by Sysmocom s.f.m.c. GmbH
  * All Rights Reserved
@@ -48,8 +48,8 @@ decode_xid_field(const uint8_t *src, uint8_t src_len,
 	int src_counter = 0;
 
 	/* Exit immediately if it is clear that no
-	   parseable data is present */
-	if ((src_len < 1) || !src)
+	 * parseable data is present */
+	if (src_len < 1 || !src)
 		return -EINVAL;
 
 	/* Exit immediately if no result can be stored */
@@ -80,7 +80,7 @@ decode_xid_field(const uint8_t *src, uint8_t src_len,
 		if (src_len < src_counter + len)
 			return -EINVAL;
 		xid_field->data =
-		    talloc_zero_size(NULL, xid_field->data_len);
+		    talloc_zero_size(xid_field, xid_field->data_len);
 		memcpy(xid_field->data, src, xid_field->data_len);
 	} else
 		xid_field->data = NULL;
@@ -102,12 +102,12 @@ encode_xid_field(uint8_t *dst, int dst_maxlen,
 		return -EINVAL;
 
 	/* When the length does not fit into 2 bits,
-	   we need extended length fields */
+	 * we need extended length fields */
 	if (xid_field->data_len > 3)
 		xl = 1;
 
 	/* Exit immediately if it is clear that no
-	   encoding result can be stored */
+	 * encoding result can be stored */
 	if (dst_maxlen < xid_field->data_len + 1 + xl)
 		return -EINVAL;
 
@@ -128,7 +128,7 @@ encode_xid_field(uint8_t *dst, int dst_maxlen,
 		dst[0] |= ((xid_field->data_len) & 0x03);
 
 	/* Append payload data */
-	if ((xid_field->data) && (xid_field->data_len))
+	if (xid_field->data && xid_field->data_len)
 		memcpy(dst + 1 + xl, xid_field->data,
 		       xid_field->data_len);
 
@@ -153,7 +153,7 @@ gprs_llc_compile_xid(const struct llist_head *xid_fields, uint8_t *dst,
 			return -EINVAL;
 
 		/* Advance pointer and lower maxlen for the
-		   next encoding round */
+		 * next encoding round */
 		dst += rc;
 		byte_counter += rc;
 		dst_maxlen -= rc;
@@ -163,62 +163,60 @@ gprs_llc_compile_xid(const struct llist_head *xid_fields, uint8_t *dst,
 	return byte_counter;
 }
 
-
 /* Transform a XID message (dst) into a list of XID fields */
-int
-gprs_llc_parse_xid(struct llist_head *xid_fields, const uint8_t *src,
-		   int src_len)
+struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t *src,
+				      int src_len)
 {
 	struct gprs_llc_xid_field *xid_field;
+	struct llist_head *xid_fields;
+
 	int rc;
 	int max_loops = src_len;
+	
+	xid_fields = talloc_zero(ctx,struct llist_head);
+	INIT_LLIST_HEAD(xid_fields);
 
 	while (1) {
 		/* Bail in case decode_xid_field() constantly returns zero */
 		if (max_loops <= 0) {
-			gprs_llc_free_xid(xid_fields);	
-			return -EINVAL;
+			talloc_free(xid_fields);
+			return NULL;
 		}
 
 		/* Decode XID field */
-		xid_field = talloc_zero(NULL, struct gprs_llc_xid_field);
+		xid_field = talloc_zero(xid_fields, struct gprs_llc_xid_field);
 		rc = decode_xid_field(src, src_len, xid_field);
 
 		/* Immediately stop on error */
 		if (rc < 0) {
-			gprs_llc_free_xid(xid_fields);
-			return -EINVAL;
+			talloc_free(xid_fields);
+			return NULL;
 		}
 
 		/* Add parsed XID field to list */
 		llist_add(&xid_field->list, xid_fields);
 
 		/* Advance pointer and lower dst_len for the next
-		   decoding round */
+		 * decoding round */
 		src += rc;
 		src_len -= rc;
 
 		/* We are (scuccessfully) done when no further byes are left */
 		if (src_len == 0)
-			return 0;
+			return xid_fields;
 
 		max_loops--;
 	}
 }
 
 
-/* Free llist with xid fields */
+/* Free all xid-fields the list contains */
 void gprs_llc_free_xid(struct llist_head *xid_fields)
 {
 	struct gprs_llc_xid_field *xid_field;
 	struct llist_head *lh, *lh2;
 
 	if (xid_fields) {
-		llist_for_each_entry(xid_field, xid_fields, list) {
-			if ((xid_field->data) && (xid_field->data_len))
-				talloc_free(xid_field->data);
-		}
-
 		llist_for_each_safe(lh, lh2, xid_fields) {
 			llist_del(lh);
 			talloc_free(lh);
@@ -228,7 +226,8 @@ void gprs_llc_free_xid(struct llist_head *xid_fields)
 
 
 /* Create a duplicate of an XID-Field */
-struct gprs_llc_xid_field *gprs_llc_duplicate_xid_field(const struct
+struct gprs_llc_xid_field *gprs_llc_duplicate_xid_field(const void *ctx,
+							const struct
 							gprs_llc_xid_field
 							*xid_field)
 {
@@ -236,23 +235,22 @@ struct gprs_llc_xid_field *gprs_llc_duplicate_xid_field(const struct
 
 	/* Create a copy of the XID field in memory */
 	duplicate_of_xid_field =
-	    talloc_zero(NULL, struct gprs_llc_xid_field);
+	    talloc_zero(ctx, struct gprs_llc_xid_field);
 	memcpy(duplicate_of_xid_field, xid_field,
 	       sizeof(struct gprs_llc_xid_field));
 	duplicate_of_xid_field->data =
-	    talloc_zero_size(NULL, xid_field->data_len);
+	    talloc_zero_size(duplicate_of_xid_field, xid_field->data_len);
 	memcpy(duplicate_of_xid_field->data, xid_field->data,
 	       xid_field->data_len);
 
-	/* Wipeout all llist information in the duplicate (just to be sure) */
-	memset(&duplicate_of_xid_field->list, 0,
-	       sizeof(struct llist_head));
+	/* Unlink duplicate from source list */
+	INIT_LLIST_HEAD(&duplicate_of_xid_field->list);
 
 	return duplicate_of_xid_field;
 }
 
 /* Copy an llist with xid fields */
-void gprs_llc_copy_xid(struct llist_head *xid_fields_copy, 
+void gprs_llc_copy_xid(const void *ctx, struct llist_head *xid_fields_copy, 
 		       const struct llist_head *xid_fields_orig)
 {
 	struct gprs_llc_xid_field *xid_field;
@@ -262,7 +260,7 @@ void gprs_llc_copy_xid(struct llist_head *xid_fields_copy,
 
 	/* Create duplicates and add them to the target list */
 	llist_for_each_entry(xid_field, xid_fields_orig, list) {
-		llist_add(&gprs_llc_duplicate_xid_field(xid_field)->list, xid_fields_copy);
+		llist_add(&gprs_llc_duplicate_xid_field(ctx,xid_field)->list, xid_fields_copy);
 	}
 }
 

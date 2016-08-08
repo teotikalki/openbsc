@@ -30,24 +30,6 @@
 /* 1=Bypass any header compression, 0=Normal */
 #define GPRS_SNDCP_HDRCOMP_BYPASS 0	
 
-/* Header compression entity */
-struct gprs_sndcp_hdrcomp_compression_entity {
-
-	/* Specifies to which NSAPIs the compression entity is assigned */
-	int nsapi_len;		/* Number of applicable NSAPIs (default 0) */
-	int nsapi[11];		/* Applicable NSAPIs (default 0) */
-
-	/* Assigned pcomp values */
-	int pcomp_len;		/* Number of contained PCOMP / DCOMP values */
-	int pcomp[16];		/* see also: 6.5.1.1.5 and 6.6.1.1.5 */
-
-	/* Algorithm parameters */
-	int compclass;		/* 1=Header compression, 2=Data compression */
-	int algo;		/* Algorithm type (see gprs_sndcp_xid.h) */
-	void *status;		/* Algorithm status and parameters */
-};
-
-
 /* Initalize header compression */
 int gprs_sndcp_hdrcomp_init(struct gprs_sndcp_comp_entity *comp_entity,
 			    const struct gprs_sndcp_comp_field *comp_field);

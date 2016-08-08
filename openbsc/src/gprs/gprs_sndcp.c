@@ -46,10 +46,8 @@
 static void showPacketDetails(uint8_t * data, int len, int direction,
 			      char *info)
 {
-	/* 
-	 * NOTE: This is only for debugging the TCP/IP connection, will
-	 * be removed when done!
-	 */
+	/* NOTE: This is only for debugging the TCP/IP connection, will
+	 * be removed when done! */
 
 	uint8_t tcp_flags;
 
@@ -740,9 +738,7 @@ static int sndcp_rx_llc_prim()
 
 
 
-/* 
- * BEGIN SNDCP-XID RELATED
- */
+/* BEGIN SNDCP-XID RELATED */
 
 /* Generate SNDCP-XID message */
 static int gprs_llc_generate_sndcp_xid(uint8_t * bytes, int bytes_len,
@@ -874,8 +870,7 @@ int sndcp_sn_xid_req(struct gprs_llc_lle *lle, uint8_t nsapi)
 	 * SNDCP xid request. See also 3GPP TS 44.065, 6.8 XID parameter
 	 * negotiation, Figure 11: SNDCP XID negotiation procedure. In
 	 * our case the SNDCP-User is sgsn_libgtp.c, which calls
-	 * sndcp_sn_xid_req directly.
-	 */
+	 * sndcp_sn_xid_req directly. */
 
 	uint8_t l3params_bytes[1024];
 	int sndcp_xid_bytes_len;
@@ -908,12 +903,10 @@ int sndcp_sn_xid_req(struct gprs_llc_lle *lle, uint8_t nsapi)
 static int handle_pcomp_entities(struct gprs_sndcp_comp_field *comp_field,
 				 struct gprs_llc_lle *lle)
 {
-	/*
-	 * Note: This functions also transforms the comp_field into its
+	/* Note: This functions also transforms the comp_field into its
 	 * echo form (strips comp values, resets propose bit etc...)
 	 * the processed comp_fields can then be sent back as XID-
-	 * Response without further modification. 
-	 */
+	 * Response without further modification. */
 
 	/* Delete propose bit */
 	comp_field->p = 0;
@@ -969,12 +962,10 @@ static int handle_pcomp_entities(struct gprs_sndcp_comp_field *comp_field,
 static int handle_dcomp_entities(struct gprs_sndcp_comp_field *comp_field,
 				 struct gprs_llc_lle *lle)
 {
-	/*
-	 * Note: This functions also transforms the comp_field into its
+	/* Note: This functions also transforms the comp_field into its
 	 * echo form (strips comp values, resets propose bit etc...)
 	 * the processed comp_fields can then be sent back as XID-
-	 * Response without further modification. 
-	 */
+	 * Response without further modification. */
 
 	/* Delete propose bit */
 	comp_field->p = 0;
@@ -1009,10 +1000,8 @@ static int handle_dcomp_entities(struct gprs_sndcp_comp_field *comp_field,
 
 }
 
-/* 
- * Process SNDCP-XID indication 
- * (See also: TS 144 065, Section 6.8 XID parameter negotiation)
- */
+/* Process SNDCP-XID indication 
+ * (See also: TS 144 065, Section 6.8 XID parameter negotiation) */
 int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication,
 		     struct gprs_llc_xid_field *xid_field_response,
 		     struct gprs_llc_lle *lle)
@@ -1020,8 +1009,7 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication,
 	/* Note: This function computes the SNDCP-XID response that is sent 
 	 * back to the phone when a phone originated XID is received. The
 	 * Input XID fields are directly processed and the result is directly
-	 * handed back.
-	 */
+	 * handed back. */
 
 	int rc;
 	int compclass;
@@ -1090,10 +1078,8 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication,
 }
 
 
-/*
- * Process SNDCP-XID indication 
- * (See also: TS 144 065, Section 6.8 XID parameter negotiation)
- */
+/* Process SNDCP-XID indication 
+ * (See also: TS 144 065, Section 6.8 XID parameter negotiation) */
 int sndcp_sn_xid_conf(struct gprs_llc_xid_field *xid_field_confirmation,
 		      struct gprs_llc_xid_field *xid_field_request,
 		      struct gprs_llc_lle *lle)
@@ -1164,8 +1150,6 @@ int sndcp_sn_xid_conf(struct gprs_llc_xid_field *xid_field_confirmation,
 	return 0;
 }
 
-/* 
- * END SNDCP-XID RELATED
- */
+/* END SNDCP-XID RELATED */
 
 

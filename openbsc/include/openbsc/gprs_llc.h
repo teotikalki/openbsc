@@ -147,16 +147,6 @@ struct gprs_llc_lle {
 
 #define NUM_SAPIS	16
 
-/* Lists holding the compression entities */
-struct comp_ent {
-	/*
-	 * In this two list_heads we will store the data and protocol
-	 * compression entities, together with their compression states 
-	 */
-	struct llist_head proto;
-	struct llist_head data;
-};
-
 struct gprs_llc_llme {
 	struct llist_head list;
 
@@ -177,11 +167,21 @@ struct gprs_llc_llme {
 	uint16_t nsei;
 	struct gprs_llc_lle lle[NUM_SAPIS];
 
-	/* Compression entities */
-	struct comp_ent comp;
-
-	/* Copy of the XID fields we sent */
+	/* Copy of the XID fields we have sent with the last 
+	 * network originated XID-Request. Since the phone
+	 * may strip the optional fields in the confirmation
+	 * we need to remeber those fields in order to be 
+	 * able to create the compression entity. */
 	struct llist_head xid;
+
+	/* Compression entities */
+	struct {
+		/* In this two list_heads we will store the 
+		 * data and protocol compression entities,
+		 * together with their compression states */
+		struct llist_head proto;
+		struct llist_head data;
+	} comp;
 
 	/* Internal management */
 	uint32_t age_timestamp;
@@ -237,7 +237,7 @@ int gprs_llgmm_reset_oldmsg(struct msgb* oldmsg, uint8_t sapi,
 			    struct gprs_llc_llme *llme);
 
 /* Set of LL-XID negotiation (See also: TS 101 351, Section 7.2.2.4) */
-int gprs_ll_xid_req(struct gprs_llc_lle *lle, 
+int gprs_ll_xid_req(struct gprs_llc_lle *lle,
 		    struct gprs_llc_xid_field *l3_xid_field);
 
 /* 04.64 Chapter 7.2.1.1 LLGMM-ASSIGN */

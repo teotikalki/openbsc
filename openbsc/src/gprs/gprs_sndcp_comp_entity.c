@@ -89,7 +89,7 @@ gprs_sndcp_comp_entity_create (const struct gprs_sndcp_comp_field *comp_field)
 	comp_entity->state = NULL;
 
 	/* Determine of which class our compression entity will be 
-	   (Protocol or Data compresson ?) */
+	 * (Protocol or Data compresson ?) */
 	comp_entity->compclass =
 		gprs_sndcp_get_compression_class (comp_field);
 
@@ -180,7 +180,7 @@ gprs_sndcp_comp_entities_delete (struct llist_head *comp_entities, int entity)
 }
 
 /* Create and Add a new compression entity
-(returns a pointer to the compression entity that has just been created) */
+ * (returns a pointer to the compression entity that has just been created) */
 struct gprs_sndcp_comp_entity *
 gprs_sndcp_comp_entities_add (struct
 			      llist_head
@@ -190,7 +190,7 @@ gprs_sndcp_comp_entities_add (struct
 	struct gprs_sndcp_comp_entity *comp_entity;
 
 	/* Just to be sure, if the entity is already in
-	   the list it will be deleted now */
+	 * the list it will be deleted now */
 	gprs_sndcp_comp_entities_delete (comp_entities, comp_field->entity);
 
 	/* Create and add a new entity to the list */
@@ -284,8 +284,8 @@ gprs_sndcp_comp_entity_find_comp_index_by_comp (const struct
 
 	if (comp_entity) {
 		/* A pcomp/dcomp field set to zero always disables
-		   all sort of compression and is assigned fix. So we
-		   just return zero in this case */
+		 * all sort of compression and is assigned fix. So we
+		 * just return zero in this case */
 		if (comp == 0)
 			return 0;
 

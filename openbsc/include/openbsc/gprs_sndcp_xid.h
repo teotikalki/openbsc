@@ -190,8 +190,8 @@ enum gprs_sndcp_dcomp_v44_dcomp {
 };
 
 /* Transform a list with compression fields into an SNDCP-XID message (dst) */
-int gprs_sndcp_compile_xid(const struct llist_head *comp_fields, uint8_t * dst,
-			   unsigned int dst_maxlen);
+int gprs_sndcp_compile_xid(uint8_t *dst, unsigned int dst_maxlen,
+			   const struct llist_head *comp_fields);
 
 /* Transform an SNDCP-XID message (src) into a list of SNDCP-XID fields */
 struct llist_head *gprs_sndcp_parse_xid(const void *ctx,

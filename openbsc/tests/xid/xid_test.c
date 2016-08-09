@@ -63,20 +63,19 @@ static void test_xid_encode(const void *ctx)
 	xid_field_3.data_len = 5;
 	xid_field_4.data_len = 0;
 
-	llist_add(&xid_field_1.list, &xid_fields);
-	llist_add(&xid_field_2.list, &xid_fields);
-	llist_add(&xid_field_3.list, &xid_fields);
 	llist_add(&xid_field_4.list, &xid_fields);
+	llist_add(&xid_field_3.list, &xid_fields);
+	llist_add(&xid_field_2.list, &xid_fields);
+	llist_add(&xid_field_1.list, &xid_fields);
 
 	printf("Data to encode:\n");
 	gprs_llc_dump_xid_fields(&xid_fields, DSNDCP);
 
 	/* Encode data */
-	rc = gprs_llc_compile_xid(&xid_fields, xid, sizeof(xid));
+	rc = gprs_llc_compile_xid(xid, sizeof(xid), &xid_fields);
 	OSMO_ASSERT(rc == 14);
-	printf("Encoded data:  %s (%i bytes)\n", osmo_hexdump_nospc(xid, rc),
-	       rc);
-	printf("Expected data: %s (%i bytes)\n",
+	printf("Encoded:  %s (%i bytes)\n", osmo_hexdump_nospc(xid, rc), rc);
+	printf("Expected: %s (%i bytes)\n",
 	       osmo_hexdump_nospc(xid_expected, sizeof(xid_expected)),
 	       (int)sizeof(xid_expected));
 
@@ -89,7 +88,9 @@ static void test_xid_encode(const void *ctx)
 static void test_xid_decode(const void *ctx)
 {
 	struct llist_head *xid_fields;
-	printf("Testing LLC XID-Decoder\n");
+	int rc;
+
+	printf("Testing LLC XID-Decoder/Encoder\n");
 
 	/* Example of a real world LLC-XID message */
 	uint8_t xid[] =
@@ -100,10 +101,24 @@ static void test_xid_decode(const void *ctx)
 	0x00, 0x06, 0x00, 0x07, 0x01, 0x07, 0x00, 0x08, 0x01, 0x08, 0x80, 0x00,
 	0x04, 0x12, 0x00, 0x40, 0x07 };
 
+	uint8_t xid_r[512];
+
 	/* Decode and display XID fields */
 	xid_fields = gprs_llc_parse_xid(ctx, xid, sizeof(xid));
 	OSMO_ASSERT(xid_fields);
+
+	printf("Decoded:\n");
 	gprs_llc_dump_xid_fields(xid_fields, DSNDCP);
+
+	
+	/* Encode xid-fields again */
+	rc = gprs_llc_compile_xid(xid_r, sizeof(xid_r), xid_fields);
+	printf("Result length=%i\n",rc);
+	printf("Encoded:  %s\n", osmo_hexdump_nospc(xid, sizeof(xid)));
+	printf("Rencoded: %s\n", osmo_hexdump_nospc(xid_r, rc));
+	
+	OSMO_ASSERT(rc == 64);
+	OSMO_ASSERT(memcmp(xid, xid_r, sizeof(xid)) == 0);
 
 	/* Free xid fields */
 	gprs_llc_free_xid(xid_fields);

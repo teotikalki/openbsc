@@ -771,7 +771,7 @@ static int gprs_llc_generate_sndcp_xid(uint8_t * bytes, int bytes_len,
 	llist_add(&rfc1144_comp_field.list, &comp_fields);
 
 	/* Comile bytestream */
-	return gprs_sndcp_compile_xid(&comp_fields, bytes, bytes_len);
+	return gprs_sndcp_compile_xid(bytes, bytes_len, &comp_fields);
 }
 
 /*
@@ -929,11 +929,9 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication,
 			compclass =
 			    gprs_sndcp_get_compression_class(comp_field);
 			if (compclass == SNDCP_XID_PROTOCOL_COMPRESSION)
-				rc = handle_pcomp_entities(comp_field,
-							   lle);
+				rc = handle_pcomp_entities(comp_field, lle);
 			else if (compclass == SNDCP_XID_DATA_COMPRESSION)
-				rc = handle_dcomp_entities(comp_field,
-							   lle);
+				rc = handle_dcomp_entities(comp_field, lle);
 			else
 				rc = -1;
 
@@ -956,10 +954,9 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication,
 		xid_field_response->type = GPRS_LLC_XID_T_L3_PAR;
 
 		/* Compile modified SNDCP-XID bytes */
-		rc = gprs_sndcp_compile_xid(comp_fields,
-					    xid_field_response->data,
-					    xid_field_indication->
-					    data_len);
+		rc = gprs_sndcp_compile_xid(xid_field_response->data,
+					    xid_field_indication->data_len,
+					    comp_fields);
 
 		if (rc > 0)
 			xid_field_response->data_len = rc;

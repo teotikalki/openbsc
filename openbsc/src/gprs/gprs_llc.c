@@ -80,7 +80,12 @@ static int gprs_llc_generate_xid(uint8_t *bytes, int bytes_len,
 	xid_n201i.data = (uint8_t *) "\x05\xf0";
 	xid_n201i.data_len = 2;
 
-	/* Add layer 3 XID field (if present) */
+	/* Add locally managed XID Fields */
+	llist_add(&xid_n201i.list, &xid_fields);
+	llist_add(&xid_n201u.list, &xid_fields);
+	llist_add(&xid_version.list, &xid_fields);
+
+	/* Append layer 3 XID field (if present) */
 	if (l3_xid_field) {
 		/* Enforce layer 3 XID type (just to be sure) */
 		l3_xid_field->type = GPRS_LLC_XID_T_L3_PAR;
@@ -89,14 +94,10 @@ static int gprs_llc_generate_xid(uint8_t *bytes, int bytes_len,
 		llist_add(&l3_xid_field->list, &xid_fields);
 	}
 
-	/* Add locally managed XID Fields */
-	llist_add(&xid_n201i.list, &xid_fields);
-	llist_add(&xid_n201u.list, &xid_fields);
-	llist_add(&xid_version.list, &xid_fields);
 
 	llme->xid = gprs_llc_copy_xid(llme->xid, &xid_fields);
 
-	return gprs_llc_compile_xid(&xid_fields, bytes, bytes_len);
+	return gprs_llc_compile_xid(bytes, bytes_len, &xid_fields);
 }
 
 /* Generate XID message that will cause the GMM to reset */
@@ -128,7 +129,7 @@ static int gprs_llc_generate_xid_for_gmm_reset(uint8_t *bytes,
 
 	llme->xid = gprs_llc_copy_xid(llme->xid, &xid_fields);
 
-	return gprs_llc_compile_xid(&xid_fields, bytes, bytes_len);
+	return gprs_llc_compile_xid(bytes, bytes_len, &xid_fields);
 }
 
 /* Process an incoming XID confirmation */
@@ -231,28 +232,10 @@ static int gprs_llc_process_xid_ind(uint8_t *bytes_request,
 		INIT_LLIST_HEAD(xid_fields_response);
 		gprs_llc_dump_xid_fields(xid_fields, LOGL_DEBUG);
 
+		/* Process LLC-XID fields: */
 		llist_for_each_entry(xid_field, xid_fields, list) {
 
-			/* Forward SNDCP-XID fields to Layer 3 (SNDCP) */
-			if (xid_field->type == GPRS_LLC_XID_T_L3_PAR) {
-#if WITH_SNDCP_XID == 1
-				xid_field_response =
-				    talloc_zero(lle->llme,
-						struct gprs_llc_xid_field);
-				rc = sndcp_sn_xid_ind(xid_field,
-						      xid_field_response,
-						      lle);
-				if (rc == 0)
-					llist_add(&xid_field_response->
-						  list,
-						  xid_fields_response);
-				else
-					talloc_free(xid_field_response);
-#endif
-			}
-
-			/* Process LLC-XID fields: */
-			else {
+			if (xid_field->type != GPRS_LLC_XID_T_L3_PAR) {
 				/* FIXME: Check the incoming XID parameters for
 				 * for validity. Currently we just blindly
 				 * accept all XID fields by just echoing them.
@@ -273,9 +256,30 @@ static int gprs_llc_process_xid_ind(uint8_t *bytes_request,
 			}
 		}
 
-		rc = gprs_llc_compile_xid(xid_fields_response,
-					  bytes_response,
-					  bytes_response_maxlen);
+#if WITH_SNDCP_XID == 1
+		/* Forward SNDCP-XID fields to Layer 3 (SNDCP) */
+		llist_for_each_entry(xid_field, xid_fields, list) {
+			if (xid_field->type == GPRS_LLC_XID_T_L3_PAR) {
+
+				xid_field_response =
+				    talloc_zero(lle->llme,
+						struct gprs_llc_xid_field);
+				rc = sndcp_sn_xid_ind(xid_field,
+						      xid_field_response,
+						      lle);
+				if (rc == 0)
+					llist_add(&xid_field_response->
+						  list,
+						  xid_fields_response);
+				else
+					talloc_free(xid_field_response);
+			}
+		}
+#endif
+
+		rc = gprs_llc_compile_xid(bytes_response,
+					  bytes_response_maxlen,
+					  xid_fields_response);
 		gprs_llc_free_xid(xid_fields_response);
 		gprs_llc_free_xid(xid_fields);
 	} 

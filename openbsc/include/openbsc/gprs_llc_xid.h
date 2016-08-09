@@ -38,11 +38,11 @@ struct gprs_llc_xid_field {
 };
 
 /* Transform a list with XID fields into a XID message (dst) */
-int gprs_llc_compile_xid(const struct llist_head *xid_fields, uint8_t * dst,
-			 int bytes_maxlen);
+int gprs_llc_compile_xid(uint8_t *dst, int dst_maxlen, 
+		     const struct llist_head *xid_fields);
 
 /* Transform a XID message (dst) into a list of XID fields */
-struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t * src,
+struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t *src,
 				      int src_len);
 
 /* Free XID-list with including all its XID-Fields */

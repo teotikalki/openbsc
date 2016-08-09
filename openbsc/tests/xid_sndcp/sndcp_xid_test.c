@@ -35,7 +35,8 @@
 static void test_xid_decode_realworld(const void *ctx)
 {
 	struct llist_head *comp_fields;
-	printf("Testing SNDCP XID-Decoder (real world data)\n");
+	int rc;
+	printf("Testing SNDCP XID-Decoder/Encoder (real world data)\n");
 
 	/* Example of a real world SNDCP-XID message */
 	uint8_t xid[] =
@@ -44,12 +45,22 @@ static void test_xid_decode_realworld(const void *ctx)
 	0x01, 0x02, 0x00, 0x03, 0x01, 0x03, 0x00, 0x04, 0x01, 0x04, 0x00, 0x05,
 	0x01, 0x05, 0x00, 0x06, 0x00, 0x07, 0x01, 0x07, 0x00, 0x08, 0x01, 0x08,
 	0x80, 0x00, 0x04, 0x12, 0x00, 0x40, 0x07 };
+	uint8_t xid_r[512];
 
 	/* Parse and show contained comp fields */
 	comp_fields = gprs_sndcp_parse_xid(ctx, xid, sizeof(xid), NULL);
 	OSMO_ASSERT(comp_fields);
-	printf("Contained comp-fields:\n");
+	printf("Decoded:\n");
 	gprs_sndcp_dump_comp_fields(comp_fields, DSNDCP);
+
+	/* Encode comp-fields again */
+	rc = gprs_sndcp_compile_xid(xid_r,sizeof(xid_r), comp_fields);
+	printf("Result length=%i\n",rc);
+	printf("Encoded:  %s\n", osmo_hexdump_nospc(xid, sizeof(xid)));
+	printf("Rencoded: %s\n", osmo_hexdump_nospc(xid_r, rc));
+
+	OSMO_ASSERT(rc == 54);
+	OSMO_ASSERT(memcmp(xid, xid_r, sizeof(xid)) == 0);
 
 	/* Free comp fields */
 	gprs_sndcp_free_comp_fields(comp_fields);
@@ -216,21 +227,20 @@ static void test_xid_encode_decode(const void *ctx)
 	gprs_sndcp_dump_comp_fields(&comp_fields, DSNDCP);
 
 	/* Encode SNDCP-XID fields */
-	rc = gprs_sndcp_compile_xid(&comp_fields, xid, xid_len);
+	rc = gprs_sndcp_compile_xid(xid, xid_len, &comp_fields);
 	OSMO_ASSERT(rc > 0);
 
-	printf("Encoded data:  %s (%i bytes)\n", osmo_hexdump_nospc(xid, rc),
-	       rc);
+	printf("Encoded:  %s (%i bytes)\n", osmo_hexdump_nospc(xid, rc), rc);
 
 	/* Parse and show contained comp fields */
 	comp_fields_dec = gprs_sndcp_parse_xid(ctx, xid, rc, NULL);
 	OSMO_ASSERT(comp_fields_dec);
-	printf("Decoded data:\n");
+
+	printf("Decoded:\n");
 	gprs_sndcp_dump_comp_fields(comp_fields_dec, DSNDCP);
 
 	/* Free comp fields */
 	gprs_sndcp_free_comp_fields(comp_fields_dec);
-
 }
 
 static struct log_info_cat gprs_categories[] = {

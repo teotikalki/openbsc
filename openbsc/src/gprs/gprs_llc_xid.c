@@ -37,9 +37,8 @@
 #include <openbsc/gprs_llc_xid.h>
 
 /* Parse XID parameter field */
-static int
-decode_xid_field(const uint8_t * src, uint8_t src_len,
-		 struct gprs_llc_xid_field *xid_field)
+static int decode_xid_field(struct gprs_llc_xid_field *xid_field,
+			    const uint8_t * src, uint8_t src_len)
 {
 	uint8_t xl;
 	uint8_t type;
@@ -88,9 +87,8 @@ decode_xid_field(const uint8_t * src, uint8_t src_len,
 }
 
 /* Encode XID parameter field */
-static int
-encode_xid_field(uint8_t * dst, int dst_maxlen,
-		 const struct gprs_llc_xid_field *xid_field)
+static int encode_xid_field(uint8_t * dst, int dst_maxlen,
+			    const struct gprs_llc_xid_field *xid_field)
 {
 	int xl = 0;
 
@@ -132,9 +130,8 @@ encode_xid_field(uint8_t * dst, int dst_maxlen,
 }
 
 /* Transform a list with XID fields into a XID message (dst) */
-int
-gprs_llc_compile_xid(const struct llist_head *xid_fields, uint8_t * dst,
-		     int dst_maxlen)
+int gprs_llc_compile_xid(uint8_t * dst, int dst_maxlen,
+			 const struct llist_head *xid_fields)
 {
 	struct gprs_llc_xid_field *xid_field;
 	int rc;
@@ -143,7 +140,7 @@ gprs_llc_compile_xid(const struct llist_head *xid_fields, uint8_t * dst,
 	OSMO_ASSERT(xid_fields);
 	OSMO_ASSERT(dst);
 
-	llist_for_each_entry(xid_field, xid_fields, list) {
+	llist_for_each_entry_reverse(xid_field, xid_fields, list) {
 		/* Encode XID-Field */
 		rc = encode_xid_field(dst, dst_maxlen, xid_field);
 		if (rc < 0)
@@ -184,7 +181,7 @@ struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t * src,
 
 		/* Decode XID field */
 		xid_field = talloc_zero(xid_fields, struct gprs_llc_xid_field);
-		rc = decode_xid_field(src, src_len, xid_field);
+		rc = decode_xid_field(xid_field, src, src_len);
 
 		/* Immediately stop on error */
 		if (rc < 0) {

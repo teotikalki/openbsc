@@ -52,8 +52,8 @@ struct entity_algo_table {
 
 /* Encode applicable sapis (works the same in all three compression schemes) */
 static int encode_pcomp_applicable_sapis(uint8_t * dst,
-					   const unsigned int *nsapis,
-					   unsigned int nsapis_len)
+					 const unsigned int *nsapis,
+					 unsigned int nsapis_len)
 {
 	/* NOTE: Buffer *dst needs offer at 2 bytes
 	 * of space to store the generation results */
@@ -91,8 +91,8 @@ static int encode_pcomp_applicable_sapis(uint8_t * dst,
 /* Encode rfc1144 parameter field
  * (see also: 3GPP TS 44.065, 6.5.2.1, Table 5) */
 static int encode_pcomp_rfc1144_params(uint8_t * dst, unsigned int dst_maxlen, const struct
-					 gprs_sndcp_pcomp_rfc1144_params
-					 *params)
+				       gprs_sndcp_pcomp_rfc1144_params
+				       *params)
 {
 	/* NOTE: Buffer *dst should offer at least 3 bytes
 	 * of space to store the generation results */
@@ -109,7 +109,7 @@ static int encode_pcomp_rfc1144_params(uint8_t * dst, unsigned int dst_maxlen, c
 
 	/* Encode applicable SAPIs */
 	rc = encode_pcomp_applicable_sapis(dst, params->nsapi,
-					     params->nsapi_len);
+					   params->nsapi_len);
 	dst += rc;
 	dst_counter += rc;
 
@@ -127,8 +127,8 @@ static int encode_pcomp_rfc1144_params(uint8_t * dst, unsigned int dst_maxlen, c
  * (see also: 3GPP TS 44.065, 6.5.3.1, Table 6)
  */
 static int encode_pcomp_rfc2507_params(uint8_t * dst, unsigned int dst_maxlen, const struct
-					 gprs_sndcp_pcomp_rfc2507_params
-					 *params)
+				       gprs_sndcp_pcomp_rfc2507_params
+				       *params)
 {
 	/* NOTE: Buffer *dst should offer at least 3 bytes
 	 * of space to store the generation results */
@@ -145,13 +145,13 @@ static int encode_pcomp_rfc2507_params(uint8_t * dst, unsigned int dst_maxlen, c
 
 	/* Encode applicable SAPIs */
 	rc = encode_pcomp_applicable_sapis(dst, params->nsapi,
-					     params->nsapi_len);
+					   params->nsapi_len);
 	dst += rc;
 	dst_counter += rc;
 
 	/* Encode F_MAX_PERIOD (see also: 3GPP TS 44.065, 6.5.3.1, Table 6) */
-	OSMO_ASSERT(params->f_max_period >=1);
-	OSMO_ASSERT(params->f_max_period <=65535);
+	OSMO_ASSERT(params->f_max_period >= 1);
+	OSMO_ASSERT(params->f_max_period <= 65535);
 	*dst = (params->f_max_period >> 8) & 0xFF;
 	dst++;
 	dst_counter++;
@@ -160,29 +160,29 @@ static int encode_pcomp_rfc2507_params(uint8_t * dst, unsigned int dst_maxlen, c
 	dst_counter++;
 
 	/* Encode F_MAX_TIME (see also: 3GPP TS 44.065, 6.5.3.1, Table 6) */
-	OSMO_ASSERT(params->f_max_time >=1);
-	OSMO_ASSERT(params->f_max_time <=255);
+	OSMO_ASSERT(params->f_max_time >= 1);
+	OSMO_ASSERT(params->f_max_time <= 255);
 	*dst = params->f_max_time;
 	dst++;
 	dst_counter++;
 
 	/* Encode MAX_HEADER (see also: 3GPP TS 44.065, 6.5.3.1, Table 6) */
-	OSMO_ASSERT(params->max_header >=60);
-	OSMO_ASSERT(params->max_header <=255);
+	OSMO_ASSERT(params->max_header >= 60);
+	OSMO_ASSERT(params->max_header <= 255);
 	*dst = params->max_header;
 	dst++;
 	dst_counter++;
 
 	/* Encode TCP_SPACE (see also: 3GPP TS 44.065, 6.5.3.1, Table 6) */
-	OSMO_ASSERT(params->tcp_space >=3);
-	OSMO_ASSERT(params->tcp_space <=255);
+	OSMO_ASSERT(params->tcp_space >= 3);
+	OSMO_ASSERT(params->tcp_space <= 255);
 	*dst = params->tcp_space;
 	dst++;
 	dst_counter++;
 
 	/* Encode NON_TCP_SPACE (see also: 3GPP TS 44.065, 6.5.3.1, Table 6) */
-	OSMO_ASSERT(params->non_tcp_space >=3);
-	OSMO_ASSERT(params->non_tcp_space <=65535);
+	OSMO_ASSERT(params->non_tcp_space >= 3);
+	OSMO_ASSERT(params->non_tcp_space <= 65535);
 	*dst = (params->non_tcp_space >> 8) & 0xFF;
 	dst++;
 	dst_counter++;
@@ -197,8 +197,8 @@ static int encode_pcomp_rfc2507_params(uint8_t * dst, unsigned int dst_maxlen, c
 /* Encode ROHC parameter field
  * (see also: 3GPP TS 44.065, 6.5.4.1, Table 10) */
 static int encode_pcomp_rohc_params(uint8_t * dst, unsigned int dst_maxlen, const struct
-				      gprs_sndcp_pcomp_rohc_params
-				      *params)
+				    gprs_sndcp_pcomp_rohc_params
+				    *params)
 {
 	/* NOTE: Buffer *dst should offer at least 36
 	 * (2 * 16 Profiles + 2 * 3 Parameter) bytes
@@ -222,13 +222,13 @@ static int encode_pcomp_rohc_params(uint8_t * dst, unsigned int dst_maxlen, cons
 
 	/* Encode applicable SAPIs */
 	rc = encode_pcomp_applicable_sapis(dst, params->nsapi,
-					     params->nsapi_len);
+					   params->nsapi_len);
 	dst += rc;
 	dst_counter += rc;
 
 	/* Encode MAX_CID (see also: 3GPP TS 44.065, 6.5.4.1, Table 10) */
-	OSMO_ASSERT(params->max_cid >=0);
-	OSMO_ASSERT(params->max_cid <=16383);
+	OSMO_ASSERT(params->max_cid >= 0);
+	OSMO_ASSERT(params->max_cid <= 16383);
 	*dst = (params->max_cid >> 8) & 0xFF;
 	dst++;
 	*dst = params->max_cid & 0xFF;
@@ -236,8 +236,8 @@ static int encode_pcomp_rohc_params(uint8_t * dst, unsigned int dst_maxlen, cons
 	dst_counter += 2;
 
 	/* Encode MAX_HEADER (see also: 3GPP TS 44.065, 6.5.4.1, Table 10) */
-	OSMO_ASSERT(params->max_header >=60);
-	OSMO_ASSERT(params->max_header <=255);
+	OSMO_ASSERT(params->max_header >= 60);
+	OSMO_ASSERT(params->max_header <= 255);
 	*dst = (params->max_header >> 8) & 0xFF;
 	dst++;
 	*dst = params->max_header & 0xFF;
@@ -260,8 +260,8 @@ static int encode_pcomp_rohc_params(uint8_t * dst, unsigned int dst_maxlen, cons
 /* Encode V.42bis parameter field
  * (see also: 3GPP TS 44.065, 6.6.2.1, Table 7a) */
 static int encode_dcomp_v42bis_params(uint8_t * dst, unsigned int dst_maxlen, const struct
-					 gprs_sndcp_dcomp_v42bis_params
-					 *params)
+				      gprs_sndcp_dcomp_v42bis_params
+				      *params)
 {
 	/* NOTE: Buffer *dst should offer at least 6 bytes
 	 * of space to store the generation results */
@@ -278,20 +278,20 @@ static int encode_dcomp_v42bis_params(uint8_t * dst, unsigned int dst_maxlen, co
 
 	/* Encode applicable SAPIs */
 	rc = encode_pcomp_applicable_sapis(dst, params->nsapi,
-					     params->nsapi_len);
+					   params->nsapi_len);
 	dst += rc;
 	dst_counter += rc;
 
 	/* Encode P0 (see also: 3GPP TS 44.065, 6.6.2.1, Table 7a) */
-	OSMO_ASSERT(params->p0 >=0);
-	OSMO_ASSERT(params->p0 <=3);
+	OSMO_ASSERT(params->p0 >= 0);
+	OSMO_ASSERT(params->p0 <= 3);
 	*dst = params->p0 & 0x03;
 	dst++;
 	dst_counter++;
 
 	/* Encode P1 (see also: 3GPP TS 44.065, 6.6.2.1, Table 7a) */
-	OSMO_ASSERT(params->p1 >=512);
-	OSMO_ASSERT(params->p1 <=65535);
+	OSMO_ASSERT(params->p1 >= 512);
+	OSMO_ASSERT(params->p1 <= 65535);
 	*dst = (params->p1 >> 8) & 0xFF;
 	dst++;
 	*dst = params->p1 & 0xFF;
@@ -299,8 +299,8 @@ static int encode_dcomp_v42bis_params(uint8_t * dst, unsigned int dst_maxlen, co
 	dst_counter += 2;
 
 	/* Encode P2 (see also: 3GPP TS 44.065, 6.6.2.1, Table 7a) */
-	OSMO_ASSERT(params->p2 >=6);
-	OSMO_ASSERT(params->p2 <=250);
+	OSMO_ASSERT(params->p2 >= 6);
+	OSMO_ASSERT(params->p2 <= 250);
 	*dst = params->p2;
 	dst++;
 	dst_counter++;
@@ -312,8 +312,8 @@ static int encode_dcomp_v42bis_params(uint8_t * dst, unsigned int dst_maxlen, co
 /* Encode V44 parameter field
  * (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
 static int encode_dcomp_v44_params(uint8_t * dst, unsigned int dst_maxlen, const struct
-				      gprs_sndcp_dcomp_v44_params
-				      *params)
+				   gprs_sndcp_dcomp_v44_params
+				   *params)
 {
 	/* NOTE: Buffer *dst should offer at least 12 bytes
 	 * of space to store the generation results */
@@ -330,27 +330,26 @@ static int encode_dcomp_v44_params(uint8_t * dst, unsigned int dst_maxlen, const
 
 	/* Encode applicable SAPIs */
 	rc = encode_pcomp_applicable_sapis(dst, params->nsapi,
-					     params->nsapi_len);
+					   params->nsapi_len);
 	dst += rc;
 	dst_counter += rc;
 
 	/* Encode C0 (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
-	OSMO_ASSERT(params->c0 == 0x80);
-	OSMO_ASSERT(params->c0 == 0xC0);
+	OSMO_ASSERT(params->c0 == 0x80 || params->c0 == 0xC0);
 	*dst = params->c0 & 0xC0;
 	dst++;
 	dst_counter++;
 
 	/* Encode P0 (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
-	OSMO_ASSERT(params->p0 >=0);
-	OSMO_ASSERT(params->p0 <=3);
+	OSMO_ASSERT(params->p0 >= 0);
+	OSMO_ASSERT(params->p0 <= 3);
 	*dst = params->p0 & 0x03;
 	dst++;
 	dst_counter++;
 
 	/* Encode P1T (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
-	OSMO_ASSERT(params->p1t >=256);
-	OSMO_ASSERT(params->p1t <=65535);
+	OSMO_ASSERT(params->p1t >= 256);
+	OSMO_ASSERT(params->p1t <= 65535);
 	*dst = (params->p1t >> 8) & 0xFF;
 	dst++;
 	*dst = params->p1t & 0xFF;
@@ -358,8 +357,8 @@ static int encode_dcomp_v44_params(uint8_t * dst, unsigned int dst_maxlen, const
 	dst_counter += 2;
 
 	/* Encode P1R (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
-	OSMO_ASSERT(params->p1r >=256);
-	OSMO_ASSERT(params->p1r <=65535);
+	OSMO_ASSERT(params->p1r >= 256);
+	OSMO_ASSERT(params->p1r <= 65535);
 	*dst = (params->p1r >> 8) & 0xFF;
 	dst++;
 	*dst = params->p1r & 0xFF;
@@ -367,8 +366,8 @@ static int encode_dcomp_v44_params(uint8_t * dst, unsigned int dst_maxlen, const
 	dst_counter += 2;
 
 	/* Encode P3T (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
-	OSMO_ASSERT(params->p3t >=0);
-	OSMO_ASSERT(params->p3t <=65535);
+	OSMO_ASSERT(params->p3t >= 0);
+	OSMO_ASSERT(params->p3t <= 65535);
 	OSMO_ASSERT(params->p3t >= 2 * params->p1t);
 	*dst = (params->p3t >> 8) & 0xFF;
 	dst++;
@@ -377,8 +376,8 @@ static int encode_dcomp_v44_params(uint8_t * dst, unsigned int dst_maxlen, const
 	dst_counter += 2;
 
 	/* Encode P3R (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
-	OSMO_ASSERT(params->p3r >=0);
-	OSMO_ASSERT(params->p3r <=65535);
+	OSMO_ASSERT(params->p3r >= 0);
+	OSMO_ASSERT(params->p3r <= 65535);
 	OSMO_ASSERT(params->p3r >= 2 * params->p1r);
 	*dst = (params->p3r >> 8) & 0xFF;
 	dst++;
@@ -411,28 +410,28 @@ static int encode_comp_field(uint8_t * dst, unsigned int dst_maxlen, const struc
 	if (comp_field->rfc1144_params)
 		payload_bytes_len =
 		    encode_pcomp_rfc1144_params(payload_bytes,
-						  sizeof(payload_bytes),
-						  comp_field->rfc1144_params);
+						sizeof(payload_bytes),
+						comp_field->rfc1144_params);
 	else if (comp_field->rfc2507_params)
 		payload_bytes_len =
 		    encode_pcomp_rfc2507_params(payload_bytes,
-						  sizeof(payload_bytes),
-						  comp_field->rfc2507_params);
+						sizeof(payload_bytes),
+						comp_field->rfc2507_params);
 	else if (comp_field->rohc_params)
 		payload_bytes_len =
 		    encode_pcomp_rohc_params(payload_bytes,
-					       sizeof(payload_bytes),
-					       comp_field->rohc_params);
+					     sizeof(payload_bytes),
+					     comp_field->rohc_params);
 	else if (comp_field->v42bis_params)
 		payload_bytes_len =
 		    encode_dcomp_v42bis_params(payload_bytes,
-						  sizeof(payload_bytes),
-						  comp_field->v42bis_params);
+					       sizeof(payload_bytes),
+					       comp_field->v42bis_params);
 	else if (comp_field->v44_params)
 		payload_bytes_len =
 		    encode_dcomp_v44_params(payload_bytes,
-					       sizeof(payload_bytes),
-					       comp_field->v44_params);
+					    sizeof(payload_bytes),
+					    comp_field->v44_params);
 	else
 		OSMO_ASSERT(false);
 
@@ -456,10 +455,8 @@ static int encode_comp_field(uint8_t * dst, unsigned int dst_maxlen, const struc
 	/* Bail immediately if no sufficient memory space is supplied */
 	OSMO_ASSERT(dst_maxlen >= expected_length);
 
-
 	/* Check if the entity number is within bounds */
 	OSMO_ASSERT(comp_field->entity <= 0x1f);
-
 
 	/* Check if the algorithm number is within bounds */
 	OSMO_ASSERT(comp_field->algo >= 0 || comp_field->algo <= 0x1f);
@@ -597,10 +594,9 @@ int gprs_sndcp_compile_xid(const struct llist_head *comp_fields,
 				    SNDCP_XID_DATA_COMPRESSION);
 	OSMO_ASSERT(rc >= 0);
 
-	if(rc > 0)
-	{
-	dst = tlv_put(dst, SNDCP_XID_DATA_COMPRESSION, rc, comp_bytes);
-	byte_counter += rc + 2;
+	if (rc > 0) {
+		dst = tlv_put(dst, SNDCP_XID_DATA_COMPRESSION, rc, comp_bytes);
+		byte_counter += rc + 2;
 	}
 
 	/* Add header compression fields */
@@ -609,36 +605,30 @@ int gprs_sndcp_compile_xid(const struct llist_head *comp_fields,
 				    SNDCP_XID_PROTOCOL_COMPRESSION);
 	OSMO_ASSERT(rc >= 0);
 
-	if(rc > 0)
-	{
-	dst = tlv_put(dst, SNDCP_XID_PROTOCOL_COMPRESSION, rc, comp_bytes);
-	byte_counter += rc + 2;
+	if (rc > 0) {
+		dst =
+		    tlv_put(dst, SNDCP_XID_PROTOCOL_COMPRESSION, rc,
+			    comp_bytes);
+		byte_counter += rc + 2;
 	}
 
 	/* Return generated length */
 	return byte_counter;
 }
 
-
-
-
-
-
-
-
-
-
 /* FUNCTIONS RELATED TO SNDCP-XID DECODING */
 
 /* Decode applicable sapis (works the same in all three compression schemes) */
 static int decode_pcomp_applicable_sapis(const uint8_t * src,
-					   unsigned int src_len,
-					   unsigned int *nsapis,
-					   unsigned int *nsapis_len)
+					 unsigned int src_len,
+					 unsigned int *nsapis,
+					 unsigned int *nsapis_len)
 {
 	uint16_t blob;
 	int i;
 	int nsapi_len = 0;
+
+	OSMO_ASSERT(src);
 
 	/* Exit immediately if no result can be stored */
 	if (!nsapis)
@@ -670,11 +660,13 @@ static int decode_pcomp_applicable_sapis(const uint8_t * src,
 
 /* Decode 16 bit field */
 static int decode_pcomp_16_bit_field(const uint8_t * src,
-				       unsigned int src_len,
-				       int value_min, int value_max,
-				       int *value_int, uint16_t * value_uint16)
+				     unsigned int src_len,
+				     int value_min, int value_max,
+				     int *value_int, uint16_t * value_uint16)
 {
 	uint16_t blob;
+
+	OSMO_ASSERT(src);
 
 	/* Reset values to zero (just to be sure) */
 	if (value_int)
@@ -710,11 +702,13 @@ static int decode_pcomp_16_bit_field(const uint8_t * src,
 
 /* Decode 8 bit field */
 static int decode_pcomp_8_bit_field(const uint8_t * src,
-				      unsigned int src_len,
-				      int value_min, int value_max,
-				      int *value_int, uint8_t * value_uint8)
+				    unsigned int src_len,
+				    int value_min, int value_max,
+				    int *value_int, uint8_t * value_uint8)
 {
 	uint8_t blob;
+
+	OSMO_ASSERT(src);
 
 	/* Reset values to invalid (just to be sure) */
 	if (value_int)
@@ -747,23 +741,22 @@ static int decode_pcomp_8_bit_field(const uint8_t * src,
 
 /* Decode rfc1144 parameter field see also: 3GPP TS 44.065, 6.5.2.1, Table 5) */
 static int decode_pcomp_rfc1144_params(const uint8_t * src,
-					 unsigned int src_len, struct
-					 gprs_sndcp_pcomp_rfc1144_params
-					 *params)
+				       unsigned int src_len, struct
+				       gprs_sndcp_pcomp_rfc1144_params
+				       *params)
 {
 	int rc;
 	int byte_counter = 0;
 
-	/* Exit immediately if no result can be stored */
-	if (!params)
-		return -EINVAL;
+	OSMO_ASSERT(params);
+	OSMO_ASSERT(src);
 
 	/* Mark all optional parameters invalid by default */
 	params->s01 = -1;
 
 	/* Decode applicable SAPIs */
 	rc = decode_pcomp_applicable_sapis(src, src_len,
-					     params->nsapi, &params->nsapi_len);
+					   params->nsapi, &params->nsapi_len);
 	if (rc > 0) {
 		byte_counter += rc;
 		src += rc;
@@ -773,7 +766,7 @@ static int decode_pcomp_rfc1144_params(const uint8_t * src,
 	/* Decode parameter S0 -1
 	 * (see also: 3GPP TS 44.065, 6.5.2.1, Table 5) */
 	rc = decode_pcomp_8_bit_field(src, src_len - byte_counter, 0,
-					255, &params->s01, NULL);
+				      255, &params->s01, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	byte_counter += rc;
@@ -786,16 +779,15 @@ static int decode_pcomp_rfc1144_params(const uint8_t * src,
 /* Decode rfc2507 parameter field
  * (see also: 3GPP TS 44.065, 6.5.3.1, Table 6) */
 static int decode_pcomp_rfc2507_params(const uint8_t * src,
-					 unsigned int src_len, struct
-					 gprs_sndcp_pcomp_rfc2507_params
-					 *params)
+				       unsigned int src_len, struct
+				       gprs_sndcp_pcomp_rfc2507_params
+				       *params)
 {
 	int rc;
 	int byte_counter = 0;
 
-	/* Exit immediately if no result can be stored */
-	if (!params)
-		return -EINVAL;
+	OSMO_ASSERT(params);
+	OSMO_ASSERT(src);
 
 	/* Mark all optional parameters invalid by default */
 	params->f_max_period = -1;
@@ -806,7 +798,7 @@ static int decode_pcomp_rfc2507_params(const uint8_t * src,
 
 	/* Decode applicable SAPIs */
 	rc = decode_pcomp_applicable_sapis(src, src_len,
-					     params->nsapi, &params->nsapi_len);
+					   params->nsapi, &params->nsapi_len);
 	if (rc > 0) {
 		byte_counter += rc;
 		src += rc;
@@ -815,7 +807,7 @@ static int decode_pcomp_rfc2507_params(const uint8_t * src,
 
 	/* Decode F_MAX_PERIOD (see also: 3GPP TS 44.065, 6.5.3.1, Table 6) */
 	rc = decode_pcomp_16_bit_field(src, src_len - byte_counter,
-					 1, 65535, &params->f_max_period, NULL);
+				       1, 65535, &params->f_max_period, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	byte_counter += rc;
@@ -823,7 +815,7 @@ static int decode_pcomp_rfc2507_params(const uint8_t * src,
 
 	/* Decode F_MAX_TIME (see also: 3GPP TS 44.065, 6.5.3.1, Table 6) */
 	rc = decode_pcomp_8_bit_field(src, src_len - byte_counter, 1,
-					255, &params->f_max_time, NULL);
+				      255, &params->f_max_time, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	byte_counter += rc;
@@ -831,7 +823,7 @@ static int decode_pcomp_rfc2507_params(const uint8_t * src,
 
 	/* Decode MAX_HEADER (see also: 3GPP TS 44.065, 6.5.3.1, Table 6) */
 	rc = decode_pcomp_8_bit_field(src, src_len - byte_counter,
-					60, 255, &params->max_header, NULL);
+				      60, 255, &params->max_header, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	byte_counter += rc;
@@ -839,7 +831,7 @@ static int decode_pcomp_rfc2507_params(const uint8_t * src,
 
 	/* Decode TCP_SPACE (see also: 3GPP TS 44.065, 6.5.3.1, Table 6) */
 	rc = decode_pcomp_8_bit_field(src, src_len - byte_counter, 3,
-					255, &params->tcp_space, NULL);
+				      255, &params->tcp_space, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	byte_counter += rc;
@@ -847,8 +839,7 @@ static int decode_pcomp_rfc2507_params(const uint8_t * src,
 
 	/* Decode NON_TCP_SPACE (see also: 3GPP TS 44.065, 6.5.3.1, Table 6) */
 	rc = decode_pcomp_16_bit_field(src, src_len - byte_counter,
-					 3, 65535, &params->non_tcp_space,
-					 NULL);
+				       3, 65535, &params->non_tcp_space, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	byte_counter += rc;
@@ -860,15 +851,14 @@ static int decode_pcomp_rfc2507_params(const uint8_t * src,
 
 /* Decode ROHC parameter field (see also: 3GPP TS 44.065, 6.5.4.1, Table 10) */
 static int decode_pcomp_rohc_params(const uint8_t * src, unsigned int src_len, struct gprs_sndcp_pcomp_rohc_params
-				      *params)
+				    *params)
 {
 	int rc;
 	int byte_counter = 0;
 	int i;
 
-	/* Exit immediately if no result can be stored */
-	if (!params)
-		return -EINVAL;
+	OSMO_ASSERT(params);
+	OSMO_ASSERT(src);
 
 	/* Mark all optional parameters invalid by default */
 	params->max_cid = -1;
@@ -876,7 +866,7 @@ static int decode_pcomp_rohc_params(const uint8_t * src, unsigned int src_len, s
 
 	/* Decode applicable SAPIs */
 	rc = decode_pcomp_applicable_sapis(src, src_len,
-					     params->nsapi, &params->nsapi_len);
+					   params->nsapi, &params->nsapi_len);
 	if (rc <= 0)
 		return byte_counter;
 	byte_counter += rc;
@@ -884,7 +874,7 @@ static int decode_pcomp_rohc_params(const uint8_t * src, unsigned int src_len, s
 
 	/* Decode MAX_CID (see also: 3GPP TS 44.065, 6.5.4.1, Table 10) */
 	rc = decode_pcomp_16_bit_field(src, src_len - byte_counter,
-					 0, 16383, &params->max_cid, NULL);
+				       0, 16383, &params->max_cid, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	byte_counter += rc;
@@ -892,7 +882,7 @@ static int decode_pcomp_rohc_params(const uint8_t * src, unsigned int src_len, s
 
 	/* Decode MAX_HEADER (see also: 3GPP TS 44.065, 6.5.4.1, Table 10) */
 	rc = decode_pcomp_16_bit_field(src, src_len - byte_counter,
-					 60, 255, &params->max_header, NULL);
+				       60, 255, &params->max_header, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	byte_counter += rc;
@@ -902,9 +892,9 @@ static int decode_pcomp_rohc_params(const uint8_t * src, unsigned int src_len, s
 	for (i = 0; i < 16; i++) {
 		params->profile_len = 0;
 		rc = decode_pcomp_16_bit_field(src,
-						 src_len - byte_counter,
-						 0, 65535, NULL,
-						 &params->profile[i]);
+					       src_len - byte_counter,
+					       0, 65535, NULL,
+					       &params->profile[i]);
 		if (rc <= 0)
 			return byte_counter;
 		byte_counter += rc;
@@ -918,17 +908,15 @@ static int decode_pcomp_rohc_params(const uint8_t * src, unsigned int src_len, s
 
 /* Decode V.42bis parameter field
  * (see also: 3GPP TS 44.065, 6.6.2.1, Table 7a) */
-static int decode_dcomp_v42bis_params(const uint8_t * src,
-					 unsigned int src_len, struct
-					 gprs_sndcp_dcomp_v42bis_params
-					 *params)
+static int decode_dcomp_v42bis_params(const uint8_t * src, unsigned int src_len, struct
+				      gprs_sndcp_dcomp_v42bis_params
+				      *params)
 {
 	int rc;
 	int byte_counter = 0;
 
-	/* Exit immediately if no result can be stored */
-	if (!params)
-		return -EINVAL;
+	OSMO_ASSERT(params);
+	OSMO_ASSERT(src);
 
 	/* Mark all optional parameters invalid by default */
 	params->p0 = -1;
@@ -937,7 +925,7 @@ static int decode_dcomp_v42bis_params(const uint8_t * src,
 
 	/* Decode applicable SAPIs */
 	rc = decode_pcomp_applicable_sapis(src, src_len,
-					     params->nsapi, &params->nsapi_len);
+					   params->nsapi, &params->nsapi_len);
 	if (rc > 0) {
 		byte_counter += rc;
 		src += rc;
@@ -946,7 +934,7 @@ static int decode_dcomp_v42bis_params(const uint8_t * src,
 
 	/* Decode P0 (see also: 3GPP TS 44.065, 6.6.2.1, Table 7a) */
 	rc = decode_pcomp_8_bit_field(src, src_len - byte_counter, 0,
-					3, &params->p0, NULL);
+				      3, &params->p0, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	byte_counter += rc;
@@ -954,7 +942,7 @@ static int decode_dcomp_v42bis_params(const uint8_t * src,
 
 	/* Decode P1 (see also: 3GPP TS 44.065, 6.6.2.1, Table 7a) */
 	rc = decode_pcomp_16_bit_field(src, src_len - byte_counter,
-					 512, 65535, &params->p1, NULL);
+				       512, 65535, &params->p1, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	byte_counter += rc;
@@ -962,7 +950,7 @@ static int decode_dcomp_v42bis_params(const uint8_t * src,
 
 	/* Decode P2 (see also: 3GPP TS 44.065, 6.6.2.1, Table 7a) */
 	rc = decode_pcomp_8_bit_field(src, src_len - byte_counter, 6,
-					250, &params->p2, NULL);
+				      250, &params->p2, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	byte_counter += rc;
@@ -974,14 +962,13 @@ static int decode_dcomp_v42bis_params(const uint8_t * src,
 
 /* Decode V44 parameter field (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
 static int decode_dcomp_v44_params(const uint8_t * src, unsigned int src_len, struct gprs_sndcp_dcomp_v44_params
-				      *params)
+				   *params)
 {
 	int rc;
 	int byte_counter = 0;
 
-	/* Exit immediately if no result can be stored */
-	if (!params)
-		return -EINVAL;
+	OSMO_ASSERT(params);
+	OSMO_ASSERT(src);
 
 	/* Mark all optional parameters invalid by default */
 	params->c0 = -1;
@@ -993,7 +980,7 @@ static int decode_dcomp_v44_params(const uint8_t * src, unsigned int src_len, st
 
 	/* Decode applicable SAPIs */
 	rc = decode_pcomp_applicable_sapis(src, src_len,
-					     params->nsapi, &params->nsapi_len);
+					   params->nsapi, &params->nsapi_len);
 	if (rc > 0) {
 		byte_counter += rc;
 		src += rc;
@@ -1002,7 +989,7 @@ static int decode_dcomp_v44_params(const uint8_t * src, unsigned int src_len, st
 
 	/* Decode C0 (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
 	rc = decode_pcomp_8_bit_field(src, src_len - byte_counter, 0,
-					255, &params->c0, NULL);
+				      255, &params->c0, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	if ((params->c0 != 0x80) && (params->c0 != 0xC0))
@@ -1012,7 +999,7 @@ static int decode_dcomp_v44_params(const uint8_t * src, unsigned int src_len, st
 
 	/* Decode P0 (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
 	rc = decode_pcomp_8_bit_field(src, src_len - byte_counter, 0,
-					3, &params->p0, NULL);
+				      3, &params->p0, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	byte_counter += rc;
@@ -1020,7 +1007,7 @@ static int decode_dcomp_v44_params(const uint8_t * src, unsigned int src_len, st
 
 	/* Decode P1T (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
 	rc = decode_pcomp_16_bit_field(src, src_len - byte_counter,
-					 265, 65535, &params->p1t, NULL);
+				       265, 65535, &params->p1t, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	byte_counter += rc;
@@ -1028,7 +1015,7 @@ static int decode_dcomp_v44_params(const uint8_t * src, unsigned int src_len, st
 
 	/* Decode P1R (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
 	rc = decode_pcomp_16_bit_field(src, src_len - byte_counter,
-					 265, 65535, &params->p1r, NULL);
+				       265, 65535, &params->p1r, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	byte_counter += rc;
@@ -1036,7 +1023,7 @@ static int decode_dcomp_v44_params(const uint8_t * src, unsigned int src_len, st
 
 	/* Decode P3T (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
 	rc = decode_pcomp_16_bit_field(src, src_len - byte_counter,
-					 265, 65535, &params->p3t, NULL);
+				       265, 65535, &params->p3t, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	if (params->p3t < 2 * params->p1t)
@@ -1046,7 +1033,7 @@ static int decode_dcomp_v44_params(const uint8_t * src, unsigned int src_len, st
 
 	/* Decode P3R (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
 	rc = decode_pcomp_16_bit_field(src, src_len - byte_counter,
-					 265, 65535, &params->p3r, NULL);
+				       265, 65535, &params->p3r, NULL);
 	if (rc <= 0)
 		return byte_counter;
 	if (params->p3r < 2 * params->p1r)
@@ -1064,12 +1051,14 @@ static int lookup_algorithm_identifier(int entity, const struct
 				       *lt, unsigned int lt_len, int compclass)
 {
 	int i;
-	if (lt && lt_len > 0) {
-		for (i = 0; i < lt_len; i++) {
-			if ((lt[i].entity == entity)
-			    && (lt[i].compclass == compclass))
-				return lt[i].algo;
-		}
+
+	if (!lt)
+		return -1;
+
+	for (i = 0; i < lt_len; i++) {
+		if ((lt[i].entity == entity)
+		    && (lt[i].compclass == compclass))
+			return lt[i].algo;
 	}
 
 	return -1;
@@ -1082,6 +1071,9 @@ static int decode_comp_values(struct gprs_sndcp_comp_field *comp_field,
 {
 	int src_counter = 0;
 	int i;
+
+	OSMO_ASSERT(comp_field);
+	OSMO_ASSERT(src);
 
 	if (comp_field->p) {
 		/* Determine the number of expected PCOMP/DCOMP values */
@@ -1145,12 +1137,15 @@ static int decode_pcomp_params(struct gprs_sndcp_comp_field *comp_field,
 {
 	int rc;
 
+	OSMO_ASSERT(comp_field);
+	OSMO_ASSERT(src);
+
 	switch (comp_field->algo) {
 	case RFC_1144:
 		comp_field->rfc1144_params = talloc_zero(comp_field, struct
 							 gprs_sndcp_pcomp_rfc1144_params);
 		rc = decode_pcomp_rfc1144_params(src, src_len,
-						   comp_field->rfc1144_params);
+						 comp_field->rfc1144_params);
 		if (rc < 0)
 			talloc_free(comp_field->rfc1144_params);
 		break;
@@ -1158,7 +1153,7 @@ static int decode_pcomp_params(struct gprs_sndcp_comp_field *comp_field,
 		comp_field->rfc2507_params = talloc_zero(comp_field, struct
 							 gprs_sndcp_pcomp_rfc2507_params);
 		rc = decode_pcomp_rfc2507_params(src, src_len,
-						   comp_field->rfc2507_params);
+						 comp_field->rfc2507_params);
 		if (rc < 0)
 			talloc_free(comp_field->rfc1144_params);
 		break;
@@ -1166,7 +1161,7 @@ static int decode_pcomp_params(struct gprs_sndcp_comp_field *comp_field,
 		comp_field->rohc_params = talloc_zero(comp_field, struct
 						      gprs_sndcp_pcomp_rohc_params);
 		rc = decode_pcomp_rohc_params(src, src_len,
-						comp_field->rohc_params);
+					      comp_field->rohc_params);
 		if (rc < 0)
 			talloc_free(comp_field->rohc_params);
 		break;
@@ -1193,12 +1188,15 @@ static int decode_dcomp_params(struct gprs_sndcp_comp_field *comp_field,
 {
 	int rc;
 
+	OSMO_ASSERT(comp_field);
+	OSMO_ASSERT(src);
+
 	switch (comp_field->algo) {
 	case V42BIS:
 		comp_field->v42bis_params = talloc_zero(comp_field, struct
 							gprs_sndcp_dcomp_v42bis_params);
 		rc = decode_dcomp_v42bis_params(src, src_len,
-						   comp_field->v42bis_params);
+						comp_field->v42bis_params);
 		if (rc < 0)
 			talloc_free(comp_field->v42bis_params);
 		break;
@@ -1206,7 +1204,7 @@ static int decode_dcomp_params(struct gprs_sndcp_comp_field *comp_field,
 		comp_field->v44_params = talloc_zero(comp_field, struct
 						     gprs_sndcp_dcomp_v44_params);
 		rc = decode_dcomp_v44_params(src, src_len,
-						comp_field->v44_params);
+					     comp_field->v44_params);
 		if (rc < 0)
 			talloc_free(comp_field->v44_params);
 		break;
@@ -1238,13 +1236,11 @@ static int decode_comp_field(const uint8_t * src, unsigned int src_len,
 	unsigned int len;
 	int rc;
 
+	OSMO_ASSERT(comp_field);
+
 	/* Exit immediately if it is clear that no
 	   parseable data is present */
 	if (src_len < 1 || !src)
-		return -EINVAL;
-
-	/* Exit immediately if no result can be stored */
-	if (!comp_field)
 		return -EINVAL;
 
 	/* Zero out target struct */
@@ -1310,12 +1306,14 @@ static int decode_xid_block(struct llist_head *comp_fields, uint8_t tag,
 	int comp_field_count = 0;
 	int rc;
 
+	OSMO_ASSERT(comp_fields);
+	OSMO_ASSERT(val);
+
 	byte_counter = 0;
 	do {
 		/* Bail if more than the maximum number of
 		   comp_fields is generated */
 		if (comp_field_count > MAX_ENTITIES * 2) {
-			gprs_sndcp_free_comp_fields(comp_fields);
 			return -EINVAL;
 		}
 
@@ -1330,7 +1328,6 @@ static int decode_xid_block(struct llist_head *comp_fields, uint8_t tag,
 
 		if (rc < 0) {
 			talloc_free(comp_field);
-			gprs_sndcp_free_comp_fields(comp_fields);
 			return -EINVAL;
 		}
 
@@ -1356,6 +1353,10 @@ static int gprs_sndcp_decode_xid(struct llist_head *comp_fields,
 	const uint8_t *val;
 	int byte_counter = 0;
 	int rc;
+	int tlv_count = 0;
+
+	OSMO_ASSERT(comp_fields);
+	OSMO_ASSERT(src);
 
 	/* Valid TLV-Tag and types */
 	static const struct tlv_definition sndcp_xid_def = {
@@ -1369,25 +1370,42 @@ static int gprs_sndcp_decode_xid(struct llist_head *comp_fields,
 	/* Parse TLV-Encoded SNDCP-XID message and defer payload
 	   to the apporpiate sub-parser functions */
 	while (1) {
-		src_pos +=
-		    tlv_parse_one(&tag, &tag_len, &val, &sndcp_xid_def,
-				  src + src_pos, src_len - src_pos);
+
+		/* Bail if an the maximum number of TLV fields
+		 * have been parsed */
+		if (tlv_count >= 3) {
+			gprs_sndcp_free_comp_fields(comp_fields);
+			return -EINVAL;
+		}
+
+		/* Parse TLV field */
+		rc = tlv_parse_one(&tag, &tag_len, &val, &sndcp_xid_def,
+				   src + src_pos, src_len - src_pos);
+		if (rc > 0)
+			src_pos += rc;
+		else {
+			gprs_sndcp_free_comp_fields(comp_fields);
+			return -EINVAL;
+		}
 
 		/* Decode compression parameters */
 		if ((tag == SNDCP_XID_PROTOCOL_COMPRESSION)
 		    || (tag == SNDCP_XID_DATA_COMPRESSION)) {
-			rc = decode_xid_block(comp_fields, tag, tag_len, val, lt,
-					     lt_len);
+			rc = decode_xid_block(comp_fields, tag, tag_len, val,
+					      lt, lt_len);
 
-			if(rc < 0)
+			if (rc < 0) {
+				gprs_sndcp_free_comp_fields(comp_fields);
 				return -EINVAL;
-			else
+			} else
 				byte_counter += rc;
 		}
 
 		/* Stop when no further TLV elements can be expected */
 		if (src_len - src_pos <= 2)
 			break;
+
+		tlv_count++;
 	}
 
 	return 0;
@@ -1401,6 +1419,9 @@ static int gprs_sndcp_fill_table(struct
 {
 	struct gprs_sndcp_comp_field *comp_field;
 	int i = 0;
+
+	OSMO_ASSERT(lt);
+	OSMO_ASSERT(comp_fields);
 
 	if (!comp_fields)
 		return -EINVAL;
@@ -1647,8 +1668,15 @@ static void dump_pcomp_params(const struct gprs_sndcp_comp_field
 			      *comp_field, unsigned int logl)
 {
 	int i;
+
+	OSMO_ASSERT(comp_field);
+
 	switch (comp_field->algo) {
 	case RFC_1144:
+		if(comp_field->rfc1144_params == NULL) {
+			LOGP(DSNDCP, logl, "   gprs_sndcp_pcomp_rfc1144_params=NULL\n");
+			break;
+		}
 		LOGP(DSNDCP, logl, "   gprs_sndcp_pcomp_rfc1144_params {\n");
 		LOGP(DSNDCP, logl,
 		     "      nsapi_len=%i;\n",
@@ -1664,6 +1692,10 @@ static void dump_pcomp_params(const struct gprs_sndcp_comp_field
 		LOGP(DSNDCP, logl, "   }\n");
 		break;
 	case RFC_2507:
+		if(comp_field->rfc2507_params == NULL) {
+			LOGP(DSNDCP, logl, "   gprs_sndcp_pcomp_rfc2507_params=NULL\n");
+			break;
+		}
 		LOGP(DSNDCP, logl, "   gprs_sndcp_pcomp_rfc2507_params {\n");
 		LOGP(DSNDCP, logl,
 		     "      nsapi_len=%i;\n",
@@ -1692,6 +1724,10 @@ static void dump_pcomp_params(const struct gprs_sndcp_comp_field
 		LOGP(DSNDCP, logl, "   }\n");
 		break;
 	case ROHC:
+		if(comp_field->rohc_params == NULL) {
+			LOGP(DSNDCP, logl, "   gprs_sndcp_pcomp_rohc_params=NULL\n");
+			break;
+		}
 		LOGP(DSNDCP, logl, "   gprs_sndcp_pcomp_rohc_params {\n");
 		LOGP(DSNDCP, logl,
 		     "      nsapi_len=%i;\n",
@@ -1728,8 +1764,15 @@ static void dump_dcomp_params(const struct gprs_sndcp_comp_field
 			      *comp_field, unsigned int logl)
 {
 	int i;
+
+	OSMO_ASSERT(comp_field);
+
 	switch (comp_field->algo) {
 	case V42BIS:
+		if(comp_field->v42bis_params == NULL) {
+			LOGP(DSNDCP, logl, "   gprs_sndcp_dcomp_v42bis_params=NULL\n");
+			break;
+		}
 		LOGP(DSNDCP, logl, "   gprs_sndcp_dcomp_v42bis_params {\n");
 		LOGP(DSNDCP, logl,
 		     "      nsapi_len=%i;\n",
@@ -1749,6 +1792,10 @@ static void dump_dcomp_params(const struct gprs_sndcp_comp_field
 		LOGP(DSNDCP, logl, "   }\n");
 		break;
 	case V44:
+		if(comp_field->v44_params == NULL) {
+			LOGP(DSNDCP, logl, "   gprs_sndcp_dcomp_v44_params=NULL\n");
+			break;
+		}
 		LOGP(DSNDCP, logl, "   gprs_sndcp_dcomp_v44_params {\n");
 		LOGP(DSNDCP, logl,
 		     "      nsapi_len=%i;\n",
@@ -1783,6 +1830,8 @@ void gprs_sndcp_dump_comp_fields(const struct llist_head *comp_fields,
 	struct gprs_sndcp_comp_field *comp_field;
 	int i;
 	int compclass;
+
+	OSMO_ASSERT(comp_fields);
 
 	llist_for_each_entry(comp_field, comp_fields, list) {
 		LOGP(DSNDCP, logl, "SNDCP-XID:\n");

@@ -20,7 +20,7 @@ sgsn_test_LDADD = \
 	$(top_builddir)/src/gprs/crc24.o \
 	$(top_builddir)/src/gprs/gprs_sndcp.o \
 	$(top_builddir)/src/gprs/gprs_sndcp_xid.o \
-	$(top_builddir)/src/gprs/gprs_sndcp_hdrcomp.o \
+	$(top_builddir)/src/gprs/gprs_sndcp_pcomp.o \
 	$(top_builddir)/src/gprs/gprs_sndcp_comp.o \
 	$(top_builddir)/src/gprs/slhc.o \
 	$(top_builddir)/src/gprs/gprs_gmm.o \

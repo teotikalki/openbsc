@@ -1,0 +1,8 @@
+Testing LLC XID-Decoder
+
+Testing LLC XID-Encoder
+Data to encode:
+Encoded data:  108c1443434343430b4242420541 (14 bytes)
+Expected data: 108c1443434343430b4242420541 (14 bytes)
+
+Done

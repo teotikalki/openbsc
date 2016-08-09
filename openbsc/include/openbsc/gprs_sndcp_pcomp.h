@@ -27,9 +27,6 @@
 #include <osmocom/core/linuxlist.h>
 #include <openbsc/gprs_sndcp_comp.h>
 
-/* 1=Bypass any header compression, 0=Normal */
-#define GPRS_SNDCP_pcomp_BYPASS 0	
-
 /* Initalize header compression */
 int gprs_sndcp_pcomp_init(const void *ctx, struct gprs_sndcp_comp *comp_entity,
 			    const struct gprs_sndcp_comp_field *comp_field);

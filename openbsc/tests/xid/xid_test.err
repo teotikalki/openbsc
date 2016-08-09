@@ -1,0 +1,9 @@
+<0013> gprs_llc_xid.c:284 XID: type=11, data_len=54, data=000100023182022789ffe0000f00a8000000010101000201020003010300040104000501050006000701070008010880000412004007
+[0;m<0013> gprs_llc_xid.c:284 XID: type=6, data_len=2, data=05f0
+[0;m<0013> gprs_llc_xid.c:284 XID: type=5, data_len=2, data=05f0
+[0;m<0013> gprs_llc_xid.c:284 XID: type=0, data_len=1, data=00
+[0;m<0013> gprs_llc_xid.c:288 XID: type=4, data_len=0, data=NULL
+[0;m<0013> gprs_llc_xid.c:284 XID: type=3, data_len=5, data=4343434343
+[0;m<0013> gprs_llc_xid.c:284 XID: type=2, data_len=3, data=424242
+[0;m<0013> gprs_llc_xid.c:284 XID: type=1, data_len=1, data=41
+[0;mfull talloc report on 'xid_ctx' (total      0 bytes in   1 blocks)

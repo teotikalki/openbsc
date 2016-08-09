@@ -748,19 +748,8 @@ static int gprs_llc_generate_sndcp_xid(uint8_t * bytes, int bytes_len,
 	struct gprs_sndcp_pcomp_rfc1144_params rfc1144_params;
 	struct gprs_sndcp_comp_field rfc1144_comp_field;
 
-	struct gprs_sndcp_pcomp_rfc2507_params rfc2507_params;
-	struct gprs_sndcp_comp_field rfc2507_comp_field;
-
-	struct gprs_sndcp_pcomp_rohc_params rohc_params;
-	struct gprs_sndcp_comp_field rohc_comp_field;
-
 	memset(&rfc1144_comp_field, 0,
 	       sizeof(struct gprs_sndcp_comp_field));
-	memset(&rfc2507_comp_field, 0,
-	       sizeof(struct gprs_sndcp_comp_field));
-	memset(&rohc_comp_field, 0, sizeof(struct gprs_sndcp_comp_field));
-
-
 
 	/* Setup which NSAPIs shall make use of rfc1144 */
 	rfc1144_params.nsapi[0] = nsapi;
@@ -778,83 +767,8 @@ static int gprs_llc_generate_sndcp_xid(uint8_t * bytes, int bytes_len,
 	rfc1144_comp_field.comp_len = RFC1144_PCOMP_NUM;
 	rfc1144_comp_field.rfc1144_params = &rfc1144_params;
 
-
-
-	/* Setup which NSAPIs shall make use of rfc1144 */
-	rfc2507_params.nsapi[0] = nsapi;
-	rfc2507_params.nsapi_len = 1;
-
-	/* Setup rfc2507 operating parameters */
-	rfc2507_params.f_max_period = 256;
-	rfc2507_params.f_max_time = 5;
-	rfc2507_params.max_header = 168;
-	rfc2507_params.tcp_space = 15;
-	rfc2507_params.non_tcp_space = 15;
-
-	/* Setup rfc2507 compression field */
-	rfc2507_comp_field.p = 1;
-	rfc2507_comp_field.entity = 1;
-	rfc2507_comp_field.algo = RFC_2507;
-	rfc2507_comp_field.comp[RFC2507_PCOMP1] = 3;
-	rfc2507_comp_field.comp[RFC2507_PCOMP2] = 4;
-	rfc2507_comp_field.comp[RFC2507_PCOMP3] = 5;
-	rfc2507_comp_field.comp[RFC2507_PCOMP4] = 6;
-	rfc2507_comp_field.comp[RFC2507_PCOMP5] = 7;
-	rfc2507_comp_field.comp_len = RFC2507_PCOMP_NUM;
-	rfc2507_comp_field.rfc2507_params = &rfc2507_params;
-
-
-
-	/* Setup which NSAPIs shall make use of ROHC */
-	rohc_params.nsapi[0] = 5;
-	rohc_params.nsapi[1] = 6;
-	rohc_params.nsapi[2] = 7;
-	rohc_params.nsapi[3] = 8;
-	rohc_params.nsapi[4] = 9;
-	rohc_params.nsapi[5] = 10;
-	rohc_params.nsapi[6] = 11;
-	rohc_params.nsapi[7] = 12;
-	rohc_params.nsapi[8] = 13;
-	rohc_params.nsapi[9] = 14;
-	rohc_params.nsapi[10] = 15;
-	rohc_params.nsapi_len = 11;
-
-	/* Setup ROHC operating parameters */
-	rohc_params.max_cid = 15;	/* default */
-	rohc_params.max_header = 168;	/* default */
-	rohc_params.profile[0] = ROHC_UNCOMPRESSED;
-	rohc_params.profile[1] = ROHC_RTP;
-	rohc_params.profile[2] = ROHCV2_RTP;
-	rohc_params.profile[3] = ROHC_UDP;
-	rohc_params.profile[4] = ROHCv2_UDP;
-	rohc_params.profile[5] = ROHC_ESP;
-	rohc_params.profile[6] = ROHCV2_ESP;
-	rohc_params.profile[7] = ROHC_IP;
-	rohc_params.profile[8] = ROHCV2_IP;
-	rohc_params.profile[9] = ROHC_LLA;
-	rohc_params.profile[10] = ROHC_LLA_WITH_R_MODE;
-	rohc_params.profile[11] = ROHC_TCP;
-	rohc_params.profile[12] = ROHC_RTP_UDP_LITE;
-	rohc_params.profile[13] = ROHCV2_RTP_UDP_LITE;
-	rohc_params.profile[14] = ROHC_UDP_LITE;
-	rohc_params.profile[15] = ROHCV2_UDP_LITE;
-	rohc_params.profile_len = 16;
-
-	/* Setup ROHC compression field */
-	rohc_comp_field.p = 1;
-	rohc_comp_field.entity = 2;
-	rohc_comp_field.algo = ROHC;
-	rohc_comp_field.comp[ROHC_PCOMP1] = 8;
-	rohc_comp_field.comp[ROHC_PCOMP2] = 9;
-	rohc_comp_field.comp_len = ROHC_PCOMP_NUM;
-	rohc_comp_field.rohc_params = &rohc_params;
-
-
-
 	/* Add compression field(s) to list */
 	llist_add(&rfc1144_comp_field.list, &comp_fields);
-//      llist_add(&rfc2507_comp_field.list, &comp_fields);
-	llist_add(&rohc_comp_field.list, &comp_fields);
 
 	/* Comile bytestream */
 	return gprs_sndcp_compile_xid(&comp_fields, bytes, bytes_len);
@@ -914,28 +828,14 @@ static int handle_pcomp_entities(struct gprs_sndcp_comp_field *comp_field,
 	/* Process proposed parameters */
 	switch (comp_field->algo) {
 	case RFC_1144:
-#if GPRS_SNDCP_HDRCOMP_BYPASS == 1
-		/* 
-		 * RFC 1144 is not yet supported, 
-		 * so we set applicable nsapis to zero
-		 */
-		comp_field->rfc1144_params->nsapi_len = 0;
-		LOGP(DSNDCP, LOGL_DEBUG,
-		     "Rejecting RFC1144 header conpression...\n");
-		gprs_sndcp_comp_delete(&lle->llme->comp.proto,
-						comp_field->entity);
-#else
 		LOGP(DSNDCP, LOGL_DEBUG,
 		     "Accepting RFC1144 header conpression...\n");
 		gprs_sndcp_comp_entities_add(lle->llme,&lle->llme->comp.proto,
 					     comp_field);
-#endif
 		break;
 	case RFC_2507:
-		/* 
-		 * RFC 2507 is not yet supported, 
-		 * so we set applicable nsapis to zero
-		 */
+		/* RFC 2507 is not yet supported, 
+		 * so we set applicable nsapis to zero */
 		LOGP(DSNDCP, LOGL_DEBUG,
 		     "Rejecting RFC2507 header conpression...\n");
 		comp_field->rfc2507_params->nsapi_len = 0;
@@ -943,10 +843,8 @@ static int handle_pcomp_entities(struct gprs_sndcp_comp_field *comp_field,
 						comp_field->entity);
 		break;
 	case ROHC:
-		/*
-		 * ROHC is not yet supported, 
-		 * so we set applicable nsapis to zero
-		 */
+		/* ROHC is not yet supported, 
+		 * so we set applicable nsapis to zero */
 		LOGP(DSNDCP, LOGL_DEBUG,
 		     "Rejecting ROHC header conpression...\n");
 		comp_field->rohc_params->nsapi_len = 0;

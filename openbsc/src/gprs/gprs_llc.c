@@ -266,7 +266,7 @@ static int gprs_llc_process_xid_ind(uint8_t *bytes_request,
 							xid_field->
 							data_len));
 				xid_field_response =
-				    gprs_llc_duplicate_xid_field
+				    gprs_llc_dup_xid_field
 				    (lle->llme,xid_field);
 				llist_add(&xid_field_response->list,
 					  xid_fields_response);

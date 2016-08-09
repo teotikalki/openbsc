@@ -30,7 +30,7 @@
    command/response parameter field */
 struct gprs_llc_xid_field {
 	struct llist_head list;
-	uint8_t type;		/* See also Table 6: LLC layer parameter 
+	uint8_t type;		/* See also Table 6: LLC layer parameter
 				   negotiation */
 	uint8_t *data;		/* Payload data (memory is owned by the
 				 * creator of the struct) */
@@ -38,24 +38,24 @@ struct gprs_llc_xid_field {
 };
 
 /* Transform a list with XID fields into a XID message (dst) */
-int gprs_llc_compile_xid(const struct llist_head *xid_fields, uint8_t *dst,
+int gprs_llc_compile_xid(const struct llist_head *xid_fields, uint8_t * dst,
 			 int bytes_maxlen);
 
 /* Transform a XID message (dst) into a list of XID fields */
-struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t *src,
+struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t * src,
 				      int src_len);
 
 /* Free XID-list with including all its XID-Fields */
 struct llist_head *gprs_llc_free_xid(struct llist_head *xid_fields);
 
 /* Create a duplicate of an XID-Field */
-struct gprs_llc_xid_field *gprs_llc_duplicate_xid_field(const void *ctx,
-							const struct
-							gprs_llc_xid_field
-							*xid_field);
+struct gprs_llc_xid_field *gprs_llc_dup_xid_field(const void *ctx, const struct
+						  gprs_llc_xid_field
+						  *xid_field);
 
 /* Copy an llist with xid fields */
-struct llist_head *gprs_llc_copy_xid(const void *ctx, const struct llist_head *xid_fields);
+struct llist_head *gprs_llc_copy_xid(const void *ctx,
+				     const struct llist_head *xid_fields);
 
 /* Dump a list with XID fields (Debug) */
 void gprs_llc_dump_xid_fields(const struct llist_head *xid_fields,

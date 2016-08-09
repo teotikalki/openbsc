@@ -36,10 +36,9 @@
 #include <openbsc/sgsn.h>
 #include <openbsc/gprs_llc_xid.h>
 
-
 /* Parse XID parameter field */
 static int
-decode_xid_field(const uint8_t *src, uint8_t src_len,
+decode_xid_field(const uint8_t * src, uint8_t src_len,
 		 struct gprs_llc_xid_field *xid_field)
 {
 	uint8_t xl;
@@ -88,10 +87,9 @@ decode_xid_field(const uint8_t *src, uint8_t src_len,
 	return src_counter + len;
 }
 
-
 /* Encode XID parameter field */
 static int
-encode_xid_field(uint8_t *dst, int dst_maxlen,
+encode_xid_field(uint8_t * dst, int dst_maxlen,
 		 const struct gprs_llc_xid_field *xid_field)
 {
 	int xl = 0;
@@ -127,17 +125,15 @@ encode_xid_field(uint8_t *dst, int dst_maxlen,
 
 	/* Append payload data */
 	if (xid_field->data && xid_field->data_len)
-		memcpy(dst + 1 + xl, xid_field->data,
-		       xid_field->data_len);
+		memcpy(dst + 1 + xl, xid_field->data, xid_field->data_len);
 
 	/* Return generated length */
 	return xid_field->data_len + 1 + xl;
 }
 
-
 /* Transform a list with XID fields into a XID message (dst) */
 int
-gprs_llc_compile_xid(const struct llist_head *xid_fields, uint8_t *dst,
+gprs_llc_compile_xid(const struct llist_head *xid_fields, uint8_t * dst,
 		     int dst_maxlen)
 {
 	struct gprs_llc_xid_field *xid_field;
@@ -165,7 +161,7 @@ gprs_llc_compile_xid(const struct llist_head *xid_fields, uint8_t *dst,
 }
 
 /* Transform a XID message (dst) into a list of XID fields */
-struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t *src,
+struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t * src,
 				      int src_len)
 {
 	struct gprs_llc_xid_field *xid_field;
@@ -176,7 +172,7 @@ struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t *src,
 
 	OSMO_ASSERT(src);
 
-	xid_fields = talloc_zero(ctx,struct llist_head);
+	xid_fields = talloc_zero(ctx, struct llist_head);
 	INIT_LLIST_HEAD(xid_fields);
 
 	while (1) {
@@ -212,29 +208,25 @@ struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t *src,
 	}
 }
 
-
 /* Free XID-list with including all its XID-Fields */
 struct llist_head *gprs_llc_free_xid(struct llist_head *xid_fields)
 {
-	if(xid_fields != NULL)
+	if (xid_fields != NULL)
 		talloc_free(xid_fields);
 	return NULL;
 }
 
-
 /* Create a duplicate of an XID-Field */
-struct gprs_llc_xid_field *gprs_llc_duplicate_xid_field(const void *ctx,
-							const struct
-							gprs_llc_xid_field
-							*xid_field)
+struct gprs_llc_xid_field *gprs_llc_dup_xid_field(const void *ctx, const struct
+						  gprs_llc_xid_field
+						  *xid_field)
 {
 	struct gprs_llc_xid_field *duplicate_of_xid_field;
 
 	OSMO_ASSERT(xid_field);
 
 	/* Create a copy of the XID field in memory */
-	duplicate_of_xid_field =
-	    talloc_zero(ctx, struct gprs_llc_xid_field);
+	duplicate_of_xid_field = talloc_zero(ctx, struct gprs_llc_xid_field);
 	memcpy(duplicate_of_xid_field, xid_field,
 	       sizeof(struct gprs_llc_xid_field));
 	duplicate_of_xid_field->data =
@@ -249,33 +241,36 @@ struct gprs_llc_xid_field *gprs_llc_duplicate_xid_field(const void *ctx,
 }
 
 /* Copy an llist with xid fields */
-struct llist_head *gprs_llc_copy_xid(const void *ctx, const struct llist_head *xid_fields)
+struct llist_head *gprs_llc_copy_xid(const void *ctx,
+				     const struct llist_head *xid_fields)
 {
 	struct gprs_llc_xid_field *xid_field;
 	struct llist_head *xid_fields_copy;
 
 	OSMO_ASSERT(xid_fields);
 
-	xid_fields_copy = talloc_zero(ctx,struct llist_head);
+	xid_fields_copy = talloc_zero(ctx, struct llist_head);
 	INIT_LLIST_HEAD(xid_fields_copy);
 
 	/* Create duplicates and add them to the target list */
 	llist_for_each_entry(xid_field, xid_fields, list) {
-		llist_add(&gprs_llc_duplicate_xid_field(ctx,xid_field)->list, xid_fields_copy);
+		llist_add(&gprs_llc_dup_xid_field(ctx, xid_field)->list,
+			  xid_fields_copy);
 	}
 
 	return xid_fields_copy;
 }
 
 /* Dump a list with XID fields (Debug) */
-void gprs_llc_dump_xid_fields(const struct llist_head *xid_fields, unsigned int logl)
+void gprs_llc_dump_xid_fields(const struct llist_head *xid_fields,
+			      unsigned int logl)
 {
 	struct gprs_llc_xid_field *xid_field;
 
 	OSMO_ASSERT(xid_fields);
 
 	llist_for_each_entry(xid_field, xid_fields, list) {
-		if(xid_field->data_len) {
+		if (xid_field->data_len) {
 			OSMO_ASSERT(xid_field->data);
 			LOGP(DSNDCP, logl,
 			     "XID: type=%i, data_len=%i, data=%s\n",

@@ -407,32 +407,32 @@ static int encode_comp_field(uint8_t * dst, unsigned int dst_maxlen, const struc
 	int payload_bytes_len = -1;
 
 	/* If possible, try do encode payload bytes first */
-	if (comp_field->rfc1144_params)
+	if (comp_field->rfc1144_params) {
 		payload_bytes_len =
 		    encode_pcomp_rfc1144_params(payload_bytes,
 						sizeof(payload_bytes),
 						comp_field->rfc1144_params);
-	else if (comp_field->rfc2507_params)
+	} else if (comp_field->rfc2507_params) {
 		payload_bytes_len =
 		    encode_pcomp_rfc2507_params(payload_bytes,
 						sizeof(payload_bytes),
 						comp_field->rfc2507_params);
-	else if (comp_field->rohc_params)
+	} else if (comp_field->rohc_params) {
 		payload_bytes_len =
 		    encode_pcomp_rohc_params(payload_bytes,
 					     sizeof(payload_bytes),
 					     comp_field->rohc_params);
-	else if (comp_field->v42bis_params)
+	} else if (comp_field->v42bis_params) {
 		payload_bytes_len =
 		    encode_dcomp_v42bis_params(payload_bytes,
 					       sizeof(payload_bytes),
 					       comp_field->v42bis_params);
-	else if (comp_field->v44_params)
+	} else if (comp_field->v44_params) {
 		payload_bytes_len =
 		    encode_dcomp_v44_params(payload_bytes,
 					    sizeof(payload_bytes),
 					    comp_field->v44_params);
-	else
+	} else
 		OSMO_ASSERT(false);
 
 	/* Bail immediately if payload byte generation failed */
@@ -1460,47 +1460,47 @@ static int complete_comp_field_params(struct gprs_sndcp_comp_field
 		return -EINVAL;
 
 	if (comp_field_dst->rfc1144_params && comp_field_src->rfc1144_params) {
-		if (comp_field_dst->rfc1144_params->s01 < 0)
+		if (comp_field_dst->rfc1144_params->s01 < 0) {
 			comp_field_dst->rfc1144_params->s01 =
 			    comp_field_src->rfc1144_params->s01;
+		}
 		return 0;
 	}
 
 	if (comp_field_dst->rfc2507_params && comp_field_src->rfc2507_params) {
 
-		if (comp_field_dst->rfc2507_params->f_max_period < 0)
+		if (comp_field_dst->rfc2507_params->f_max_period < 0) {
 			comp_field_dst->rfc2507_params->f_max_period =
 			    comp_field_src->rfc2507_params->f_max_period;
-
-		if (comp_field_dst->rfc2507_params->f_max_time < 0)
+		}
+		if (comp_field_dst->rfc2507_params->f_max_time < 0) {
 			comp_field_dst->rfc2507_params->f_max_time =
 			    comp_field_src->rfc2507_params->f_max_time;
-
-		if (comp_field_dst->rfc2507_params->max_header < 0)
+		}
+		if (comp_field_dst->rfc2507_params->max_header < 0) {
 			comp_field_dst->rfc2507_params->max_header =
 			    comp_field_src->rfc2507_params->max_header;
-
-		if (comp_field_dst->rfc2507_params->tcp_space < 0)
+		}
+		if (comp_field_dst->rfc2507_params->tcp_space < 0) {
 			comp_field_dst->rfc2507_params->tcp_space =
 			    comp_field_src->rfc2507_params->tcp_space;
-
-		if (comp_field_dst->rfc2507_params->non_tcp_space < 0)
+		}
+		if (comp_field_dst->rfc2507_params->non_tcp_space < 0) {
 			comp_field_dst->rfc2507_params->non_tcp_space =
 			    comp_field_src->rfc2507_params->non_tcp_space;
+		}
 		return 0;
 	}
 
 	if (comp_field_dst->rohc_params && comp_field_src->rohc_params) {
-		if (comp_field_dst->rohc_params->max_cid < 0)
-
-			if (comp_field_dst->rohc_params->max_cid < 0)
-				comp_field_dst->rohc_params->max_cid =
-				    comp_field_src->rohc_params->max_cid;
-
-		if (comp_field_dst->rohc_params->max_header < 0)
+		if (comp_field_dst->rohc_params->max_cid < 0) {
+			comp_field_dst->rohc_params->max_cid =
+			    comp_field_src->rohc_params->max_cid;
+		}
+		if (comp_field_dst->rohc_params->max_header < 0) {
 			comp_field_dst->rohc_params->max_header =
 			    comp_field_src->rohc_params->max_header;
-
+		}
 		if (comp_field_dst->rohc_params->profile_len > 0) {
 			memcpy(comp_field_dst->rohc_params->profile,
 			       comp_field_src->rohc_params->profile,
@@ -1513,37 +1513,46 @@ static int complete_comp_field_params(struct gprs_sndcp_comp_field
 	}
 
 	if (comp_field_dst->v42bis_params && comp_field_src->v42bis_params) {
-		if (comp_field_dst->v42bis_params->p0 < 0)
+		if (comp_field_dst->v42bis_params->p0 < 0) {
 			comp_field_dst->v42bis_params->p0 =
 			    comp_field_src->v42bis_params->p0;
-		if (comp_field_dst->v42bis_params->p1 < 0)
+		}
+		if (comp_field_dst->v42bis_params->p1 < 0) {
 			comp_field_dst->v42bis_params->p1 =
 			    comp_field_src->v42bis_params->p1;
-		if (comp_field_dst->v42bis_params->p2 < 0)
+		}
+		if (comp_field_dst->v42bis_params->p2 < 0) {
 			comp_field_dst->v42bis_params->p2 =
 			    comp_field_src->v42bis_params->p2;
+		}
 		return 0;
 	}
 
 	if (comp_field_dst->v44_params && comp_field_src->v44_params) {
-		if (comp_field_dst->v44_params->c0 < 0)
+		if (comp_field_dst->v44_params->c0 < 0) {
 			comp_field_dst->v44_params->c0 =
 			    comp_field_src->v44_params->c0;
-		if (comp_field_dst->v44_params->p0 < 0)
+		}
+		if (comp_field_dst->v44_params->p0 < 0) {
 			comp_field_dst->v44_params->p0 =
 			    comp_field_src->v44_params->p0;
-		if (comp_field_dst->v44_params->p1t < 0)
+		}
+		if (comp_field_dst->v44_params->p1t < 0) {
 			comp_field_dst->v44_params->p1t =
 			    comp_field_src->v44_params->p1t;
-		if (comp_field_dst->v44_params->p1r < 0)
+		}
+		if (comp_field_dst->v44_params->p1r < 0) {
 			comp_field_dst->v44_params->p1r =
 			    comp_field_src->v44_params->p1r;
-		if (comp_field_dst->v44_params->p3t < 0)
+		}
+		if (comp_field_dst->v44_params->p3t < 0) {
 			comp_field_dst->v44_params->p3t =
 			    comp_field_src->v44_params->p3t;
-		if (comp_field_dst->v44_params->p3r < 0)
+		}
+		if (comp_field_dst->v44_params->p3r < 0) {
 			comp_field_dst->v44_params->p3r =
 			    comp_field_src->v44_params->p3r;
+		}
 		return 0;
 	}
 
@@ -1673,8 +1682,9 @@ static void dump_pcomp_params(const struct gprs_sndcp_comp_field
 
 	switch (comp_field->algo) {
 	case RFC_1144:
-		if(comp_field->rfc1144_params == NULL) {
-			LOGP(DSNDCP, logl, "   gprs_sndcp_pcomp_rfc1144_params=NULL\n");
+		if (comp_field->rfc1144_params == NULL) {
+			LOGP(DSNDCP, logl,
+			     "   gprs_sndcp_pcomp_rfc1144_params=NULL\n");
 			break;
 		}
 		LOGP(DSNDCP, logl, "   gprs_sndcp_pcomp_rfc1144_params {\n");
@@ -1683,17 +1693,19 @@ static void dump_pcomp_params(const struct gprs_sndcp_comp_field
 		     comp_field->rfc1144_params->nsapi_len);
 		if (comp_field->rfc1144_params->nsapi_len == 0)
 			LOGP(DSNDCP, logl, "      nsapi[] = NULL;\n");
-		for (i = 0; i < comp_field->rfc1144_params->nsapi_len; i++)
+		for (i = 0; i < comp_field->rfc1144_params->nsapi_len; i++) {
 			LOGP(DSNDCP, logl,
 			     "      nsapi[%i]=%i;\n", i,
 			     comp_field->rfc1144_params->nsapi[i]);
+		}
 		LOGP(DSNDCP, logl, "      s01=%i;\n",
 		     comp_field->rfc1144_params->s01);
 		LOGP(DSNDCP, logl, "   }\n");
 		break;
 	case RFC_2507:
-		if(comp_field->rfc2507_params == NULL) {
-			LOGP(DSNDCP, logl, "   gprs_sndcp_pcomp_rfc2507_params=NULL\n");
+		if (comp_field->rfc2507_params == NULL) {
+			LOGP(DSNDCP, logl,
+			     "   gprs_sndcp_pcomp_rfc2507_params=NULL\n");
 			break;
 		}
 		LOGP(DSNDCP, logl, "   gprs_sndcp_pcomp_rfc2507_params {\n");
@@ -1702,10 +1714,11 @@ static void dump_pcomp_params(const struct gprs_sndcp_comp_field
 		     comp_field->rfc2507_params->nsapi_len);
 		if (comp_field->rfc2507_params->nsapi_len == 0)
 			LOGP(DSNDCP, logl, "      nsapi[] = NULL;\n");
-		for (i = 0; i < comp_field->rfc2507_params->nsapi_len; i++)
+		for (i = 0; i < comp_field->rfc2507_params->nsapi_len; i++) {
 			LOGP(DSNDCP, logl,
 			     "      nsapi[%i]=%i;\n", i,
 			     comp_field->rfc2507_params->nsapi[i]);
+		}
 		LOGP(DSNDCP, logl,
 		     "      f_max_period=%i;\n",
 		     comp_field->rfc2507_params->f_max_period);
@@ -1724,8 +1737,9 @@ static void dump_pcomp_params(const struct gprs_sndcp_comp_field
 		LOGP(DSNDCP, logl, "   }\n");
 		break;
 	case ROHC:
-		if(comp_field->rohc_params == NULL) {
-			LOGP(DSNDCP, logl, "   gprs_sndcp_pcomp_rohc_params=NULL\n");
+		if (comp_field->rohc_params == NULL) {
+			LOGP(DSNDCP, logl,
+			     "   gprs_sndcp_pcomp_rohc_params=NULL\n");
 			break;
 		}
 		LOGP(DSNDCP, logl, "   gprs_sndcp_pcomp_rohc_params {\n");
@@ -1734,10 +1748,11 @@ static void dump_pcomp_params(const struct gprs_sndcp_comp_field
 		     comp_field->rohc_params->nsapi_len);
 		if (comp_field->rohc_params->nsapi_len == 0)
 			LOGP(DSNDCP, logl, "      nsapi[] = NULL;\n");
-		for (i = 0; i < comp_field->rohc_params->nsapi_len; i++)
+		for (i = 0; i < comp_field->rohc_params->nsapi_len; i++) {
 			LOGP(DSNDCP, logl,
 			     "      nsapi[%i]=%i;\n", i,
 			     comp_field->rohc_params->nsapi[i]);
+		}
 		LOGP(DSNDCP, logl,
 		     "      max_cid=%i;\n", comp_field->rohc_params->max_cid);
 		LOGP(DSNDCP, logl,
@@ -1769,8 +1784,9 @@ static void dump_dcomp_params(const struct gprs_sndcp_comp_field
 
 	switch (comp_field->algo) {
 	case V42BIS:
-		if(comp_field->v42bis_params == NULL) {
-			LOGP(DSNDCP, logl, "   gprs_sndcp_dcomp_v42bis_params=NULL\n");
+		if (comp_field->v42bis_params == NULL) {
+			LOGP(DSNDCP, logl,
+			     "   gprs_sndcp_dcomp_v42bis_params=NULL\n");
 			break;
 		}
 		LOGP(DSNDCP, logl, "   gprs_sndcp_dcomp_v42bis_params {\n");
@@ -1792,8 +1808,9 @@ static void dump_dcomp_params(const struct gprs_sndcp_comp_field
 		LOGP(DSNDCP, logl, "   }\n");
 		break;
 	case V44:
-		if(comp_field->v44_params == NULL) {
-			LOGP(DSNDCP, logl, "   gprs_sndcp_dcomp_v44_params=NULL\n");
+		if (comp_field->v44_params == NULL) {
+			LOGP(DSNDCP, logl,
+			     "   gprs_sndcp_dcomp_v44_params=NULL\n");
 			break;
 		}
 		LOGP(DSNDCP, logl, "   gprs_sndcp_dcomp_v44_params {\n");
@@ -1802,10 +1819,11 @@ static void dump_dcomp_params(const struct gprs_sndcp_comp_field
 		     comp_field->v44_params->nsapi_len);
 		if (comp_field->v44_params->nsapi_len == 0)
 			LOGP(DSNDCP, logl, "      nsapi[] = NULL;\n");
-		for (i = 0; i < comp_field->v44_params->nsapi_len; i++)
+		for (i = 0; i < comp_field->v44_params->nsapi_len; i++) {
 			LOGP(DSNDCP, logl,
 			     "      nsapi[%i]=%i;\n", i,
 			     comp_field->v44_params->nsapi[i]);
+		}
 		LOGP(DSNDCP, logl, "      c0=%i;\n",
 		     comp_field->v44_params->c0);
 		LOGP(DSNDCP, logl, "      p0=%i;\n",
@@ -1841,9 +1859,10 @@ void gprs_sndcp_dump_comp_fields(const struct llist_head *comp_fields,
 		LOGP(DSNDCP, logl, "   comp_len=%i;\n", comp_field->comp_len);
 		if (comp_field->comp_len == 0)
 			LOGP(DSNDCP, logl, "   comp[] = NULL;\n");
-		for (i = 0; i < comp_field->comp_len; i++)
+		for (i = 0; i < comp_field->comp_len; i++) {
 			LOGP(DSNDCP, logl, "   comp[%i]=%i;\n", i,
 			     comp_field->comp[i]);
+		}
 
 		compclass = gprs_sndcp_get_compression_class(comp_field);
 

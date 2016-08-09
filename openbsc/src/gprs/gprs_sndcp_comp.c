@@ -102,10 +102,11 @@ static struct gprs_sndcp_comp *gprs_sndcp_comp_create(const void
 			     comp_entity->entity);
 			return NULL;
 		}
-	} else
+	} else {
 		LOGP(DSNDCP, LOGL_INFO,
 		     "New data compression entity (%i) created.\n",
 		     comp_entity->entity);
+	}
 
 	return comp_entity;
 }
@@ -118,25 +119,25 @@ void gprs_sndcp_comp_free(struct llist_head *comp_entities)
 
 	OSMO_ASSERT(comp_entities);
 
-		llist_for_each_entry(comp_entity, comp_entities, list) {
-			/* Free compression entity */
-			if (comp_entity->compclass ==
-			    SNDCP_XID_PROTOCOL_COMPRESSION) {
-				LOGP(DSNDCP, LOGL_INFO,
-				     "Deleting header compression entity %i ...\n",
-				     comp_entity->entity);
-				gprs_sndcp_pcomp_term(comp_entity);
-			} else
-				LOGP(DSNDCP, LOGL_INFO,
-				     "Deleting data compression entity %i ...\n",
-				     comp_entity->entity);
+	llist_for_each_entry(comp_entity, comp_entities, list) {
+		/* Free compression entity */
+		if (comp_entity->compclass == SNDCP_XID_PROTOCOL_COMPRESSION) {
+			LOGP(DSNDCP, LOGL_INFO,
+			     "Deleting header compression entity %i ...\n",
+			     comp_entity->entity);
+			gprs_sndcp_pcomp_term(comp_entity);
+		} else {
+			LOGP(DSNDCP, LOGL_INFO,
+			     "Deleting data compression entity %i ...\n",
+			     comp_entity->entity);
 		}
+	}
 
-		llist_for_each_safe(ce, ce2, comp_entities) {
-			llist_del(ce);
-			talloc_free(ce);
-		}
-	
+	llist_for_each_safe(ce, ce2, comp_entities) {
+		llist_del(ce);
+		talloc_free(ce);
+	}
+
 }
 
 /* Delete a compression entity */
@@ -147,28 +148,29 @@ void gprs_sndcp_comp_delete(struct llist_head *comp_entities, int entity)
 
 	OSMO_ASSERT(comp_entities);
 
-		llist_for_each_entry(comp_entity, comp_entities, list) {
-			if (comp_entity->entity == entity)
-				comp_entity_to_delete = comp_entity;
+	llist_for_each_entry(comp_entity, comp_entities, list) {
+		if (comp_entity->entity == entity)
+			comp_entity_to_delete = comp_entity;
+	}
+
+	if (comp_entity_to_delete) {
+		if (comp_entity_to_delete->compclass ==
+		    SNDCP_XID_PROTOCOL_COMPRESSION) {
+			LOGP(DSNDCP, LOGL_INFO,
+			     "Deleting header compression entity %i ...\n",
+			     comp_entity_to_delete->entity);
+			gprs_sndcp_pcomp_term(comp_entity_to_delete);
+		} else {
+			LOGP(DSNDCP, LOGL_INFO,
+			     "Deleting data compression entity %i ...\n",
+			     comp_entity_to_delete->entity);
 		}
 
-		if (comp_entity_to_delete) {
-			if (comp_entity_to_delete->compclass ==
-			    SNDCP_XID_PROTOCOL_COMPRESSION) {
-				LOGP(DSNDCP, LOGL_INFO,
-				     "Deleting header compression entity %i ...\n",
-				     comp_entity_to_delete->entity);
-				gprs_sndcp_pcomp_term(comp_entity_to_delete);
-			} else
-				LOGP(DSNDCP, LOGL_INFO,
-				     "Deleting data compression entity %i ...\n",
-				     comp_entity_to_delete->entity);
+		/* Delete compression entity */
+		llist_del(&comp_entity_to_delete->list);
+		talloc_free(comp_entity_to_delete);
+	}
 
-			/* Delete compression entity */
-			llist_del(&comp_entity_to_delete->list);
-			talloc_free(comp_entity_to_delete);
-		}
-	
 }
 
 /* Create and Add a new compression entity
@@ -208,12 +210,10 @@ struct gprs_sndcp_comp *gprs_sndcp_comp_by_entity(const struct
 
 	OSMO_ASSERT(comp_entities);
 
-
-		llist_for_each_entry(comp_entity, comp_entities, list) {
-			if (comp_entity->entity == entity)
-				return comp_entity;
-		}
-
+	llist_for_each_entry(comp_entity, comp_entities, list) {
+		if (comp_entity->entity == entity)
+			return comp_entity;
+	}
 
 	LOGP(DSNDCP, LOGL_ERROR,
 	     "Could not find a matching compression entity for given entity number %i.\n",
@@ -231,13 +231,12 @@ struct gprs_sndcp_comp *gprs_sndcp_comp_by_comp(const struct
 
 	OSMO_ASSERT(comp_entities);
 
-		llist_for_each_entry(comp_entity, comp_entities, list) {
-			for (i = 0; i < comp_entity->comp_len; i++) {
-				if (comp_entity->comp[i] == comp)
-					return comp_entity;
-			}
+	llist_for_each_entry(comp_entity, comp_entities, list) {
+		for (i = 0; i < comp_entity->comp_len; i++) {
+			if (comp_entity->comp[i] == comp)
+				return comp_entity;
 		}
-	
+	}
 
 	LOGP(DSNDCP, LOGL_ERROR,
 	     "Could not find a matching compression entity for given pcomp/dcomp value %i.\n",
@@ -254,8 +253,6 @@ struct gprs_sndcp_comp *gprs_sndcp_comp_by_nsapi(const struct
 	int i;
 
 	OSMO_ASSERT(comp_entities);
-
-
 
 	llist_for_each_entry(comp_entity, comp_entities, list) {
 		for (i = 0; i < comp_entity->nsapi_len; i++) {
@@ -279,7 +276,6 @@ int gprs_sndcp_comp_get_idx(const struct
 	int i;
 
 	OSMO_ASSERT(comp_entity);
-
 
 	/* A pcomp/dcomp field set to zero always disables
 	 * all sort of compression and is assigned fix. So we

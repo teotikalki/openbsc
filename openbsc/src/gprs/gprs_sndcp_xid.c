@@ -113,6 +113,8 @@ static int encode_pcomp_rfc1144_params(uint8_t *dst, unsigned int dst_maxlen, co
 	dst_counter += rc;
 
 	/* Encode s01 (see also: 3GPP TS 44.065, 6.5.2.1, Table 5) */
+	OSMO_ASSERT(params->s01 >= 0);
+	OSMO_ASSERT(params->s01 <= 255);
 	*dst = params->s01;
 	dst++;
 	dst_counter++;
@@ -195,7 +197,7 @@ static int encode_pcomp_rfc2507_params(uint8_t *dst, unsigned int dst_maxlen,
 
 /* Encode ROHC parameter field
  * (see also: 3GPP TS 44.065, 6.5.4.1, Table 10) */
-static int encode_pcomp_rohc_params(uint8_t * dst, unsigned int dst_maxlen, 
+static int encode_pcomp_rohc_params(uint8_t *dst, unsigned int dst_maxlen,
 				    const struct gprs_sndcp_pcomp_rohc_params
 				    *params)
 {
@@ -258,7 +260,7 @@ static int encode_pcomp_rohc_params(uint8_t * dst, unsigned int dst_maxlen,
 
 /* Encode V.42bis parameter field
  * (see also: 3GPP TS 44.065, 6.6.2.1, Table 7a) */
-static int encode_dcomp_v42bis_params(uint8_t * dst, unsigned int dst_maxlen,
+static int encode_dcomp_v42bis_params(uint8_t *dst, unsigned int dst_maxlen,
 				      const struct
 				      gprs_sndcp_dcomp_v42bis_params *params)
 {
@@ -310,7 +312,7 @@ static int encode_dcomp_v42bis_params(uint8_t * dst, unsigned int dst_maxlen,
 
 /* Encode V44 parameter field
  * (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
-static int encode_dcomp_v44_params(uint8_t * dst, unsigned int dst_maxlen,
+static int encode_dcomp_v44_params(uint8_t *dst, unsigned int dst_maxlen,
 				   const struct gprs_sndcp_dcomp_v44_params
 				   *params)
 {
@@ -391,7 +393,7 @@ static int encode_dcomp_v44_params(uint8_t * dst, unsigned int dst_maxlen,
 /* Encode data or protocol control information compression field
  * (see also: 3GPP TS 44.065, 6.6.1.1, Figure 9 and
  *            3GPP TS 44.065, 6.5.1.1, Figure 7) */
-static int encode_comp_field(uint8_t * dst, unsigned int dst_maxlen,
+static int encode_comp_field(uint8_t *dst, unsigned int dst_maxlen,
 			     const struct gprs_sndcp_comp_field *comp_field)
 {
 	int dst_counter = 0;
@@ -538,7 +540,7 @@ int gprs_sndcp_get_compression_class(const struct gprs_sndcp_comp_field
 
 /* Convert all compression fields to bytstreams */
 static int gprs_sndcp_pack_fields(const struct llist_head *comp_fields,
-				  uint8_t * dst,
+				  uint8_t *dst,
 				  unsigned int dst_maxlen, int class)
 {
 	struct gprs_sndcp_comp_field *comp_field;
@@ -567,7 +569,7 @@ static int gprs_sndcp_pack_fields(const struct llist_head *comp_fields,
 }
 
 /* Transform a list with compression fields into an SNDCP-XID message (dst) */
-int gprs_sndcp_compile_xid(uint8_t * dst, unsigned int dst_maxlen,
+int gprs_sndcp_compile_xid(uint8_t *dst, unsigned int dst_maxlen,
 			   const struct llist_head *comp_fields)
 {
 	int rc;
@@ -619,7 +621,7 @@ int gprs_sndcp_compile_xid(uint8_t * dst, unsigned int dst_maxlen,
 /* Decode applicable sapis (works the same in all three compression schemes) */
 static int decode_pcomp_applicable_sapis(unsigned int *nsapis,
 					 unsigned int *nsapis_len,
-					 const uint8_t * src,
+					 const uint8_t *src,
 					 unsigned int src_len)
 {
 	uint16_t blob;
@@ -658,7 +660,7 @@ static int decode_pcomp_applicable_sapis(unsigned int *nsapis,
 
 /* Decode 16 bit field */
 static int decode_pcomp_16_bit_field(int *value_int, uint16_t * value_uint16,
-				     const uint8_t * src,
+				     const uint8_t *src,
 				     unsigned int src_len,
 				     int value_min, int value_max)
 {
@@ -699,8 +701,8 @@ static int decode_pcomp_16_bit_field(int *value_int, uint16_t * value_uint16,
 }
 
 /* Decode 8 bit field */
-static int decode_pcomp_8_bit_field(int *value_int, uint8_t * value_uint8,
-				    const uint8_t * src,
+static int decode_pcomp_8_bit_field(int *value_int, uint8_t *value_uint8,
+				    const uint8_t *src,
 				    unsigned int src_len,
 				    int value_min, int value_max)
 {
@@ -739,7 +741,7 @@ static int decode_pcomp_8_bit_field(int *value_int, uint8_t * value_uint8,
 
 /* Decode rfc1144 parameter field see also: 3GPP TS 44.065, 6.5.2.1, Table 5) */
 static int decode_pcomp_rfc1144_params(struct gprs_sndcp_pcomp_rfc1144_params
-				       *params, const uint8_t * src,
+				       *params, const uint8_t *src,
 				       unsigned int src_len)
 {
 	int rc;
@@ -776,7 +778,7 @@ static int decode_pcomp_rfc1144_params(struct gprs_sndcp_pcomp_rfc1144_params
 /* Decode rfc2507 parameter field
  * (see also: 3GPP TS 44.065, 6.5.3.1, Table 6) */
 static int decode_pcomp_rfc2507_params(struct gprs_sndcp_pcomp_rfc2507_params
-				       *params, const uint8_t * src,
+				       *params, const uint8_t *src,
 				       unsigned int src_len)
 {
 	int rc;
@@ -847,7 +849,7 @@ static int decode_pcomp_rfc2507_params(struct gprs_sndcp_pcomp_rfc2507_params
 
 /* Decode ROHC parameter field (see also: 3GPP TS 44.065, 6.5.4.1, Table 10) */
 static int decode_pcomp_rohc_params(struct gprs_sndcp_pcomp_rohc_params *params,
-				    const uint8_t * src, unsigned int src_len)
+				    const uint8_t *src, unsigned int src_len)
 {
 	int rc;
 	int byte_counter = 0;
@@ -904,7 +906,7 @@ static int decode_pcomp_rohc_params(struct gprs_sndcp_pcomp_rohc_params *params,
 /* Decode V.42bis parameter field
  * (see also: 3GPP TS 44.065, 6.6.2.1, Table 7a) */
 static int decode_dcomp_v42bis_params(struct gprs_sndcp_dcomp_v42bis_params
-				      *params, const uint8_t * src,
+				      *params, const uint8_t *src,
 				      unsigned int src_len)
 {
 	int rc;
@@ -957,7 +959,7 @@ static int decode_dcomp_v42bis_params(struct gprs_sndcp_dcomp_v42bis_params
 
 /* Decode V44 parameter field (see also: 3GPP TS 44.065, 6.6.3.1, Table 7c) */
 static int decode_dcomp_v44_params(struct gprs_sndcp_dcomp_v44_params *params,
-				   const uint8_t * src, unsigned int src_len)
+				   const uint8_t *src, unsigned int src_len)
 {
 	int rc;
 	int byte_counter = 0;
@@ -1062,7 +1064,7 @@ static int lookup_algorithm_identifier(int entity, const struct
 /* Helper function for decode_comp_field(), decodes
  * numeric pcomp/dcomp values */
 static int decode_comp_values(struct gprs_sndcp_comp_field *comp_field,
-			      const uint8_t * src, int compclass)
+			      const uint8_t *src, int compclass)
 {
 	int src_counter = 0;
 	int i;
@@ -1128,7 +1130,7 @@ static int decode_comp_values(struct gprs_sndcp_comp_field *comp_field,
 /* Helper function for decode_comp_field(), decodes the parameters
  * which are protocol compression specific */
 static int decode_pcomp_params(struct gprs_sndcp_comp_field *comp_field,
-			       const uint8_t * src, int src_len)
+			       const uint8_t *src, int src_len)
 {
 	int rc;
 
@@ -1179,7 +1181,7 @@ static int decode_pcomp_params(struct gprs_sndcp_comp_field *comp_field,
 /* Helper function for decode_comp_field(), decodes the parameters
  * which are data compression specific */
 static int decode_dcomp_params(struct gprs_sndcp_comp_field *comp_field,
-			       const uint8_t * src, int src_len)
+			       const uint8_t *src, int src_len)
 {
 	int rc;
 
@@ -1222,7 +1224,7 @@ static int decode_dcomp_params(struct gprs_sndcp_comp_field *comp_field,
  * (see also: 3GPP TS 44.065, 6.6.1.1, Figure 9 and
  *            3GPP TS 44.065, 6.5.1.1, Figure 7) */
 static int decode_comp_field(struct gprs_sndcp_comp_field *comp_field,
-			     const uint8_t * src, unsigned int src_len,
+			     const uint8_t *src, unsigned int src_len,
 			     const struct entity_algo_table *lt,
 			     unsigned int lt_len, int compclass)
 {
@@ -1291,7 +1293,7 @@ static int decode_comp_field(struct gprs_sndcp_comp_field *comp_field,
 
 /* Helper function for gprs_sndcp_decode_xid() to decode XID blocks */
 static int decode_xid_block(struct llist_head *comp_fields, uint8_t tag,
-			    uint16_t tag_len, const uint8_t * val,
+			    uint16_t tag_len, const uint8_t *val,
 			    const struct entity_algo_table *lt,
 			    unsigned int lt_len)
 {
@@ -1334,7 +1336,7 @@ static int decode_xid_block(struct llist_head *comp_fields, uint8_t tag,
 
 /* Transform an SNDCP-XID message (src) into a list of SNDCP-XID fields */
 static int gprs_sndcp_decode_xid(struct llist_head *comp_fields,
-				 const uint8_t * src, unsigned int src_len,
+				 const uint8_t *src, unsigned int src_len,
 				 const struct
 				 entity_algo_table
 				 *lt, unsigned int lt_len)
@@ -1611,7 +1613,7 @@ static int gprs_sndcp_complete_comp_fields(struct llist_head
 
 /* Transform an SNDCP-XID message (src) into a list of SNDCP-XID fields */
 struct llist_head *gprs_sndcp_parse_xid(const void *ctx,
-					const uint8_t * src,
+					const uint8_t *src,
 					unsigned int src_len,
 					const struct llist_head
 					*comp_fields_req)
@@ -1632,24 +1634,24 @@ struct llist_head *gprs_sndcp_parse_xid(const void *ctx,
 		    gprs_sndcp_fill_table(lt, MAX_ENTITIES * 2,
 					  comp_fields_req);
 		if (lt_len < 0)
-			return NULL;
+			return gprs_sndcp_free_comp_fields(comp_fields);
 
 		/* Parse SNDCP-CID XID-Field */
 		rc = gprs_sndcp_decode_xid(comp_fields, src, src_len, lt,
 					   lt_len);
 		if (rc < 0)
-			return NULL;
+			return gprs_sndcp_free_comp_fields(comp_fields);
 
 		rc = gprs_sndcp_complete_comp_fields(comp_fields,
 						     comp_fields_req);
 		if (rc < 0)
-			return NULL;
+			return gprs_sndcp_free_comp_fields(comp_fields);
 
 	} else {
 		/* Parse SNDCP-CID XID-Field */
 		rc = gprs_sndcp_decode_xid(comp_fields, src, src_len, NULL, 0);
 		if (rc < 0)
-			return NULL;
+			return gprs_sndcp_free_comp_fields(comp_fields);
 	}
 
 	return comp_fields;
@@ -1865,7 +1867,6 @@ void gprs_sndcp_dump_comp_fields(const struct llist_head *comp_fields,
 		}
 
 		LOGP(DSNDCP, logl, "}\n");
-		LOGP(DSNDCP, logl, "\n");
 	}
 
 }

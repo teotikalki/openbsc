@@ -110,13 +110,13 @@ static void test_xid_decode(const void *ctx)
 	printf("Decoded:\n");
 	gprs_llc_dump_xid_fields(xid_fields, DSNDCP);
 
-	
+
 	/* Encode xid-fields again */
 	rc = gprs_llc_compile_xid(xid_r, sizeof(xid_r), xid_fields);
 	printf("Result length=%i\n",rc);
 	printf("Encoded:  %s\n", osmo_hexdump_nospc(xid, sizeof(xid)));
 	printf("Rencoded: %s\n", osmo_hexdump_nospc(xid_r, rc));
-	
+
 	OSMO_ASSERT(rc == 64);
 	OSMO_ASSERT(memcmp(xid, xid_r, sizeof(xid)) == 0);
 
@@ -155,4 +155,11 @@ int main(int argc, char **argv)
 	talloc_report_full(xid_ctx, stderr);
 	OSMO_ASSERT(talloc_total_blocks(xid_ctx) == 1);
 	return 0;
+}
+
+/* stubs */
+struct osmo_prim_hdr;
+int bssgp_prim_cb(struct osmo_prim_hdr *oph, void *ctx)
+{
+        abort();
 }

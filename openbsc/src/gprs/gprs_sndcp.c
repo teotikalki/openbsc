@@ -86,6 +86,9 @@ static void showPacketDetails(uint8_t * data, int len, int direction,
 		       data[9]);
 	}
 
+	printf("######################### a %i =>\n",sgsn->cfg.pcomp_rfc1144.active);
+	printf("######################### p %i =>\n",sgsn->cfg.pcomp_rfc1144.passive);
+	printf("######################### s %i =>\n",sgsn->cfg.pcomp_rfc1144.s01);
 }
 
 /* Chapter 7.2: SN-PDU Formats */

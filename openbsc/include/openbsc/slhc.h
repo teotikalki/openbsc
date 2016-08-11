@@ -80,6 +80,7 @@
  * means "IP packet".
  */
 
+
 #include <linux/ip.h>
 #include <linux/tcp.h>
 
@@ -108,7 +109,7 @@
  * data type and sizes conversion assumptions:
  *
  *	VJ code		KA9Q style	generic
- *	u_char		byte_t		uint8_t	 8 bits
+ *	u_char		byte_t		unsigned char	 8 bits
  *	u_short		int16		unsigned short	16 bits
  *	u_int		int16		unsigned short	16 bits
  *	u_long		unsigned long	unsigned long	32 bits
@@ -129,8 +130,8 @@ struct cstate {
 	struct cstate *next;	/* next in ring (xmit) */
 	struct iphdr cs_ip;	/* ip/tcp hdr from most recent packet */
 	struct tcphdr cs_tcp;
-	uint8_t cs_ipopt[64];
-	uint8_t cs_tcpopt[64];
+	unsigned char cs_ipopt[64];
+	unsigned char cs_tcpopt[64];
 	int cs_hsize;
 };
 #define NULLSLSTATE	(struct cstate *)0
@@ -169,16 +170,15 @@ struct slcompress {
 };
 #define NULLSLCOMPR	(struct slcompress *)0
 
-#define __ARGS(x) x
-
 /* In slhc.c: */
 struct slcompress *slhc_init(const void *ctx, int rslots, int tslots);
 
 void slhc_free(struct slcompress *comp);
 
-int slhc_compress(struct slcompress *comp, uint8_t *icp, int isize, uint8_t *ocp, uint8_t **cpp, int compress_cid);
-int slhc_uncompress(struct slcompress *comp, uint8_t *icp, int isize);
-int slhc_remember(struct slcompress *comp, uint8_t *icp, int isize);
+int slhc_compress(struct slcompress *comp, unsigned char *icp, int isize,
+		  unsigned char *ocp, unsigned char **cpp, int compress_cid);
+int slhc_uncompress(struct slcompress *comp, unsigned char *icp, int isize);
+int slhc_remember(struct slcompress *comp, unsigned char *icp, int isize);
 int slhc_toss(struct slcompress *comp);
 
 void slhc_i_status(struct slcompress *comp);

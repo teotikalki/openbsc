@@ -38,7 +38,7 @@
 
 /* Parse XID parameter field */
 static int decode_xid_field(struct gprs_llc_xid_field *xid_field,
-			    const uint8_t * src, uint8_t src_len)
+			    const uint8_t *src, uint8_t src_len)
 {
 	uint8_t xl;
 	uint8_t type;
@@ -87,7 +87,7 @@ static int decode_xid_field(struct gprs_llc_xid_field *xid_field,
 }
 
 /* Encode XID parameter field */
-static int encode_xid_field(uint8_t * dst, int dst_maxlen,
+static int encode_xid_field(uint8_t *dst, int dst_maxlen,
 			    const struct gprs_llc_xid_field *xid_field)
 {
 	int xl = 0;
@@ -130,7 +130,7 @@ static int encode_xid_field(uint8_t * dst, int dst_maxlen,
 }
 
 /* Transform a list with XID fields into a XID message (dst) */
-int gprs_llc_compile_xid(uint8_t * dst, int dst_maxlen,
+int gprs_llc_compile_xid(uint8_t *dst, int dst_maxlen,
 			 const struct llist_head *xid_fields)
 {
 	struct gprs_llc_xid_field *xid_field;
@@ -158,7 +158,7 @@ int gprs_llc_compile_xid(uint8_t * dst, int dst_maxlen,
 }
 
 /* Transform a XID message (dst) into a list of XID fields */
-struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t * src,
+struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t *src,
 				      int src_len)
 {
 	struct gprs_llc_xid_field *xid_field;

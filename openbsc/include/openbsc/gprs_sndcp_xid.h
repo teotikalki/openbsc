@@ -27,10 +27,10 @@
 #include <osmocom/core/linuxlist.h>
 
 #define CURRENT_SNDCP_VERSION 0	/* See 3GPP TS 44.065, clause 8 */
-#define MAX_ENTITIES 32		/* 3GPP TS 44.065 reserves 5 bit 
+#define MAX_ENTITIES 32		/* 3GPP TS 44.065 reserves 5 bit
 				 * for compression enitity number */
 
-/* According to: 3GPP TS 44.065, 6.5.1.1 Format of the protocol control 
+/* According to: 3GPP TS 44.065, 6.5.1.1 Format of the protocol control
  *		 information compression field (Figure 7)
  *               3GPP TS 44.065, 6.6.1.1 Format of the data compression
  *		 field (Figure 9) */
@@ -191,22 +191,21 @@ enum gprs_sndcp_dcomp_v44_dcomp {
 
 /* Transform a list with compression fields into an SNDCP-XID message (dst) */
 int gprs_sndcp_compile_xid(uint8_t *dst, unsigned int dst_maxlen,
-			   const struct llist_head *comp_fields);
+			  	const struct llist_head *comp_fields);
 
 /* Transform an SNDCP-XID message (src) into a list of SNDCP-XID fields */
 struct llist_head *gprs_sndcp_parse_xid(const void *ctx,
-					const uint8_t * src,
-					unsigned int src_len,
-					const struct llist_head
-					*comp_fields_req);
+				const uint8_t * src,
+				unsigned int src_len,
+				const struct llist_head *comp_fields_req);
 
 /* Free a list with SNDCP-XID fields */
 struct llist_head *gprs_sndcp_free_comp_fields(struct llist_head *comp_fields);
 
 /* Find out to which compression class the specified comp-field belongs
  * (header compression or data compression?) */
-int gprs_sndcp_get_compression_class(const struct gprs_sndcp_comp_field
-				     *comp_field);
+int gprs_sndcp_get_compression_class(
+				const struct gprs_sndcp_comp_field *comp_field);
 
 /* Dump a list with SNDCP-XID fields (Debug) */
 void gprs_sndcp_dump_comp_fields(const struct llist_head *comp_fields,

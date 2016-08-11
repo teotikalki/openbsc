@@ -101,7 +101,7 @@ static void gprs_sndcp_pcomp_rfc1144_stat(struct slcompress *comp)
 
 /* Compress a packet using Van Jacobson RFC1144 header compression */
 static int gprs_sndcp_pcomp_rfc1144_compress(struct slcompress *comp,
-					       uint8_t * packet,
+					       uint8_t *packet,
 					       int packet_len,
 					       int *pcomp_index)
 {
@@ -141,7 +141,7 @@ static int gprs_sndcp_pcomp_rfc1144_compress(struct slcompress *comp,
 
 /* Expand a packet using Van Jacobson RFC1144 header compression */
 static int gprs_sndcp_pcomp_rfc1144_expand(struct slcompress *comp,
-					     uint8_t * packet,
+					     uint8_t *packet,
 					     int packet_len,
 					     int pcomp_index)
 {
@@ -194,7 +194,7 @@ static int gprs_sndcp_pcomp_rfc1144_expand(struct slcompress *comp,
 
 
 /* Expand header compressed packet */
-int gprs_sndcp_pcomp_expand(uint8_t * packet, int packet_len, int pcomp,
+int gprs_sndcp_pcomp_expand(uint8_t *packet, int packet_len, int pcomp,
 			      const struct llist_head *comp_entities)
 {
 	int rc;
@@ -250,7 +250,7 @@ int gprs_sndcp_pcomp_expand(uint8_t * packet, int packet_len, int pcomp,
 
 
 /* Expand header compressed packet */
-int gprs_sndcp_pcomp_compress(uint8_t * packet, int packet_len,
+int gprs_sndcp_pcomp_compress(uint8_t *packet, int packet_len,
 				int *pcomp,
 				const struct llist_head *comp_entities,
 				int nsapi)

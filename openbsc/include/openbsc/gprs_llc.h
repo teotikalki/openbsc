@@ -167,16 +167,16 @@ struct gprs_llc_llme {
 	uint16_t nsei;
 	struct gprs_llc_lle lle[NUM_SAPIS];
 
-	/* Copy of the XID fields we have sent with the last 
+	/* Copy of the XID fields we have sent with the last
 	 * network originated XID-Request. Since the phone
 	 * may strip the optional fields in the confirmation
-	 * we need to remeber those fields in order to be 
+	 * we need to remeber those fields in order to be
 	 * able to create the compression entity. */
 	struct llist_head *xid;
 
 	/* Compression entities */
 	struct {
-		/* In this two list_heads we will store the 
+		/* In this two list_heads we will store the
 		 * data and protocol compression entities,
 		 * together with their compression states */
 		struct llist_head proto;

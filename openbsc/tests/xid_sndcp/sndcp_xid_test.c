@@ -274,3 +274,10 @@ int main(int argc, char **argv)
 	OSMO_ASSERT(talloc_total_blocks(xid_ctx) == 1);
 	return 0;
 }
+
+/* stubs */
+struct osmo_prim_hdr;
+int bssgp_prim_cb(struct osmo_prim_hdr *oph, void *ctx)
+{
+        abort();
+}

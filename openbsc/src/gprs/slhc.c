@@ -42,7 +42,7 @@
  *                      Modularization.
  *	- Jan 1995	Bjorn Ekwall
  *			Use ip_fast_csum from ip.h
- *	- July 1995	Christos A. Polyzols 
+ *	- July 1995	Christos A. Polyzols
  *			Spotted bug in tcp option checking
  *
  *
@@ -60,11 +60,13 @@
 #include <openbsc/slhc.h>
 #include <openbsc/debug.h>
 
-static uint8_t *encode(uint8_t *cp, uint16_t n);
-static long decode(uint8_t **cpp);
-static uint8_t * put16(uint8_t *cp, uint16_t x);
-static uint16_t pull16(uint8_t **cpp);
+#define ERR_PTR(x) x
 
+
+static unsigned char *encode(unsigned char *cp, unsigned short n);
+static long decode(unsigned char **cpp);
+static unsigned char * put16(unsigned char *cp, unsigned short x);
+static unsigned short pull16(unsigned char **cpp);
 
 /* Replacement for kernel space function ip_fast_csum() */
 static uint16_t ip_fast_csum(uint8_t *iph, int ihl)
@@ -98,35 +100,37 @@ static void put_unaligned(uint16_t val, void *ptr)
 }
 
 
-/* Initialize compression data structure
+/* Allocate compression data structure
  *	slots must be in range 0 to 255 (zero meaning no compression)
+ * Returns pointer to structure or ERR_PTR() on error.
  */
-struct slcompress *slhc_init(const void *ctx, int rslots, int tslots)
+struct slcompress *
+slhc_init(const void *ctx, int rslots, int tslots)
 {
 	register short i;
 	register struct cstate *ts;
 	struct slcompress *comp;
 
+	if (rslots < 0 || rslots > 255 || tslots < 0 || tslots > 255)
+		return NULL;
+
 	comp = (struct slcompress *)talloc_zero_size(ctx,sizeof(struct slcompress));
 	if (! comp)
 		goto out_fail;
-	memset(comp, 0, sizeof(struct slcompress));
 
-	if ( rslots > 0  &&  rslots < 256 ) {
+	if (rslots > 0) {
 		size_t rsize = rslots * sizeof(struct cstate);
 		comp->rstate = (struct cstate *) talloc_zero_size(ctx, rsize);
 		if (! comp->rstate)
 			goto out_free;
-		memset(comp->rstate, 0, rsize);
 		comp->rslot_limit = rslots - 1;
 	}
 
-	if ( tslots > 0  &&  tslots < 256 ) {
+	if (tslots > 0) {
 		size_t tsize = tslots * sizeof(struct cstate);
 		comp->tstate = (struct cstate *) talloc_zero_size(ctx, tsize);
 		if (! comp->tstate)
 			goto out_free2;
-		memset(comp->tstate, 0, tsize);
 		comp->tslot_limit = tslots - 1;
 	}
 
@@ -153,17 +157,17 @@ struct slcompress *slhc_init(const void *ctx, int rslots, int tslots)
 	return comp;
 
 out_free2:
-	talloc_free((uint8_t *)comp->rstate);
+	talloc_free(comp->rstate);
 out_free:
-	talloc_free((uint8_t *)comp);
+	talloc_free(comp);
 out_fail:
-
-
 	return NULL;
 }
 
+
 /* Free a compression data structure */
-void slhc_free(struct slcompress *comp)
+void
+slhc_free(struct slcompress *comp)
 {
 	LOGP(DSLHC, LOGL_DEBUG, "slhc_free(): Freeing compression states...\n");
 
@@ -179,8 +183,10 @@ void slhc_free(struct slcompress *comp)
 	talloc_free( comp );
 }
 
+
 /* Put a short in host order into a char array in network order */
-static inline uint8_t *put16(uint8_t *cp, uint16_t x)
+static inline unsigned char *
+put16(unsigned char *cp, unsigned short x)
 {
 	*cp++ = x >> 8;
 	*cp++ = x;
@@ -190,7 +196,8 @@ static inline uint8_t *put16(uint8_t *cp, uint16_t x)
 
 
 /* Encode a number */
-uint8_t *encode(uint8_t *cp, uint16_t n)
+static unsigned char *
+encode(unsigned char *cp, unsigned short n)
 {
 	if(n >= 256 || n == 0){
 		*cp++ = 0;
@@ -202,7 +209,8 @@ uint8_t *encode(uint8_t *cp, uint16_t n)
 }
 
 /* Pull a 16-bit integer in host order from buffer in network byte order */
-static uint16_t pull16(uint8_t **cpp)
+static unsigned short
+pull16(unsigned char **cpp)
 {
 	short rval;
 
@@ -213,7 +221,8 @@ static uint16_t pull16(uint8_t **cpp)
 }
 
 /* Decode a number */
-long decode(uint8_t **cpp)
+static long
+decode(unsigned char **cpp)
 {
 	register int x;
 
@@ -232,7 +241,9 @@ long decode(uint8_t **cpp)
  *    change it to ocp.
  */
 
-int slhc_compress(struct slcompress *comp, uint8_t *icp, int isize, uint8_t *ocp, uint8_t **cpp, int compress_cid)
+int
+slhc_compress(struct slcompress *comp, unsigned char *icp, int isize,
+	unsigned char *ocp, unsigned char **cpp, int compress_cid)
 {
 	register struct cstate *ocs = &(comp->tstate[comp->xmit_oldest]);
 	register struct cstate *lcs = ocs;
@@ -240,18 +251,20 @@ int slhc_compress(struct slcompress *comp, uint8_t *icp, int isize, uint8_t *ocp
 	register unsigned long deltaS, deltaA;
 	register short changes = 0;
 	int hlen;
-	uint8_t new_seq[16];
-	register uint8_t *cp = new_seq;
+	unsigned char new_seq[16];
+	register unsigned char *cp = new_seq;
 	struct iphdr *ip;
 	struct tcphdr *th, *oth;
+	__sum16 csum;
+
 
 	/*
 	 *	Don't play with runt packets.
 	 */
-	 
+
 	if(isize<sizeof(struct iphdr))
 		return isize;
-		
+
 	ip = (struct iphdr *) icp;
 
 	/* Bail if this packet isn't TCP, or is an IP fragment */
@@ -264,14 +277,14 @@ int slhc_compress(struct slcompress *comp, uint8_t *icp, int isize, uint8_t *ocp
 		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): Not a TCP packat, will not touch...\n");
 		return isize;
 	}
-
 	/* Extract TCP header */
-	th = (struct tcphdr *)(((uint8_t *)ip) + ip->ihl*4);
+
+	th = (struct tcphdr *)(((unsigned char *)ip) + ip->ihl*4);
 	hlen = ip->ihl*4 + th->doff*4;
 
 	/*  Bail if the TCP packet isn't `compressible' (i.e., ACK isn't set or
 	 *  some other control bit is set). Also uncompressible if
-	 *  its a runt.
+	 *  it's a runt.
 	 */
 	if(hlen > isize || th->syn || th->fin || th->rst ||
 	    ! (th->ack)){
@@ -280,7 +293,6 @@ int slhc_compress(struct slcompress *comp, uint8_t *icp, int isize, uint8_t *ocp
 		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): Packet is part of a TCP connection, will not touch...\n");
 		return isize;
 	}
-
 	/*
 	 * Packet is compressible -- we're going to send either a
 	 * COMPRESSED_TCP or UNCOMPRESSED_TCP packet.  Either way,
@@ -311,7 +323,7 @@ int slhc_compress(struct slcompress *comp, uint8_t *icp, int isize, uint8_t *ocp
 		lcs = cs;
 		cs = cs->next;
 		comp->sls_o_searches++;
-	};
+	}
 	/*
 	 * Didn't find it -- re-use oldest cstate.  Send an
 	 * uncompressed packet that tells the other side what
@@ -358,7 +370,6 @@ found:
 	 */
 	oth = &cs->cs_tcp;
 
-
 	if(ip->version != cs->cs_ip.version || ip->ihl != cs->cs_ip.ihl
 	 || ip->tos != cs->cs_ip.tos
 	 || (ip->frag_off & htons(0x4000)) != (cs->cs_ip.frag_off & htons(0x4000))
@@ -393,8 +404,7 @@ found:
 		changes |= NEW_W;
 	}
 	if((deltaA = ntohl(th->ack_seq) - ntohl(oth->ack_seq)) != 0L){
-		if(deltaA > 0x0000ffff)
-		{
+		if(deltaA > 0x0000ffff)	{
 			LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): (deltaA = ntohl(th->ack_seq) - ntohl(oth->ack_seq)) != 0L, can't compress...\n");
 			goto uncompressed;
 		}
@@ -402,8 +412,7 @@ found:
 		changes |= NEW_A;
 	}
 	if((deltaS = ntohl(th->seq) - ntohl(oth->seq)) != 0L){
-		if(deltaS > 0x0000ffff)
-		{
+		if(deltaS > 0x0000ffff)	{
 		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): (deltaS = ntohl(th->seq) - ntohl(oth->seq)) != 0L, can't compress...\n");
 			goto uncompressed;
 		}
@@ -424,7 +433,6 @@ found:
 			break;
 		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): Retransmitted packet detected, can't compress...\n");
 		goto uncompressed;
-		break;
 	case SPECIAL_I:
 	case SPECIAL_D:
 		/* actual changes match one of our special case encodings --
@@ -458,7 +466,8 @@ found:
 	/* Grab the cksum before we overwrite it below.  Then update our
 	 * state with this packet's header.
 	 */
-	deltaA = ntohs(th->check);
+	csum = th->check;
+	memcpy(&cs->cs_ip,ip,20);
 	memcpy(&cs->cs_tcp,th,20);
 	/* We want to use the original packet as our compressed packet.
 	 * (cp - new_seq) is the number of bytes we need for compressed
@@ -478,7 +487,8 @@ found:
 		*cpp = ocp;
 		*cp++ = changes;
 	}
-	cp = put16(cp,(short)deltaA);	/* Write TCP checksum */
+	*(__sum16 *)cp = csum;
+	cp += 2;
 /* deltaS is now the size of the change section of the compressed header */
 	memcpy(cp,new_seq,deltaS);	/* Write list of deltas */
 	memcpy(cp+deltaS,icp+hlen,isize-hlen);
@@ -508,7 +518,8 @@ uncompressed:
 }
 
 
-int slhc_uncompress(struct slcompress *comp, uint8_t *icp, int isize)
+int
+slhc_uncompress(struct slcompress *comp, unsigned char *icp, int isize)
 {
 	register int changes;
 	long x;
@@ -516,7 +527,7 @@ int slhc_uncompress(struct slcompress *comp, uint8_t *icp, int isize)
 	register struct iphdr *ip;
 	register struct cstate *cs;
 	int len, hdrlen;
-	uint8_t *cp = icp;
+	unsigned char *cp = icp;
 
 	/* We've got a compressed packet; read the change byte */
 	comp->sls_i_compressed++;
@@ -548,10 +559,8 @@ int slhc_uncompress(struct slcompress *comp, uint8_t *icp, int isize)
 	thp = &cs->cs_tcp;
 	ip = &cs->cs_ip;
 
-	if((x = pull16(&cp)) == -1) {	/* Read the TCP checksum */
-		goto bad;
-        }
-	thp->check = htons(x);
+	thp->check = *(__sum16 *)cp;
+	cp += 2;
 
 	thp->psh = (changes & TCP_PUSH_BIT) ? 1 : 0;
 /*
@@ -643,7 +652,8 @@ int slhc_uncompress(struct slcompress *comp, uint8_t *icp, int isize)
 	  cp += (ip->ihl - 5) * 4;
 	}
 
-	put_unaligned(ip_fast_csum(icp, ip->ihl),     &((struct iphdr *)icp)->check);
+	put_unaligned(ip_fast_csum(icp, ip->ihl),
+		      &((struct iphdr *)icp)->check);
 
 	memcpy(cp, thp, 20);
 	cp += 20;
@@ -661,13 +671,13 @@ bad:
 }
 
 
-int slhc_remember(struct slcompress *comp, uint8_t *icp, int isize)
+int
+slhc_remember(struct slcompress *comp, unsigned char *icp, int isize)
 {
 	register struct cstate *cs;
 	unsigned ihl;
 
-	uint8_t index;
-	uint16_t checksum;
+	unsigned char index;
 
 	if(isize < 20) {
 		/* The packet is shorter than a legal IP header */
@@ -683,12 +693,10 @@ int slhc_remember(struct slcompress *comp, uint8_t *icp, int isize)
 		LOGP(DSLHC, LOGL_DEBUG, "slhc_remember(): The IP header length field is too small ==> slhc_toss()\n");
 		return slhc_toss( comp );
 	}
-
 	index = icp[9];
 	icp[9] = IPPROTO_TCP;
-	checksum = ip_fast_csum(icp, ihl);
 
-	if (checksum) {
+	if (ip_fast_csum(icp, ihl)) {
 		/* Bad IP header checksum; discard */
 		comp->sls_i_badcheck++;
 		LOGP(DSLHC, LOGL_DEBUG, "slhc_remember(): Bad IP header checksum; discard ==> slhc_toss()\n");
@@ -717,7 +725,8 @@ int slhc_remember(struct slcompress *comp, uint8_t *icp, int isize)
 	return isize;
 }
 
-int slhc_toss(struct slcompress *comp)
+int
+slhc_toss(struct slcompress *comp)
 {
 	LOGP(DSLHC, LOGL_DEBUG, "slhc_toss(): Reset compression state...\n");
 	if ( comp == NULLSLCOMPR )

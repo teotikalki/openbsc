@@ -88,6 +88,13 @@ struct sgsn_config {
 
 	int dynamic_lookup;
 
+	/* RFC1144 TCP/IP Header compression */
+	struct {
+		int passive;
+		int active;
+		int s01;
+	} pcomp_rfc1144;
+
 	struct oap_config oap;
 };
 

@@ -105,7 +105,7 @@ DEFUN(show_llc, show_llc_cmd,
 	return CMD_SUCCESS;
 }
 
-/* Manually trigger sending of an XID message (Debug) */
+/* FIXME: This is not needed anymore, remove before review! */
 DEFUN(send_xid, send_xid_cmd,
       "send xid sapi <0-11>",
       "Triggr manual messages (debug)\n"
@@ -128,10 +128,18 @@ DEFUN(send_xid, send_xid_cmd,
 	return CMD_SUCCESS;
 }
 
+
+
+
+
+
+
 int gprs_llc_vty_init(void)
 {
 	install_element_ve(&show_llc_cmd);
 	install_element_ve(&send_xid_cmd);
+//	install_element_ve(&cfg_sndcp_no_comp_cmd);
+
 
 	return 0;
 }

@@ -38,8 +38,8 @@ struct gprs_llc_xid_field {
 };
 
 /* Transform a list with XID fields into a XID message (dst) */
-int gprs_llc_compile_xid(uint8_t *dst, int dst_maxlen, 
-		     const struct llist_head *xid_fields);
+int gprs_llc_compile_xid(uint8_t *dst, int dst_maxlen,
+			 const struct llist_head *xid_fields);
 
 /* Transform a XID message (dst) into a list of XID fields */
 struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t *src,
@@ -49,9 +49,8 @@ struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t *src,
 struct llist_head *gprs_llc_free_xid(struct llist_head *xid_fields);
 
 /* Create a duplicate of an XID-Field */
-struct gprs_llc_xid_field *gprs_llc_dup_xid_field(const void *ctx, const struct
-						  gprs_llc_xid_field
-						  *xid_field);
+struct gprs_llc_xid_field *gprs_llc_dup_xid_field(const void *ctx,
+				const struct gprs_llc_xid_field *xid_field);
 
 /* Copy an llist with xid fields */
 struct llist_head *gprs_llc_copy_xid(const void *ctx,

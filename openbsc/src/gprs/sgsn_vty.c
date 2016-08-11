@@ -1074,6 +1074,41 @@ DEFUN(cfg_cdr_interval, cfg_cdr_interval_cmd,
 	return CMD_SUCCESS;
 }
 
+DEFUN(cfg_no_comp_rfc1144, cfg_no_comp_rfc1144_cmd,
+      "no compression rfc1144",
+      NO_STR "disable rfc1144 TCP/IP header compression\n")
+{
+	g_cfg->pcomp_rfc1144.active = 0;
+	g_cfg->pcomp_rfc1144.passive = 0;
+	return CMD_SUCCESS;
+}
+
+DEFUN(cfg_comp_rfc1144, cfg_comp_rfc1144_cmd,
+      "compression rfc1144 negotiation (active|passive|both) s01 <0-255>",
+      NO_STR "GPRS compression scheme\n")
+{
+	switch (argv[0][0]) {
+	case 'a':
+		g_cfg->pcomp_rfc1144.active = 1;
+		g_cfg->pcomp_rfc1144.passive = 0;
+	break;
+	case 'p':
+		g_cfg->pcomp_rfc1144.active = 0;
+		g_cfg->pcomp_rfc1144.passive = 1;
+	break;		
+	case 'b':
+		g_cfg->pcomp_rfc1144.active = 1;
+		g_cfg->pcomp_rfc1144.passive = 1;
+	break;		
+	default:
+		g_cfg->pcomp_rfc1144.active = 0;
+		g_cfg->pcomp_rfc1144.passive = 0;	
+	}
+
+	g_cfg->pcomp_rfc1144.s01 = atoi(argv[1]);
+	return CMD_SUCCESS;
+}
+
 int sgsn_vty_init(void)
 {
 	install_element_ve(&show_sgsn_cmd);
@@ -1127,6 +1162,9 @@ int sgsn_vty_init(void)
 	install_element(SGSN_NODE, &cfg_sgsn_T3386_cmd);
 	install_element(SGSN_NODE, &cfg_sgsn_T3395_cmd);
 	install_element(SGSN_NODE, &cfg_sgsn_T3397_cmd);
+
+	install_element(SGSN_NODE, &cfg_no_comp_rfc1144_cmd);
+	install_element(SGSN_NODE, &cfg_comp_rfc1144_cmd);
 
 	return 0;
 }

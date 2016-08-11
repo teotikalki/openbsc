@@ -31,6 +31,9 @@
 
 /*! \file */
 
+#define FALSE 0
+#define TRUE 1
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
@@ -39,15 +42,10 @@
 #include <fcntl.h>
 #include <ctype.h>
 #include <assert.h>
+
+#include <openbsc/v42bis.h>
+#include <openbsc/v42bis_private.h>
 #include <openbsc/debug.h>
-
-#include "spandsp/telephony.h"
-#include "spandsp/logging.h"
-#include "spandsp/bit_operations.h"
-#include "spandsp/v42bis.h"
-
-#include "spandsp/private/logging.h"
-#include "spandsp/private/v42bis.h"
 
 
 /* Fixed parameters from the spec. */
@@ -71,6 +69,46 @@ enum
     V42BIS_EID = 1,         /* Escape character in data */
     V42BIS_RESET = 2        /* Force reinitialisation */
 };
+
+/*! \brief Find the bit position of the highest set bit in a word
+    \param bits The word to be searched
+    \return The bit number of the highest set bit, or -1 if the word is zero. */
+static __inline__ int top_bit(unsigned int bits)
+{
+/* Note: This function was taken from spandsp/bit_operations.h */
+    int res;
+
+    if (bits == 0)
+        return -1;
+    res = 0;
+    if (bits & 0xFFFF0000)
+    {
+        bits &= 0xFFFF0000;
+        res += 16;
+    }
+    if (bits & 0xFF00FF00)
+    {
+        bits &= 0xFF00FF00;
+        res += 8;
+    }
+    if (bits & 0xF0F0F0F0)
+    {
+        bits &= 0xF0F0F0F0;
+        res += 4;
+    }
+    if (bits & 0xCCCCCCCC)
+    {
+        bits &= 0xCCCCCCCC;
+        res += 2;
+    }
+    if (bits & 0xAAAAAAAA)
+    {
+        bits &= 0xAAAAAAAA;
+        res += 1;
+    }
+    return res;
+}
+/*- End of function --------------------------------------------------------*/
 
 static __inline__ void push_compressed_raw_octet(v42bis_compress_state_t *ss, int octet)
 {
@@ -109,7 +147,7 @@ static __inline__ void push_compressed_octet(v42bis_compress_state_t *ss, int co
 }
 /*- End of function --------------------------------------------------------*/
 
-int v42bis_compress(v42bis_state_t *s, const uint8_t *buf, int len)
+SPAN_DECLARE(int) v42bis_compress(v42bis_state_t *s, const uint8_t *buf, int len)
 {
     int ptr;
     int i;
@@ -268,7 +306,7 @@ int v42bis_compress(v42bis_state_t *s, const uint8_t *buf, int len)
                 {
                     if (ss->transparent)
                     {
-                        LOGP(DV42BIS, LOGL_DEBUG, "Going compressed\n");
+                        DEBUGP(DV42BIS,"Going compressed\n");
                         /* 7.8.1 Transition to compressed mode */
                         /* Switch out of transparent now, between codes. We need to send the octet which did not
                         match, just before switching. */
@@ -290,7 +328,7 @@ int v42bis_compress(v42bis_state_t *s, const uint8_t *buf, int len)
                 {
                     if (!ss->transparent)
                     {
-                        LOGP(DV42BIS, LOGL_DEBUG, "Going transparent\n");
+                        DEBUGP(DV42BIS,"Going transparent\n");
                         /* 7.8.2 Transition to transparent mode */
                         /* Switch into transparent now, between codes, and the unmatched octet should
                            go out in transparent mode, just below */
@@ -321,7 +359,7 @@ int v42bis_compress(v42bis_state_t *s, const uint8_t *buf, int len)
 }
 /*- End of function --------------------------------------------------------*/
 
-int v42bis_compress_flush(v42bis_state_t *s)
+SPAN_DECLARE(int) v42bis_compress_flush(v42bis_state_t *s)
 {
     v42bis_compress_state_t *ss;
 
@@ -351,7 +389,7 @@ int v42bis_compress_flush(v42bis_state_t *s)
 /*- End of function --------------------------------------------------------*/
 
 #if 0
-int v42bis_compress_dump(v42bis_state_t *s)
+SPAN_DECLARE(int) v42bis_compress_dump(v42bis_state_t *s)
 {
     int i;
     
@@ -359,7 +397,7 @@ int v42bis_compress_dump(v42bis_state_t *s)
     {
         if (s->compress.dict[i].parent_code != 0xFFFF)
         {
-            LOGP(DV42BIS, LOGL_DEBUG, "Entry %4x, prior %4x, leaves %d, octet %2x\n", i, s->compress.dict[i].parent_code, s->compress.dict[i].leaves, s->compress.dict[i].node_octet);
+            DEBUGP(DV42BIS,"Entry %4x, prior %4x, leaves %d, octet %2x\n", i, s->compress.dict[i].parent_code, s->compress.dict[i].leaves, s->compress.dict[i].node_octet);
         }
     }
     return 0;
@@ -367,7 +405,7 @@ int v42bis_compress_dump(v42bis_state_t *s)
 /*- End of function --------------------------------------------------------*/
 #endif
 
-int v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int len)
+SPAN_DECLARE(int) v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int len)
 {
     int ptr;
     int i;
@@ -412,13 +450,13 @@ int v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int len)
                 ss->escaped = FALSE;
                 if (code == V42BIS_ECM)
                 {
-                    LOGP(DV42BIS, LOGL_DEBUG, "Hit V42BIS_ECM\n");
+                    DEBUGP(DV42BIS,"Hit V42BIS_ECM\n");
                     ss->transparent = FALSE;
                     code_len = ss->v42bis_parm_c2;
                 }
                 else if (code == V42BIS_EID)
                 {
-                    LOGP(DV42BIS, LOGL_DEBUG, "Hit V42BIS_EID\n");
+                    DEBUGP(DV42BIS,"Hit V42BIS_EID\n");
                     ss->output_buf[ss->output_octet_count++] = ss->escape_code - 1;
                     if (ss->output_octet_count >= ss->max_len - s->v42bis_parm_n7)
                     {
@@ -428,11 +466,11 @@ int v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int len)
                 }
                 else if (code == V42BIS_RESET)
                 {
-                    LOGP(DV42BIS, LOGL_DEBUG, "Hit V42BIS_RESET\n");
+                    DEBUGP(DV42BIS,"Hit V42BIS_RESET\n");
                 }
                 else
                 {
-                    LOGP(DV42BIS, LOGL_DEBUG, "Hit V42BIS_???? - %" PRIu32 "\n", code);
+                    DEBUGP(DV42BIS,"Hit V42BIS_???? - %" PRIu32 "\n", code);
                 }
             }
             else if (code == ss->escape_code)
@@ -458,17 +496,17 @@ int v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int len)
                 switch (new_code)
                 {
                 case V42BIS_ETM:
-                    LOGP(DV42BIS, LOGL_DEBUG, "Hit V42BIS_ETM\n");
+                    DEBUGP(DV42BIS,"Hit V42BIS_ETM\n");
                     ss->transparent = TRUE;
                     code_len = 8;
                     break;
                 case V42BIS_FLUSH:
-                    LOGP(DV42BIS, LOGL_DEBUG, "Hit V42BIS_FLUSH\n");
+                    DEBUGP(DV42BIS,"Hit V42BIS_FLUSH\n");
                     v42bis_decompress_flush(s);
                     break;
                 case V42BIS_STEPUP:
                     /* We need to increase the codeword size */
-                    LOGP(DV42BIS, LOGL_DEBUG, "Hit V42BIS_STEPUP\n");
+                    DEBUGP(DV42BIS,"Hit V42BIS_STEPUP\n");
                     if (ss->v42bis_parm_c3 >= s->v42bis_parm_n2)
                     {
                         /* Invalid condition */
@@ -505,7 +543,7 @@ int v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int len)
             /* Trace back through the octets which form the string, and output them. */
             while (code >= V42BIS_N5)
             {
-if (code > 4095) {LOGP(DV42BIS, LOGL_DEBUG, "Code is 0x%" PRIu32 "\n", code); exit(2);}
+if (code > 4095) {DEBUGP(DV42BIS,"Code is 0x%" PRIu32 "\n", code); exit(2);}
                 *string-- = ss->dict[code].node_octet;
                 code = ss->dict[code].parent_code;
             }
@@ -565,7 +603,7 @@ if (code > 4095) {LOGP(DV42BIS, LOGL_DEBUG, "Code is 0x%" PRIu32 "\n", code); ex
 }
 /*- End of function --------------------------------------------------------*/
 
-int v42bis_decompress_flush(v42bis_state_t *s)
+SPAN_DECLARE(int) v42bis_decompress_flush(v42bis_state_t *s)
 {
     v42bis_decompress_state_t *ss;
 
@@ -581,7 +619,7 @@ int v42bis_decompress_flush(v42bis_state_t *s)
 /*- End of function --------------------------------------------------------*/
 
 #if 0
-int v42bis_decompress_dump(v42bis_state_t *s)
+SPAN_DECLARE(int) v42bis_decompress_dump(v42bis_state_t *s)
 {
     int i;
     
@@ -589,7 +627,7 @@ int v42bis_decompress_dump(v42bis_state_t *s)
     {
         if (s->decompress.dict[i].parent_code != 0xFFFF)
         {
-            LOGP(DV42BIS, LOGL_DEBUG, "Entry %4x, prior %4x, leaves %d, octet %2x\n", i, s->decompress.dict[i].parent_code, s->decompress.dict[i].leaves, s->decompress.dict[i].node_octet);
+            DEBUGP(DV42BIS,"Entry %4x, prior %4x, leaves %d, octet %2x\n", i, s->decompress.dict[i].parent_code, s->decompress.dict[i].leaves, s->decompress.dict[i].node_octet);
         }
     }
     return 0;
@@ -597,7 +635,7 @@ int v42bis_decompress_dump(v42bis_state_t *s)
 /*- End of function --------------------------------------------------------*/
 #endif
 
-void v42bis_compression_control(v42bis_state_t *s, int mode)
+SPAN_DECLARE(void) v42bis_compression_control(v42bis_state_t *s, int mode)
 {
     s->compress.compression_mode = mode;
     switch (mode)
@@ -612,7 +650,7 @@ void v42bis_compression_control(v42bis_state_t *s, int mode)
 }
 /*- End of function --------------------------------------------------------*/
 
-v42bis_state_t *v42bis_init(v42bis_state_t *s,
+SPAN_DECLARE(v42bis_state_t *) v42bis_init(v42bis_state_t *s,
                                            int negotiated_p0,
                                            int negotiated_p1,
                                            int negotiated_p2,
@@ -685,13 +723,13 @@ v42bis_state_t *v42bis_init(v42bis_state_t *s,
 }
 /*- End of function --------------------------------------------------------*/
 
-int v42bis_release(v42bis_state_t *s)
+SPAN_DECLARE(int) v42bis_release(v42bis_state_t *s)
 {
     return 0;
 }
 /*- End of function --------------------------------------------------------*/
 
-int v42bis_free(v42bis_state_t *s)
+SPAN_DECLARE(int) v42bis_free(v42bis_state_t *s)
 {
     free(s);
     return 0;

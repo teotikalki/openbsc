@@ -34,14 +34,14 @@ int gprs_sndcp_pcomp_init(const void *ctx, struct gprs_sndcp_comp *comp_entity,
 /* Terminate header compression */
 void gprs_sndcp_pcomp_term(struct gprs_sndcp_comp *comp_entity);
 
-/* Expand header compressed packet */
-int gprs_sndcp_pcomp_expand(uint8_t *packet, int packet_len, int pcomp,
-			      const struct llist_head *comp_entities);
+/* Expand packet header */
+int gprs_sndcp_pcomp_expand(uint8_t *data_o, uint8_t *data_i, int len,
+			    int pcomp, const struct llist_head *comp_entities);
 
-/* Expand header compressed packet */
-int gprs_sndcp_pcomp_compress(uint8_t *packet, int packet_len,
-				int *pcomp,
-				const struct llist_head *comp_entities,
-				int nsapi);
+/* Compress packet header */
+int gprs_sndcp_pcomp_compress(uint8_t *data_o, uint8_t *data_i, int len,
+			      int *pcomp, 
+			      const struct llist_head *comp_entities,
+			      int nsapi);
 
 #endif

@@ -579,9 +579,11 @@ int gprs_sndcp_compile_xid(uint8_t *dst, unsigned int dst_maxlen,
 
 	OSMO_ASSERT(comp_fields);
 	OSMO_ASSERT(dst);
-
-	/* Exit immediately if no sufficient memory space is supplied */
 	OSMO_ASSERT(dst_maxlen >= 2 + sizeof(xid_version_number));
+
+	/* Bail if there is no input */
+	if (llist_empty(comp_fields))
+		return NULL;
 
 	/* Prepend header */
 	dst =

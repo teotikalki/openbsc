@@ -47,7 +47,8 @@ struct gprs_sndcp_entity {
 	/* The defragmentation queue */
 	struct defrag_state defrag;
 
-	/* Specifies which compression is used once the packet is re-assembled */
+	/* Holds state to know which compression is used 
+	 * when the packet is re-assembled */
 	int pcomp;
 	int dcomp;
 };

@@ -205,6 +205,8 @@ encode(unsigned char *cp, unsigned short n)
 	} else {
 		*cp++ = n;
 	}
+
+	LOGP(DSLHC, LOGL_DEBUG, "encode(): n=%04x\n",n);
 	return cp;
 }
 
@@ -389,6 +391,7 @@ found:
 	 */
 	if(th->urg){
 		deltaS = ntohs(th->urg_ptr);
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): flag: Urgent Pointer (U) = 1\n");
 		cp = encode(cp,deltaS);
 		changes |= NEW_U;
 	} else if(th->urg_ptr != oth->urg_ptr){
@@ -400,6 +403,7 @@ found:
 		goto uncompressed;
 	}
 	if((deltaS = ntohs(th->window) - ntohs(oth->window)) != 0){
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): flag: Delta Window (W) = 1\n");
 		cp = encode(cp,deltaS);
 		changes |= NEW_W;
 	}
@@ -408,14 +412,16 @@ found:
 			LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): (deltaA = ntohl(th->ack_seq) - ntohl(oth->ack_seq)) != 0L, can't compress...\n");
 			goto uncompressed;
 		}
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): flag: Delta Ack (A) = 1\n");
 		cp = encode(cp,deltaA);
 		changes |= NEW_A;
 	}
 	if((deltaS = ntohl(th->seq) - ntohl(oth->seq)) != 0L){
 		if(deltaS > 0x0000ffff)	{
-		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): (deltaS = ntohl(th->seq) - ntohl(oth->seq)) != 0L, can't compress...\n");
+			LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): (deltaS = ntohl(th->seq) - ntohl(oth->seq)) != 0L, can't compress...\n");
 			goto uncompressed;
 		}
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): flag: Delta Sequence (S) = 1\n");
 		cp = encode(cp,deltaS);
 		changes |= NEW_S;
 	}
@@ -444,6 +450,8 @@ found:
 		if(deltaS == deltaA &&
 		    deltaS == ntohs(cs->cs_ip.tot_len) - hlen){
 			/* special case for echoed terminal traffic */
+			LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): Special case for echoed terminal traffic detected...\n");
+			LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): flag: Delta Sequence (S) = 1, Delta Window (W) = 1, Urgent Pointer (U) = 1\n");
 			changes = SPECIAL_I;
 			cp = new_seq;
 		}
@@ -451,6 +459,8 @@ found:
 	case NEW_S:
 		if(deltaS == ntohs(cs->cs_ip.tot_len) - hlen){
 			/* special case for data xfer */
+			LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): Special case for data xfer detected...\n");
+			LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): flag: Delta Sequence (S) = 1, Delta Ack (A) = 1, Delta Window (W) = 1, Urgent Pointer (U) = 1\n");
 			changes = SPECIAL_D;
 			cp = new_seq;
 		}
@@ -458,11 +468,14 @@ found:
 	}
 	deltaS = ntohs(ip->id) - ntohs(cs->cs_ip.id);
 	if(deltaS != 1){
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): flag: Delta IP ID (I) = 1\n");
 		cp = encode(cp,deltaS);
 		changes |= NEW_I;
 	}
-	if(th->psh)
+	if(th->psh) {
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): flag: Push (P) = 1\n");
 		changes |= TCP_PUSH_BIT;
+	}
 	/* Grab the cksum before we overwrite it below.  Then update our
 	 * state with this packet's header.
 	 */
@@ -479,6 +492,7 @@ found:
 	if(compress_cid == 0 || comp->xmit_current != cs->cs_this){
 		cp = ocp;
 		*cpp = ocp;
+		LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): flag: Connection number (C) = 1\n");
 		*cp++ = changes | NEW_C;
 		*cp++ = cs->cs_this;
 		comp->xmit_current = cs->cs_this;
@@ -490,6 +504,10 @@ found:
 	*(__sum16 *)cp = csum;
 	cp += 2;
 /* deltaS is now the size of the change section of the compressed header */
+
+	LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): Delta-list length (deltaS) = %i\n",deltaS);
+	LOGP(DSLHC, LOGL_DEBUG, "slhc_compress(): Original header len (hlen) = %i\n",hlen);
+
 	memcpy(cp,new_seq,deltaS);	/* Write list of deltas */
 	memcpy(cp+deltaS,icp+hlen,isize-hlen);
 	comp->sls_o_compressed++;

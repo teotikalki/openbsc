@@ -269,6 +269,19 @@ static int config_write_sgsn(struct vty *vty)
 	vty_out(vty, " timer t3395 %d%s", g_cfg->timers.T3395, VTY_NEWLINE);
 	vty_out(vty, " timer t3397 %d%s", g_cfg->timers.T3397, VTY_NEWLINE);
 
+	if(g_cfg->pcomp_rfc1144.passive && g_cfg->pcomp_rfc1144.active) {
+		vty_out(vty, " compression rfc1144 negotiation both s01 %d%s",
+			    g_cfg->pcomp_rfc1144.s01, VTY_NEWLINE);
+	} else if (g_cfg->pcomp_rfc1144.passive) {
+		vty_out(vty, " compression rfc1144 negotiation passive s01 %d%s",
+			    g_cfg->pcomp_rfc1144.s01, VTY_NEWLINE);
+	} else if (g_cfg->pcomp_rfc1144.active) {
+		vty_out(vty, " compression rfc1144 negotiation active s01 %d%s",
+			    g_cfg->pcomp_rfc1144.s01, VTY_NEWLINE);
+	} else {
+		vty_out(vty, " no compression rfc1144%s", VTY_NEWLINE);
+	}
+
 	return CMD_SUCCESS;
 }
 
@@ -1085,7 +1098,13 @@ DEFUN(cfg_no_comp_rfc1144, cfg_no_comp_rfc1144_cmd,
 
 DEFUN(cfg_comp_rfc1144, cfg_comp_rfc1144_cmd,
       "compression rfc1144 negotiation (active|passive|both) s01 <0-255>",
-      NO_STR "GPRS compression scheme\n")
+      "COMPRESSION\n"
+      "RFC1144 Header compresion scheme\n"
+      "Actively requested by network\n"
+      "How compression is requested\n"
+      "Networks expects phone to request compression\n"
+      "Network actively requests compression and also accepts compression requests from the pone\n"
+      "Number of compression state solots minus 1, (S0 - 1)\n")
 {
 	switch (argv[0][0]) {
 	case 'a':
@@ -1095,14 +1114,14 @@ DEFUN(cfg_comp_rfc1144, cfg_comp_rfc1144_cmd,
 	case 'p':
 		g_cfg->pcomp_rfc1144.active = 0;
 		g_cfg->pcomp_rfc1144.passive = 1;
-	break;		
+	break;
 	case 'b':
 		g_cfg->pcomp_rfc1144.active = 1;
 		g_cfg->pcomp_rfc1144.passive = 1;
-	break;		
+	break;
 	default:
 		g_cfg->pcomp_rfc1144.active = 0;
-		g_cfg->pcomp_rfc1144.passive = 0;	
+		g_cfg->pcomp_rfc1144.passive = 0;
 	}
 
 	g_cfg->pcomp_rfc1144.s01 = atoi(argv[1]);

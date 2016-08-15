@@ -105,41 +105,11 @@ DEFUN(show_llc, show_llc_cmd,
 	return CMD_SUCCESS;
 }
 
-/* FIXME: This is not needed anymore, remove before review! */
-DEFUN(send_xid, send_xid_cmd,
-      "send xid sapi <0-11>",
-      "Triggr manual messages (debug)\n"
-      "Exchange Identification message\n"
-      "Service Accesspoint Identifier\n")
-{
-	struct gprs_llc_llme *llme;
-	int rc;
-
-	uint8_t sapi = atoi(argv[0]);
-
-	/* FIXME: Sending XIDs to all TLLIs is propbably a bit too much */
-	llist_for_each_entry(llme, gprs_llme_list(), list) {
-		vty_out(vty, "sending xid to tlli:0x%08x, sapi:%i%s", llme->tlli, sapi, VTY_NEWLINE);
-		rc = gprs_ll_xid_req(&llme->lle[sapi],NULL);
-		vty_out(vty, "==> RC=%i%s", rc, VTY_NEWLINE);
-	}
-
-	vty_out(vty, "ok.%s", VTY_NEWLINE);
-	return CMD_SUCCESS;
-}
-
-
-
-
-
 
 
 int gprs_llc_vty_init(void)
 {
 	install_element_ve(&show_llc_cmd);
-	install_element_ve(&send_xid_cmd);
-//	install_element_ve(&cfg_sndcp_no_comp_cmd);
-
 
 	return 0;
 }

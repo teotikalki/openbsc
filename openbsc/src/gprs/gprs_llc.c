@@ -94,6 +94,8 @@ static int gprs_llc_generate_xid(uint8_t *bytes, int bytes_len,
 		llist_add(&l3_xid_field->list, &xid_fields);
 	}
 
+	/* Store generated XID for later reference */
+	llme->xid = gprs_llc_free_xid(llme->xid);
 	llme->xid = gprs_llc_copy_xid(llme->xid, &xid_fields);
 
 	return gprs_llc_compile_xid(bytes, bytes_len, &xid_fields);
@@ -126,6 +128,8 @@ static int gprs_llc_generate_xid_for_gmm_reset(uint8_t *bytes,
 	llist_add(&xid_iovui.list, &xid_fields);
 	llist_add(&xid_reset.list, &xid_fields);
 
+	/* Store generated XID for later reference */
+	llme->xid = gprs_llc_free_xid(llme->xid);
 	llme->xid = gprs_llc_copy_xid(llme->xid, &xid_fields);
 
 	return gprs_llc_compile_xid(bytes, bytes_len, &xid_fields);
@@ -181,7 +185,8 @@ static int gprs_llc_process_xid_conf(uint8_t *bytes, int bytes_len,
 				LOGP(DLLC, LOGL_NOTICE,
 				     "Ignoring XID-Field: XID: type=%i, data_len=%i, data=%s\n",
 				     xid_field->type, xid_field->data_len,
-				     xid_field->data);
+				     osmo_hexdump_nospc(xid_field->data,
+				     xid_field->data_len));
 			}
 		}
 		gprs_llc_free_xid(xid_fields);
@@ -211,9 +216,6 @@ static int gprs_llc_process_xid_ind(uint8_t *bytes_request,
 
 	struct gprs_llc_xid_field *xid_field;
 	struct gprs_llc_xid_field *xid_field_response;
-
-	/* Flush eventually pending XID fields */
-	lle->llme->xid = gprs_llc_free_xid(lle->llme->xid);
 
 	/* Parse and analyze XID-Request */
 	xid_fields =

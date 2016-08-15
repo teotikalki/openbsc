@@ -1089,7 +1089,8 @@ DEFUN(cfg_cdr_interval, cfg_cdr_interval_cmd,
 
 DEFUN(cfg_no_comp_rfc1144, cfg_no_comp_rfc1144_cmd,
       "no compression rfc1144",
-      NO_STR "disable rfc1144 TCP/IP header compression\n")
+      NO_STR "compression\n"
+      "disable rfc1144 TCP/IP header compression\n")
 {
 	g_cfg->pcomp_rfc1144.active = 0;
 	g_cfg->pcomp_rfc1144.passive = 0;
@@ -1097,14 +1098,16 @@ DEFUN(cfg_no_comp_rfc1144, cfg_no_comp_rfc1144_cmd,
 }
 
 DEFUN(cfg_comp_rfc1144, cfg_comp_rfc1144_cmd,
-      "compression rfc1144 negotiation (active|passive|both) s01 <0-255>",
-      "COMPRESSION\n"
+      "compression rfc1144 negotiation (active|passive|both) slots <1-256>",
+      "Configure compression\n"
       "RFC1144 Header compresion scheme\n"
-      "Actively requested by network\n"
       "How compression is requested\n"
+      "Actively requested by network\n"
       "Networks expects phone to request compression\n"
-      "Network actively requests compression and also accepts compression requests from the pone\n"
-      "Number of compression state solots minus 1, (S0 - 1)\n")
+      "Network actively requests compression and also accepts compression"
+      " requests from the pone\n"
+      "Number of compression state slots\n"
+      "number\n")
 {
 	switch (argv[0][0]) {
 	case 'a':
@@ -1124,7 +1127,7 @@ DEFUN(cfg_comp_rfc1144, cfg_comp_rfc1144_cmd,
 		g_cfg->pcomp_rfc1144.passive = 0;
 	}
 
-	g_cfg->pcomp_rfc1144.s01 = atoi(argv[1]);
+	g_cfg->pcomp_rfc1144.s01 = atoi(argv[1]) - 1;
 	return CMD_SUCCESS;
 }
 

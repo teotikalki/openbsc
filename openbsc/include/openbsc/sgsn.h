@@ -90,8 +90,7 @@ struct sgsn_config {
 
 	/* RFC1144 TCP/IP Header compression */
 	struct {
-		int passive;
-		int active;
+		int enabled;
 		int s01;
 	} pcomp_rfc1144;
 

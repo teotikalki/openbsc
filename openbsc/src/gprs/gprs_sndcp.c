@@ -807,7 +807,7 @@ static int gprs_llc_generate_sndcp_xid(uint8_t *bytes, int bytes_len,
 	rfc1144_comp_field.rfc1144_params = &rfc1144_params;
 
 	/* Add compression field(s) to list */
-	if (sgsn->cfg.pcomp_rfc1144.active)
+	if (sgsn->cfg.pcomp_rfc1144.enabled)
 		llist_add(&rfc1144_comp_field.list, &comp_fields);
 
 	/* Comile bytestream */
@@ -852,14 +852,12 @@ int sndcp_sn_xid_req(struct gprs_llc_lle *lle, uint8_t nsapi)
 
 /* Hanle header compression entites */
 static int handle_pcomp_entities(struct gprs_sndcp_comp_field *comp_field,
-				 struct gprs_llc_lle *lle, int act)
+				 struct gprs_llc_lle *lle)
 {
 	/* Note: This functions also transforms the comp_field into its
 	 * echo form (strips comp values, resets propose bit etc...)
 	 * the processed comp_fields can then be sent back as XID-
 	 * Response without further modification. */
-
-	OSMO_ASSERT(act == 1 || act == 0);
 
 	/* Delete propose bit */
 	comp_field->p = 0;
@@ -867,14 +865,7 @@ static int handle_pcomp_entities(struct gprs_sndcp_comp_field *comp_field,
 	/* Process proposed parameters */
 	switch (comp_field->algo) {
 	case RFC_1144:
-		if (sgsn->cfg.pcomp_rfc1144.active && act) {
-			LOGP(DSNDCP, LOGL_DEBUG,
-			     "Accepting RFC1144 header conpression (active)...\n");
-			gprs_sndcp_comp_entities_add(lle->llme,
-						     &lle->llme->comp.proto,
-						     comp_field);
-		}
-		if (sgsn->cfg.pcomp_rfc1144.passive && !act) {
+		if (sgsn->cfg.pcomp_rfc1144.enabled) {
 			LOGP(DSNDCP, LOGL_DEBUG,
 			     "Accepting RFC1144 header conpression (passive)...\n");
 			gprs_sndcp_comp_entities_add(lle->llme,
@@ -885,6 +876,7 @@ static int handle_pcomp_entities(struct gprs_sndcp_comp_field *comp_field,
 			     "Rejecting RFC1144 header conpression...\n");
 			gprs_sndcp_comp_delete(&lle->llme->comp.proto,
 					       comp_field->entity);
+			comp_field->rfc1144_params->nsapi_len = 0;
 		}
 		break;
 	case RFC_2507:
@@ -912,14 +904,12 @@ static int handle_pcomp_entities(struct gprs_sndcp_comp_field *comp_field,
 
 /* Hanle data compression entites */
 static int handle_dcomp_entities(struct gprs_sndcp_comp_field *comp_field,
-				 struct gprs_llc_lle *lle, int act)
+				 struct gprs_llc_lle *lle)
 {
 	/* Note: This functions also transforms the comp_field into its
 	 * echo form (strips comp values, resets propose bit etc...)
 	 * the processed comp_fields can then be sent back as XID-
 	 * Response without further modification. */
-
-	OSMO_ASSERT(act == 1 || act == 0);
 
 	/* Delete propose bit */
 	comp_field->p = 0;
@@ -993,9 +983,9 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication,
 	llist_for_each_entry(comp_field, comp_fields, list) {
 		compclass = gprs_sndcp_get_compression_class(comp_field);
 		if (compclass == SNDCP_XID_PROTOCOL_COMPRESSION)
-			rc = handle_pcomp_entities(comp_field, lle, 0);
+			rc = handle_pcomp_entities(comp_field, lle);
 		else if (compclass == SNDCP_XID_DATA_COMPRESSION)
-			rc = handle_dcomp_entities(comp_field, lle, 0);
+			rc = handle_dcomp_entities(comp_field, lle);
 		else {
 			gprs_sndcp_comp_delete(&lle->llme->comp.proto,
 					       comp_field->entity);
@@ -1090,9 +1080,9 @@ int sndcp_sn_xid_conf(struct gprs_llc_xid_field *xid_field_confirmation,
 			compclass =
 			    gprs_sndcp_get_compression_class(comp_field);
 			if (compclass == SNDCP_XID_PROTOCOL_COMPRESSION)
-				rc = handle_pcomp_entities(comp_field, lle, 1);
+				rc = handle_pcomp_entities(comp_field, lle);
 			else if (compclass == SNDCP_XID_DATA_COMPRESSION)
-				rc = handle_dcomp_entities(comp_field, lle, 1);
+				rc = handle_dcomp_entities(comp_field, lle);
 			else {
 				gprs_sndcp_comp_delete(&lle->llme->comp.proto,
 						       comp_field->entity);

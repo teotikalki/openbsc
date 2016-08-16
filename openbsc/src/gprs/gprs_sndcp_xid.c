@@ -583,7 +583,7 @@ int gprs_sndcp_compile_xid(uint8_t *dst, unsigned int dst_maxlen,
 
 	/* Bail if there is no input */
 	if (llist_empty(comp_fields))
-		return NULL;
+		return -EINVAL;
 
 	/* Prepend header */
 	dst =

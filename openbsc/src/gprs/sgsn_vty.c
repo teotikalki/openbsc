@@ -269,15 +269,9 @@ static int config_write_sgsn(struct vty *vty)
 	vty_out(vty, " timer t3395 %d%s", g_cfg->timers.T3395, VTY_NEWLINE);
 	vty_out(vty, " timer t3397 %d%s", g_cfg->timers.T3397, VTY_NEWLINE);
 
-	if(g_cfg->pcomp_rfc1144.passive && g_cfg->pcomp_rfc1144.active) {
-		vty_out(vty, " compression rfc1144 negotiation both s01 %d%s",
-			    g_cfg->pcomp_rfc1144.s01, VTY_NEWLINE);
-	} else if (g_cfg->pcomp_rfc1144.passive) {
-		vty_out(vty, " compression rfc1144 negotiation passive s01 %d%s",
-			    g_cfg->pcomp_rfc1144.s01, VTY_NEWLINE);
-	} else if (g_cfg->pcomp_rfc1144.active) {
-		vty_out(vty, " compression rfc1144 negotiation active s01 %d%s",
-			    g_cfg->pcomp_rfc1144.s01, VTY_NEWLINE);
+	if (g_cfg->pcomp_rfc1144.enabled) {
+		vty_out(vty, " compression rfc1144 slots %d%s",
+			    g_cfg->pcomp_rfc1144.s01+1, VTY_NEWLINE);
 	} else {
 		vty_out(vty, " no compression rfc1144%s", VTY_NEWLINE);
 	}
@@ -1092,42 +1086,19 @@ DEFUN(cfg_no_comp_rfc1144, cfg_no_comp_rfc1144_cmd,
       NO_STR "compression\n"
       "disable rfc1144 TCP/IP header compression\n")
 {
-	g_cfg->pcomp_rfc1144.active = 0;
-	g_cfg->pcomp_rfc1144.passive = 0;
+	g_cfg->pcomp_rfc1144.enabled = 0;
 	return CMD_SUCCESS;
 }
 
 DEFUN(cfg_comp_rfc1144, cfg_comp_rfc1144_cmd,
-      "compression rfc1144 negotiation (active|passive|both) slots <1-256>",
+      "compression rfc1144 slots <1-256>",
       "Configure compression\n"
       "RFC1144 Header compresion scheme\n"
-      "How compression is requested\n"
-      "Actively requested by network\n"
-      "Networks expects phone to request compression\n"
-      "Network actively requests compression and also accepts compression"
-      " requests from the pone\n"
       "Number of compression state slots\n"
       "number\n")
 {
-	switch (argv[0][0]) {
-	case 'a':
-		g_cfg->pcomp_rfc1144.active = 1;
-		g_cfg->pcomp_rfc1144.passive = 0;
-	break;
-	case 'p':
-		g_cfg->pcomp_rfc1144.active = 0;
-		g_cfg->pcomp_rfc1144.passive = 1;
-	break;
-	case 'b':
-		g_cfg->pcomp_rfc1144.active = 1;
-		g_cfg->pcomp_rfc1144.passive = 1;
-	break;
-	default:
-		g_cfg->pcomp_rfc1144.active = 0;
-		g_cfg->pcomp_rfc1144.passive = 0;
-	}
-
-	g_cfg->pcomp_rfc1144.s01 = atoi(argv[1]) - 1;
+	g_cfg->pcomp_rfc1144.enabled = 0;
+	g_cfg->pcomp_rfc1144.s01 = atoi(argv[0]) - 1;
 	return CMD_SUCCESS;
 }
 

@@ -77,31 +77,48 @@ static struct gprs_sndcp_comp *gprs_sndcp_comp_create(const void
 		       comp_field->v42bis_params->nsapi,
 		       comp_entity->nsapi_len * sizeof(int));
 	} else {
-		talloc_free(comp_entity);
-		LOGP(DSNDCP, LOGL_ERROR,
-		     "Comp field contained invalid parameters, compression entity not created!\n");
-		return NULL;
+		/* The caller is expected to check carefully if the all
+		 * data fields required for compression entity creation
+		 * are present. Otherwise we blow an assertion here */
+		OSMO_ASSERT(NULL);
 	}
-
 	comp_entity->algo = comp_field->algo;
-	comp_entity->state = NULL;
+
+	/* Check if an NSAPI is selected, if not, it does not make sense
+	 * to create the compression entity, since the caller should
+	 * have checked the presence of the NSAPI, we blow an assertion
+	 * in case of missing NSAPIs */
+	OSMO_ASSERT(comp_entity->nsapi_len > 0)
 
 	/* Determine of which class our compression entity will be
 	 * (Protocol or Data compresson ?) */
 	comp_entity->compclass = gprs_sndcp_get_compression_class(comp_field);
+	OSMO_ASSERT(comp_entity->compclass != -1);
 
+	/* Create an algorithm specific compression context */
 	if (comp_entity->compclass == SNDCP_XID_PROTOCOL_COMPRESSION) {
-		if (gprs_sndcp_pcomp_init(ctx, comp_entity, comp_field) == 0)
-			LOGP(DSNDCP, LOGL_INFO,
-			     "New header compression entity (%i) created.\n",
-			     comp_entity->entity);
-		else {
+		if (gprs_sndcp_pcomp_init(ctx, comp_entity, comp_field) != 0) {
 			talloc_free(comp_entity);
-			LOGP(DSNDCP, LOGL_ERROR,
-			     "Header compression entity (%i) creation failed!\n",
-			     comp_entity->entity);
-			return NULL;
+			comp_entity = NULL;
 		}
+	} else {
+		LOGP(DSNDCP, LOGL_ERROR,
+		     "We don't support data compression yet!\n");
+		talloc_free(comp_entity);
+		return NULL;
+	}
+
+	/* Display info message */
+	if (comp_entity == NULL) {
+		LOGP(DSNDCP, LOGL_ERROR,
+		     "Header compression entity (%i) creation failed!\n",
+		     comp_entity->entity);
+		return NULL;
+	}
+	if (comp_entity->compclass == SNDCP_XID_PROTOCOL_COMPRESSION) {
+		LOGP(DSNDCP, LOGL_INFO,
+		     "New header compression entity (%i) created.\n",
+		     comp_entity->entity);
 	} else {
 		LOGP(DSNDCP, LOGL_INFO,
 		     "New data compression entity (%i) created.\n",

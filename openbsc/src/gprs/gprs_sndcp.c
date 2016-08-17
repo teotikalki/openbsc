@@ -244,7 +244,7 @@ static int defrag_segments(struct gprs_sndcp_entity *sne, struct llist_head *com
 	DEBUGP(DSNDCP,"====================================================\n");
 	debug_ip_packet(npdu, npdu_len,1,"defrag_segments()");
 #endif
-	expnd = talloc_zero_size(msg,msg->len * 2);
+	expnd = talloc_zero_size(msg,msg->len + 64);
 	rc = gprs_sndcp_pcomp_expand(expnd, npdu, npdu_len,
 					sne->pcomp, comp_entities);
 	sne->pcomp = 0;
@@ -689,7 +689,7 @@ int sndcp_llunitdata_ind(struct msgb *msg, struct gprs_llc_lle *lle,
 	DEBUGP(DSNDCP,"====================================================\n");
 	debug_ip_packet(npdu, npdu_len,1,"sndcp_llunitdata_ind()");
 #endif
-	expnd = talloc_zero_size(msg,npdu_len * 2);
+	expnd = talloc_zero_size(msg,npdu_len + 64);
 	rc = gprs_sndcp_pcomp_expand(expnd, npdu, npdu_len,
 				     sne->pcomp, &lle->llme->comp.proto);
 	sne->pcomp = 0;
@@ -865,9 +865,10 @@ static int handle_pcomp_entities(struct gprs_sndcp_comp_field *comp_field,
 	/* Process proposed parameters */
 	switch (comp_field->algo) {
 	case RFC_1144:
-		if (sgsn->cfg.pcomp_rfc1144.enabled) {
+		if (sgsn->cfg.pcomp_rfc1144.enabled && 
+		    comp_field->rfc1144_params->nsapi_len > 0) {
 			LOGP(DSNDCP, LOGL_DEBUG,
-			     "Accepting RFC1144 header conpression (passive)...\n");
+			     "Accepting RFC1144 header conpression...\n");
 			gprs_sndcp_comp_entities_add(lle->llme,
 						     &lle->llme->comp.proto,
 						     comp_field);

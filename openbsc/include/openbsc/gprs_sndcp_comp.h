@@ -35,11 +35,11 @@ struct gprs_sndcp_comp {
 	int entity;		/* see also: 6.5.1.1.3 and 6.6.1.1.3 */
 
 	/* Specifies to which NSAPIs the compression entity is assigned */
-	int nsapi_len;		/* Number of applicable NSAPIs (default 0) */
+	unsigned nsapi_len;	/* Number of applicable NSAPIs (default 0) */
 	int nsapi[11];		/* Applicable NSAPIs (default 0) */
 
 	/* Assigned pcomp values */
-	int comp_len;		/* Number of contained PCOMP / DCOMP values */
+	unsigned comp_len;	/* Number of contained PCOMP / DCOMP values */
 	int comp[16];		/* see also: 6.5.1.1.5 and 6.6.1.1.5 */
 
 	/* Algorithm parameters */

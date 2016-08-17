@@ -1097,7 +1097,7 @@ DEFUN(cfg_comp_rfc1144, cfg_comp_rfc1144_cmd,
       "Number of compression state slots\n"
       "number\n")
 {
-	g_cfg->pcomp_rfc1144.enabled = 0;
+	g_cfg->pcomp_rfc1144.enabled = 1;
 	g_cfg->pcomp_rfc1144.s01 = atoi(argv[0]) - 1;
 	return CMD_SUCCESS;
 }

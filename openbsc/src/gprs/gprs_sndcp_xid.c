@@ -1,6 +1,6 @@
 /* GPRS SNDCP XID field encoding/decoding as per 3GPP TS 44.065 */
 
-/* (C) 2016 by Sysmocom s.f.m.c. GmbH
+/* (C) 2016 by sysmocom s.f.m.c. GmbH <info@sysmocom.de>
  * All Rights Reserved
  *
  * Author: Philipp Maier
@@ -17,7 +17,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <stdio.h>
@@ -52,14 +51,14 @@ struct entity_algo_table {
 
 /* Encode applicable sapis (works the same in all three compression schemes) */
 static int encode_pcomp_applicable_sapis(uint8_t *dst,
-					 const unsigned int *nsapis,
-					 unsigned int nsapis_len)
+					 const uint8_t *nsapis,
+					 uint8_t nsapis_len)
 {
 	/* NOTE: Buffer *dst needs offer at 2 bytes
 	 * of space to store the generation results */
 
 	uint16_t blob;
-	unsigned int nsapi;
+	uint8_t nsapi;
 	int i;
 
 	OSMO_ASSERT(dst);
@@ -90,7 +89,8 @@ static int encode_pcomp_applicable_sapis(uint8_t *dst,
 
 /* Encode rfc1144 parameter field
  * (see also: 3GPP TS 44.065, 6.5.2.1, Table 5) */
-static int encode_pcomp_rfc1144_params(uint8_t *dst, unsigned int dst_maxlen, const struct
+static int encode_pcomp_rfc1144_params(uint8_t *dst, unsigned int dst_maxlen,
+				       const struct
 				       gprs_sndcp_pcomp_rfc1144_params *params)
 {
 	/* NOTE: Buffer *dst should offer at least 3 bytes
@@ -621,8 +621,8 @@ int gprs_sndcp_compile_xid(uint8_t *dst, unsigned int dst_maxlen,
 /* FUNCTIONS RELATED TO SNDCP-XID DECODING */
 
 /* Decode applicable sapis (works the same in all three compression schemes) */
-static int decode_pcomp_applicable_sapis(unsigned int *nsapis,
-					 unsigned int *nsapis_len,
+static int decode_pcomp_applicable_sapis(uint8_t *nsapis,
+					 uint8_t *nsapis_len,
 					 const uint8_t *src,
 					 unsigned int src_len)
 {
@@ -1370,7 +1370,7 @@ static int gprs_sndcp_decode_xid(struct llist_head *comp_fields,
 		/* Bail if an the maximum number of TLV fields
 		 * have been parsed */
 		if (tlv_count >= 3) {
-			gprs_sndcp_free_comp_fields(comp_fields);
+			talloc_free(comp_fields);
 			return -EINVAL;
 		}
 
@@ -1380,7 +1380,7 @@ static int gprs_sndcp_decode_xid(struct llist_head *comp_fields,
 		if (rc > 0)
 			src_pos += rc;
 		else {
-			gprs_sndcp_free_comp_fields(comp_fields);
+			talloc_free(comp_fields);
 			return -EINVAL;
 		}
 
@@ -1391,7 +1391,7 @@ static int gprs_sndcp_decode_xid(struct llist_head *comp_fields,
 					      lt, lt_len);
 
 			if (rc < 0) {
-				gprs_sndcp_free_comp_fields(comp_fields);
+				talloc_free(comp_fields);
 				return -EINVAL;
 			} else
 				byte_counter += rc;
@@ -1635,36 +1635,36 @@ struct llist_head *gprs_sndcp_parse_xid(const void *ctx,
 		lt_len =
 		    gprs_sndcp_fill_table(lt, MAX_ENTITIES * 2,
 					  comp_fields_req);
-		if (lt_len < 0)
-			return gprs_sndcp_free_comp_fields(comp_fields);
+		if (lt_len < 0) {
+			talloc_free(comp_fields);
+			return NULL;
+		}
 
 		/* Parse SNDCP-CID XID-Field */
 		rc = gprs_sndcp_decode_xid(comp_fields, src, src_len, lt,
 					   lt_len);
-		if (rc < 0)
-			return gprs_sndcp_free_comp_fields(comp_fields);
+		if (rc < 0) {
+			talloc_free(comp_fields);
+			return NULL;
+		}
 
 		rc = gprs_sndcp_complete_comp_fields(comp_fields,
 						     comp_fields_req);
-		if (rc < 0)
-			return gprs_sndcp_free_comp_fields(comp_fields);
+		if (rc < 0) {
+			talloc_free(comp_fields);
+			return NULL;
+		}
 
 	} else {
 		/* Parse SNDCP-CID XID-Field */
 		rc = gprs_sndcp_decode_xid(comp_fields, src, src_len, NULL, 0);
-		if (rc < 0)
-			return gprs_sndcp_free_comp_fields(comp_fields);
+		if (rc < 0) {
+			talloc_free(comp_fields);
+			return NULL;
+		}
 	}
 
 	return comp_fields;
-}
-
-/* Free a list with SNDCP-XID fields */
-struct llist_head *gprs_sndcp_free_comp_fields(struct llist_head *comp_fields)
-{
-	if (comp_fields != NULL)
-		talloc_free(comp_fields);
-	return NULL;
 }
 
 /* Helper for gprs_sndcp_dump_comp_fields(),
@@ -1685,16 +1685,16 @@ static void dump_pcomp_params(const struct gprs_sndcp_comp_field
 		}
 		LOGP(DSNDCP, logl, "   gprs_sndcp_pcomp_rfc1144_params {\n");
 		LOGP(DSNDCP, logl,
-		     "      nsapi_len=%i;\n",
+		     "      nsapi_len=%d;\n",
 		     comp_field->rfc1144_params->nsapi_len);
 		if (comp_field->rfc1144_params->nsapi_len == 0)
 			LOGP(DSNDCP, logl, "      nsapi[] = NULL;\n");
 		for (i = 0; i < comp_field->rfc1144_params->nsapi_len; i++) {
 			LOGP(DSNDCP, logl,
-			     "      nsapi[%i]=%i;\n", i,
+			     "      nsapi[%d]=%d;\n", i,
 			     comp_field->rfc1144_params->nsapi[i]);
 		}
-		LOGP(DSNDCP, logl, "      s01=%i;\n",
+		LOGP(DSNDCP, logl, "      s01=%d;\n",
 		     comp_field->rfc1144_params->s01);
 		LOGP(DSNDCP, logl, "   }\n");
 		break;
@@ -1706,29 +1706,29 @@ static void dump_pcomp_params(const struct gprs_sndcp_comp_field
 		}
 		LOGP(DSNDCP, logl, "   gprs_sndcp_pcomp_rfc2507_params {\n");
 		LOGP(DSNDCP, logl,
-		     "      nsapi_len=%i;\n",
+		     "      nsapi_len=%d;\n",
 		     comp_field->rfc2507_params->nsapi_len);
 		if (comp_field->rfc2507_params->nsapi_len == 0)
 			LOGP(DSNDCP, logl, "      nsapi[] = NULL;\n");
 		for (i = 0; i < comp_field->rfc2507_params->nsapi_len; i++) {
 			LOGP(DSNDCP, logl,
-			     "      nsapi[%i]=%i;\n", i,
+			     "      nsapi[%d]=%d;\n", i,
 			     comp_field->rfc2507_params->nsapi[i]);
 		}
 		LOGP(DSNDCP, logl,
-		     "      f_max_period=%i;\n",
+		     "      f_max_period=%d;\n",
 		     comp_field->rfc2507_params->f_max_period);
 		LOGP(DSNDCP, logl,
-		     "      f_max_time=%i;\n",
+		     "      f_max_time=%d;\n",
 		     comp_field->rfc2507_params->f_max_time);
 		LOGP(DSNDCP, logl,
-		     "      max_header=%i;\n",
+		     "      max_header=%d;\n",
 		     comp_field->rfc2507_params->max_header);
 		LOGP(DSNDCP, logl,
-		     "      tcp_space=%i;\n",
+		     "      tcp_space=%d;\n",
 		     comp_field->rfc2507_params->tcp_space);
 		LOGP(DSNDCP, logl,
-		     "      non_tcp_space=%i;\n",
+		     "      non_tcp_space=%d;\n",
 		     comp_field->rfc2507_params->non_tcp_space);
 		LOGP(DSNDCP, logl, "   }\n");
 		break;
@@ -1740,28 +1740,28 @@ static void dump_pcomp_params(const struct gprs_sndcp_comp_field
 		}
 		LOGP(DSNDCP, logl, "   gprs_sndcp_pcomp_rohc_params {\n");
 		LOGP(DSNDCP, logl,
-		     "      nsapi_len=%i;\n",
+		     "      nsapi_len=%d;\n",
 		     comp_field->rohc_params->nsapi_len);
 		if (comp_field->rohc_params->nsapi_len == 0)
 			LOGP(DSNDCP, logl, "      nsapi[] = NULL;\n");
 		for (i = 0; i < comp_field->rohc_params->nsapi_len; i++) {
 			LOGP(DSNDCP, logl,
-			     "      nsapi[%i]=%i;\n", i,
+			     "      nsapi[%d]=%d;\n", i,
 			     comp_field->rohc_params->nsapi[i]);
 		}
 		LOGP(DSNDCP, logl,
-		     "      max_cid=%i;\n", comp_field->rohc_params->max_cid);
+		     "      max_cid=%d;\n", comp_field->rohc_params->max_cid);
 		LOGP(DSNDCP, logl,
-		     "      max_header=%i;\n",
+		     "      max_header=%d;\n",
 		     comp_field->rohc_params->max_header);
 		LOGP(DSNDCP, logl,
-		     "      profile_len=%i;\n",
+		     "      profile_len=%d;\n",
 		     comp_field->rohc_params->profile_len);
 		if (comp_field->rohc_params->profile_len == 0)
 			LOGP(DSNDCP, logl, "      profile[] = NULL;\n");
 		for (i = 0; i < comp_field->rohc_params->profile_len; i++)
 			LOGP(DSNDCP, logl,
-			     "      profile[%i]=%04x;\n",
+			     "      profile[%d]=%04x;\n",
 			     i, comp_field->rohc_params->profile[i]);
 		LOGP(DSNDCP, logl, "   }\n");
 		break;
@@ -1787,19 +1787,19 @@ static void dump_dcomp_params(const struct gprs_sndcp_comp_field
 		}
 		LOGP(DSNDCP, logl, "   gprs_sndcp_dcomp_v42bis_params {\n");
 		LOGP(DSNDCP, logl,
-		     "      nsapi_len=%i;\n",
+		     "      nsapi_len=%d;\n",
 		     comp_field->v42bis_params->nsapi_len);
 		if (comp_field->v42bis_params->nsapi_len == 0)
 			LOGP(DSNDCP, logl, "      nsapi[] = NULL;\n");
 		for (i = 0; i < comp_field->v42bis_params->nsapi_len; i++)
 			LOGP(DSNDCP, logl,
-			     "      nsapi[%i]=%i;\n", i,
+			     "      nsapi[%d]=%d;\n", i,
 			     comp_field->v42bis_params->nsapi[i]);
-		LOGP(DSNDCP, logl, "      p0=%i;\n",
+		LOGP(DSNDCP, logl, "      p0=%d;\n",
 		     comp_field->v42bis_params->p0);
-		LOGP(DSNDCP, logl, "      p1=%i;\n",
+		LOGP(DSNDCP, logl, "      p1=%d;\n",
 		     comp_field->v42bis_params->p1);
-		LOGP(DSNDCP, logl, "      p2=%i;\n",
+		LOGP(DSNDCP, logl, "      p2=%d;\n",
 		     comp_field->v42bis_params->p2);
 		LOGP(DSNDCP, logl, "   }\n");
 		break;
@@ -1811,26 +1811,26 @@ static void dump_dcomp_params(const struct gprs_sndcp_comp_field
 		}
 		LOGP(DSNDCP, logl, "   gprs_sndcp_dcomp_v44_params {\n");
 		LOGP(DSNDCP, logl,
-		     "      nsapi_len=%i;\n",
+		     "      nsapi_len=%d;\n",
 		     comp_field->v44_params->nsapi_len);
 		if (comp_field->v44_params->nsapi_len == 0)
 			LOGP(DSNDCP, logl, "      nsapi[] = NULL;\n");
 		for (i = 0; i < comp_field->v44_params->nsapi_len; i++) {
 			LOGP(DSNDCP, logl,
-			     "      nsapi[%i]=%i;\n", i,
+			     "      nsapi[%d]=%d;\n", i,
 			     comp_field->v44_params->nsapi[i]);
 		}
-		LOGP(DSNDCP, logl, "      c0=%i;\n",
+		LOGP(DSNDCP, logl, "      c0=%d;\n",
 		     comp_field->v44_params->c0);
-		LOGP(DSNDCP, logl, "      p0=%i;\n",
+		LOGP(DSNDCP, logl, "      p0=%d;\n",
 		     comp_field->v44_params->p0);
-		LOGP(DSNDCP, logl, "      p1t=%i;\n",
+		LOGP(DSNDCP, logl, "      p1t=%d;\n",
 		     comp_field->v44_params->p1t);
-		LOGP(DSNDCP, logl, "      p1r=%i;\n",
+		LOGP(DSNDCP, logl, "      p1r=%d;\n",
 		     comp_field->v44_params->p1r);
-		LOGP(DSNDCP, logl, "      p3t=%i;\n",
+		LOGP(DSNDCP, logl, "      p3t=%d;\n",
 		     comp_field->v44_params->p3t);
-		LOGP(DSNDCP, logl, "      p3r=%i;\n",
+		LOGP(DSNDCP, logl, "      p3r=%d;\n",
 		     comp_field->v44_params->p3r);
 		LOGP(DSNDCP, logl, "   }\n");
 		break;
@@ -1850,13 +1850,13 @@ void gprs_sndcp_dump_comp_fields(const struct llist_head *comp_fields,
 	llist_for_each_entry(comp_field, comp_fields, list) {
 		LOGP(DSNDCP, logl, "SNDCP-XID:\n");
 		LOGP(DSNDCP, logl, "struct gprs_sndcp_comp_field {\n");
-		LOGP(DSNDCP, logl, "   entity=%i;\n", comp_field->entity);
-		LOGP(DSNDCP, logl, "   algo=%i;\n", comp_field->algo);
-		LOGP(DSNDCP, logl, "   comp_len=%i;\n", comp_field->comp_len);
+		LOGP(DSNDCP, logl, "   entity=%d;\n", comp_field->entity);
+		LOGP(DSNDCP, logl, "   algo=%d;\n", comp_field->algo);
+		LOGP(DSNDCP, logl, "   comp_len=%d;\n", comp_field->comp_len);
 		if (comp_field->comp_len == 0)
 			LOGP(DSNDCP, logl, "   comp[] = NULL;\n");
 		for (i = 0; i < comp_field->comp_len; i++) {
-			LOGP(DSNDCP, logl, "   comp[%i]=%i;\n", i,
+			LOGP(DSNDCP, logl, "   comp[%d]=%d;\n", i,
 			     comp_field->comp[i]);
 		}
 

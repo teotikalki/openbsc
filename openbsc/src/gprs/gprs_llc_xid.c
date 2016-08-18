@@ -1,6 +1,6 @@
 /* GPRS LLC XID field encoding/decoding as per 3GPP TS 44.064 */
 
-/* (C) 2016 by Sysmocom s.f.m.c. GmbH
+/* (C) 2016 by sysmocom s.f.m.c. GmbH <info@sysmocom.de>
  * All Rights Reserved
  *
  * Author: Philipp Maier
@@ -17,7 +17,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <stdio.h>
@@ -77,8 +76,7 @@ static int decode_xid_field(struct gprs_llc_xid_field *xid_field,
 		if (src_len < src_counter + len)
 			return -EINVAL;
 		xid_field->data =
-		    talloc_zero_size(xid_field, xid_field->data_len);
-		memcpy(xid_field->data, src, xid_field->data_len);
+			talloc_memdup(xid_field,src,xid_field->data_len);
 	} else
 		xid_field->data = NULL;
 
@@ -205,36 +203,23 @@ struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t *src,
 	}
 }
 
-/* Free XID-list with including all its XID-Fields */
-struct llist_head *gprs_llc_free_xid(struct llist_head *xid_fields)
-{
-	if (xid_fields != NULL)
-		talloc_free(xid_fields);
-	return NULL;
-}
-
 /* Create a duplicate of an XID-Field */
 struct gprs_llc_xid_field *gprs_llc_dup_xid_field(const void *ctx, const struct
 						  gprs_llc_xid_field
 						  *xid_field)
 {
-	struct gprs_llc_xid_field *duplicate_of_xid_field;
+	struct gprs_llc_xid_field *dup;
 
 	OSMO_ASSERT(xid_field);
 
 	/* Create a copy of the XID field in memory */
-	duplicate_of_xid_field = talloc_zero(ctx, struct gprs_llc_xid_field);
-	memcpy(duplicate_of_xid_field, xid_field,
-	       sizeof(struct gprs_llc_xid_field));
-	duplicate_of_xid_field->data =
-	    talloc_zero_size(duplicate_of_xid_field, xid_field->data_len);
-	memcpy(duplicate_of_xid_field->data, xid_field->data,
-	       xid_field->data_len);
+	dup = talloc_memdup(ctx, xid_field, sizeof(*xid_field));
+	dup->data = talloc_memdup(ctx, xid_field->data, xid_field->data_len);
 
 	/* Unlink duplicate from source list */
-	INIT_LLIST_HEAD(&duplicate_of_xid_field->list);
+	INIT_LLIST_HEAD(&dup->list);
 
-	return duplicate_of_xid_field;
+	return dup;
 }
 
 /* Copy an llist with xid fields */
@@ -269,14 +254,14 @@ void gprs_llc_dump_xid_fields(const struct llist_head *xid_fields,
 	llist_for_each_entry(xid_field, xid_fields, list) {
 		if (xid_field->data_len) {
 			OSMO_ASSERT(xid_field->data);
-			LOGP(DSNDCP, logl,
-			     "XID: type=%i, data_len=%i, data=%s\n",
+			LOGP(DLLC, logl,
+			     "XID: type=%d, data_len=%d, data=%s\n",
 			     xid_field->type, xid_field->data_len,
 			     osmo_hexdump_nospc(xid_field->data,
 						xid_field->data_len));
 		} else {
-			LOGP(DSNDCP, logl,
-			     "XID: type=%i, data_len=%i, data=NULL\n",
+			LOGP(DLLC, logl,
+			     "XID: type=%d, data_len=%d, data=NULL\n",
 			     xid_field->type, xid_field->data_len);
 		}
 	}

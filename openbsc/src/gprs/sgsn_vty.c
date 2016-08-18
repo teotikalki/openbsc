@@ -1081,9 +1081,10 @@ DEFUN(cfg_cdr_interval, cfg_cdr_interval_cmd,
 	return CMD_SUCCESS;
 }
 
+#define COMPRESSION_STR "Configure compression\n"
 DEFUN(cfg_no_comp_rfc1144, cfg_no_comp_rfc1144_cmd,
       "no compression rfc1144",
-      NO_STR "compression\n"
+      COMPRESSION_STR
       "disable rfc1144 TCP/IP header compression\n")
 {
 	g_cfg->pcomp_rfc1144.enabled = 0;
@@ -1092,10 +1093,10 @@ DEFUN(cfg_no_comp_rfc1144, cfg_no_comp_rfc1144_cmd,
 
 DEFUN(cfg_comp_rfc1144, cfg_comp_rfc1144_cmd,
       "compression rfc1144 slots <1-256>",
-      "Configure compression\n"
+      COMPRESSION_STR
       "RFC1144 Header compresion scheme\n"
       "Number of compression state slots\n"
-      "number\n")
+      "Number of compression state slots\n")
 {
 	g_cfg->pcomp_rfc1144.enabled = 1;
 	g_cfg->pcomp_rfc1144.s01 = atoi(argv[0]) - 1;

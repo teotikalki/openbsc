@@ -1,6 +1,6 @@
 /* Test SLHC/RFC1144 TCP/IP Header compression/decompression */
 
-/* (C) 2016 by Sysmocom s.f.m.c. GmbH
+/* (C) 2016 by sysmocom s.f.m.c. GmbH <info@sysmocom.de>
  * All Rights Reserved
  *
  * Author: Philipp Maier
@@ -17,7 +17,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <openbsc/slhc.h>
@@ -37,6 +36,17 @@
 
 /* Maximum packet bytes to display */
 #define DISP_MAX_BYTES 100
+
+/* Sample packets to test with */
+#define PACKETS_LEN 6
+char *packets[] = {
+	"4510004046dd40004006a9a7c0a8646ec0a864640017ad8b81980100f3ac984d801800e32a1600000101080a000647de06d1bf5efffd18fffd20fffd23fffd27",
+	"4510005b46de40004006a98bc0a8646ec0a864640017ad8b8198010cf3ac984d801800e3867500000101080a000647df06d1bf61fffb03fffd1ffffd21fffe22fffb05fffa2001fff0fffa2301fff0fffa2701fff0fffa1801fff0",
+	"4510003746df40004006a9aec0a8646ec0a864640017ad8b81980133f3ac989f801800e35fd700000101080a000647e106d1bf63fffd01",
+	"4510003746e040004006a9adc0a8646ec0a864640017ad8b81980136f3ac98a2801800e35fd200000101080a000647e106d1bf64fffb01",
+	"4510007446e140004006a96fc0a8646ec0a864640017ad8b81980139f3ac98a5801800e37b9b00000101080a000647e206d1bf640d0a2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d0d0a57656c6c636f6d6520746f20706f6c6c75780d0a2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d2d0d0a0d0a",
+	"4510004246e240004006a9a0c0a8646ec0a864640017ad8b81980179f3ac98a5801800e3dab000000101080a000647ec06d1bf6f706f6c6c7578206c6f67696e3a20"
+};
 
 /* Compress a packet using Van Jacobson RFC1144 header compression */
 static int compress(uint8_t *data_o, uint8_t *data_i, int len,
@@ -174,22 +184,11 @@ static int strip_tcp_options(const void *ctx, uint8_t *packet, int len)
 	return len;
 }
 
-/* osmo_hexparse() does not like line breaks, this fixes that */
-static void fixup_hexstring(char *str)
-{
-	int i;
-	for (i = 0; i < strlen(str); i++) {
-		if (str[i] == '\n')
-			str[i] = 0;
-	}
-}
-
 /* Compress / Decompress packets */
 static void test_slhc(const void *ctx)
 {
 	char packet_ascii[2048];
-	FILE *fd = NULL;
-	char *rc_fgets;
+	int i;
 
 	struct slcompress *comp;
 	uint8_t packet[1024];
@@ -199,29 +198,18 @@ static void test_slhc(const void *ctx)
 	uint8_t packet_decompr[1024];
 	int packet_decompr_len;
 
-
 	printf("Allocating compression state...\n");
 	comp = slhc_init(ctx, SLOTS, SLOTS);
 	OSMO_ASSERT(comp);
 
-	printf("Opening file with sample packets...\n");
-	fd = fopen("packets.txt", "r");
-	OSMO_ASSERT(fd)
-	    printf("\n");
-
-	while (1) {
+	for(i=0;i<PACKETS_LEN;i++) {
 		/* Read input file */
 		memset(packet_ascii, 0, sizeof(packet_ascii));
 		memset(packet, 0, sizeof(packet));
 		memset(packet_compr, 0, sizeof(packet_compr));
 		memset(packet_decompr, 0, sizeof(packet_decompr));
-		printf("Reading packet from file...\n");
-		rc_fgets = fgets(packet_ascii, sizeof(packet_ascii), fd);
-		if (rc_fgets == NULL || strlen(packet_ascii) < 20) {
-			printf("=> End of file detected, test done!\n\n");
-			break;
-		}
-		fixup_hexstring(packet_ascii);
+		strcpy(packet_ascii,packets[i]);
+
 		packet_len =
 		    osmo_hexparse(packet_ascii, packet, sizeof(packet));
 		check_packet(ctx, packet, packet_len);
@@ -263,7 +251,6 @@ static void test_slhc(const void *ctx)
 	printf("Freeing compression state...\n");
 	slhc_free(comp);
 	printf("\n");
-	fclose(fd);
 }
 
 static struct log_info_cat gprs_categories[] = {

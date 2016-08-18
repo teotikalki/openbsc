@@ -1,6 +1,6 @@
 /* Test SNDCP-XID Encoding/Decoding */
 
-/* (C) 2016 by Sysmocom s.f.m.c. GmbH
+/* (C) 2016 by sysmocom s.f.m.c. GmbH <info@sysmocom.de>
  * All Rights Reserved
  *
  * Author: Philipp Maier
@@ -17,7 +17,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <openbsc/gprs_sndcp_xid.h>
@@ -63,7 +62,7 @@ static void test_xid_decode_realworld(const void *ctx)
 	OSMO_ASSERT(memcmp(xid, xid_r, sizeof(xid)) == 0);
 
 	/* Free comp fields */
-	gprs_sndcp_free_comp_fields(comp_fields);
+	talloc_free(comp_fields);
 
 	printf("\n");
 }
@@ -240,7 +239,7 @@ static void test_xid_encode_decode(const void *ctx)
 	gprs_sndcp_dump_comp_fields(comp_fields_dec, DSNDCP);
 
 	/* Free comp fields */
-	gprs_sndcp_free_comp_fields(comp_fields_dec);
+	talloc_free(comp_fields_dec);
 }
 
 static struct log_info_cat gprs_categories[] = {

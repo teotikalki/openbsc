@@ -1,6 +1,6 @@
 /* Test LLC-XID Encoding/Decoding */
 
-/* (C) 2016 by Sysmocom s.f.m.c. GmbH
+/* (C) 2016 by sysmocom s.f.m.c. GmbH <info@sysmocom.de>
  * All Rights Reserved
  *
  * Author: Philipp Maier
@@ -17,7 +17,6 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
 #include <openbsc/gprs_llc_xid.h>
@@ -121,7 +120,7 @@ static void test_xid_decode(const void *ctx)
 	OSMO_ASSERT(memcmp(xid, xid_r, sizeof(xid)) == 0);
 
 	/* Free xid fields */
-	gprs_llc_free_xid(xid_fields);
+	talloc_free(xid_fields);
 
 	printf("\n");
 }

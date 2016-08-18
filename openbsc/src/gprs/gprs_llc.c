@@ -95,8 +95,8 @@ static int gprs_llc_generate_xid(uint8_t *bytes, int bytes_len,
 	}
 
 	/* Store generated XID for later reference */
-	llme->xid = gprs_llc_free_xid(llme->xid);
-	llme->xid = gprs_llc_copy_xid(llme->xid, &xid_fields);
+	talloc_free(llme->xid);
+	llme->xid = gprs_llc_copy_xid(llme, &xid_fields);
 
 	return gprs_llc_compile_xid(bytes, bytes_len, &xid_fields);
 }
@@ -129,8 +129,8 @@ static int gprs_llc_generate_xid_for_gmm_reset(uint8_t *bytes,
 	llist_add(&xid_reset.list, &xid_fields);
 
 	/* Store generated XID for later reference */
-	llme->xid = gprs_llc_free_xid(llme->xid);
-	llme->xid = gprs_llc_copy_xid(llme->xid, &xid_fields);
+	talloc_free(llme->xid);
+	llme->xid = gprs_llc_copy_xid(llme, &xid_fields);
 
 	return gprs_llc_compile_xid(bytes, bytes_len, &xid_fields);
 }
@@ -183,17 +183,18 @@ static int gprs_llc_process_xid_conf(uint8_t *bytes, int bytes_len,
 				 * inquiry. There is a remainig risk of
 				 * malfunction! */
 				LOGP(DLLC, LOGL_NOTICE,
-				     "Ignoring XID-Field: XID: type=%i, data_len=%i, data=%s\n",
+				     "Ignoring XID-Field: XID: type=%d, data_len=%d, data=%s\n",
 				     xid_field->type, xid_field->data_len,
 				     osmo_hexdump_nospc(xid_field->data,
 				     xid_field->data_len));
 			}
 		}
-		gprs_llc_free_xid(xid_fields);
+		talloc_free(xid_fields);
 	}
 
 	/* Flush pending XID fields */
-	lle->llme->xid = gprs_llc_free_xid(lle->llme->xid);
+	talloc_free(lle->llme->xid);
+	lle->llme->xid = NULL;
 
 	return 0;
 }
@@ -236,7 +237,7 @@ static int gprs_llc_process_xid_ind(uint8_t *bytes_request,
 				 * when a phone submits values which defer from
 				 * the default! */
 				LOGP(DLLC, LOGL_NOTICE,
-				     "Echoing XID-Field: XID: type=%i, data_len=%i, data=%s\n",
+				     "Echoing XID-Field: XID: type=%d, data_len=%d, data=%s\n",
 				     xid_field->type, xid_field->data_len,
 				     osmo_hexdump_nospc(xid_field->data,
 							xid_field->data_len));
@@ -270,8 +271,8 @@ static int gprs_llc_process_xid_ind(uint8_t *bytes_request,
 		rc = gprs_llc_compile_xid(bytes_response,
 					  bytes_response_maxlen,
 					  xid_fields_response);
-		gprs_llc_free_xid(xid_fields_response);
-		gprs_llc_free_xid(xid_fields);
+		talloc_free(xid_fields_response);
+		talloc_free(xid_fields);
 	}
 
 	return rc;
@@ -561,9 +562,9 @@ static struct gprs_llc_llme *llme_alloc(uint32_t tlli)
 
 static void llme_free(struct gprs_llc_llme *llme)
 {
-	llme->comp.proto = gprs_sndcp_comp_free(llme->comp.proto);
-	llme->comp.data = gprs_sndcp_comp_free(llme->comp.data);
-	llme->xid = gprs_llc_free_xid(llme->xid);
+	gprs_sndcp_comp_free(llme->comp.proto);
+	gprs_sndcp_comp_free(llme->comp.data);
+	talloc_free(llme->xid);
 	llist_del(&llme->list);
 	talloc_free(llme);
 }

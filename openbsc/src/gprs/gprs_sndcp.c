@@ -63,7 +63,7 @@ static void debug_ip_packet(uint8_t *data, int len, int dir, char *info)
 		DEBUGP(DSNDCP,"%s: PHONE <= NETWORK: %s\n", info,
 		       osmo_hexdump_nospc(data, len_short));
 
-	DEBUGP(DSNDCP,"%s: length: %i\n", info, len);
+	DEBUGP(DSNDCP,"%s: length: %d\n", info, len);
 	if (data[9] == 0x06) {
 		DEBUGP(DSNDCP,"%s: Protocol type: TCP\n", info);
 		tcp_flags = data[33];
@@ -431,7 +431,7 @@ struct sndcp_frag_state {
 };
 
 /* returns '1' if there are more fragments to send, '0' if none */
-static int sndcp_send_ud_frag(struct sndcp_frag_state *fs, int pcomp, int dcomp)
+static int sndcp_send_ud_frag(struct sndcp_frag_state *fs, uint8_t pcomp, int dcomp)
 {
 	struct gprs_sndcp_entity *sne = fs->sne;
 	struct gprs_llc_lle *lle = sne->lle;
@@ -534,8 +534,8 @@ int sndcp_unitdata_req(struct msgb *msg, struct gprs_llc_lle *lle, uint8_t nsapi
 	struct sndcp_comp_hdr *scomph;
 	struct sndcp_udata_hdr *suh;
 	struct sndcp_frag_state fs;
-	int pcomp = 0;
-	int dcomp = 0;
+	uint8_t pcomp = 0;
+	uint8_t dcomp = 0;
 	int rc;
 	uint8_t *compr;
 
@@ -996,7 +996,7 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication,
 		}
 
 		if (rc < 0) {
-			gprs_sndcp_free_comp_fields(comp_fields);
+			talloc_free(comp_fields);
 			return -EINVAL;
 		}
 	}
@@ -1026,7 +1026,7 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication,
 		return -EINVAL;
 	}
 
-	gprs_sndcp_free_comp_fields(comp_fields);
+	talloc_free(comp_fields);
 
 	return 0;
 }
@@ -1093,14 +1093,14 @@ int sndcp_sn_xid_conf(struct gprs_llc_xid_field *xid_field_confirmation,
 			}
 
 			if (rc < 0) {
-				gprs_sndcp_free_comp_fields(comp_fields_req);
-				gprs_sndcp_free_comp_fields(comp_fields_conf);
+				talloc_free(comp_fields_req);
+				talloc_free(comp_fields_conf);
 				return -EINVAL;
 			}
 		}
 
-		gprs_sndcp_free_comp_fields(comp_fields_req);
-		gprs_sndcp_free_comp_fields(comp_fields_conf);
+		talloc_free(comp_fields_req);
+		talloc_free(comp_fields_conf);
 	}
 
 	return 0;

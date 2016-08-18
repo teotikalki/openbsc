@@ -33,6 +33,8 @@ conjunction with the error correction scheme defined in V.42.
 \section v42bis_page_sec_2 How does it work?
 */
 
+#include <stdint.h>
+
 #if !defined(_SPANDSP_V42BIS_H_)
 #define _SPANDSP_V42BIS_H_
 
@@ -116,7 +118,8 @@ SPAN_DECLARE(void) v42bis_compression_control(v42bis_state_t *s, int mode);
     \param data_user_data An opaque pointer passed to the data callback handler.
     \param max_data_len The maximum length that should be passed to the data handler.
     \return The V.42bis context. */
-SPAN_DECLARE(v42bis_state_t *) v42bis_init(v42bis_state_t *s,
+SPAN_DECLARE(v42bis_state_t *) v42bis_init(const void *ctx,
+                                           v42bis_state_t *s,
                                            int negotiated_p0,
                                            int negotiated_p1,
                                            int negotiated_p2,

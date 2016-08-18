@@ -1,6 +1,6 @@
 /* GPRS SNDCP header compression handler */
 
-/* (C) 2016 by Sysmocom s.f.m.c. GmbH
+/* (C) 2016 by sysmocom s.f.m.c. GmbH <info@sysmocom.de>
  * All Rights Reserved
  *
  * Author: Philipp Maier
@@ -17,11 +17,9 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
-#ifndef _GPRS_SNDCP_pcomp_H
-#define _GPRS_SNDCP_pcomp_H
+#pragma once
 
 #include <stdint.h>
 #include <osmocom/core/linuxlist.h>
@@ -35,13 +33,12 @@ int gprs_sndcp_pcomp_init(const void *ctx, struct gprs_sndcp_comp *comp_entity,
 void gprs_sndcp_pcomp_term(struct gprs_sndcp_comp *comp_entity);
 
 /* Expand packet header */
-int gprs_sndcp_pcomp_expand(uint8_t *data_o, uint8_t *data_i, int len,
-			    int pcomp, const struct llist_head *comp_entities);
+int gprs_sndcp_pcomp_expand(uint8_t *data_o, uint8_t *data_i, unsigned int len,
+			    uint8_t pcomp,
+			    const struct llist_head *comp_entities);
 
 /* Compress packet header */
-int gprs_sndcp_pcomp_compress(uint8_t *data_o, uint8_t *data_i, int len,
-			      int *pcomp,
+int gprs_sndcp_pcomp_compress(uint8_t *data_o, uint8_t *data_i,
+			      unsigned int len, uint8_t *pcomp,
 			      const struct llist_head *comp_entities,
 			      int nsapi);
-
-#endif

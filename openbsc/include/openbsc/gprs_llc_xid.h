@@ -1,6 +1,6 @@
 /* GPRS LLC XID field encoding/decoding as per 3GPP TS 44.064 */
 
-/* (C) 2016 by Sysmocom s.f.m.c. GmbH
+/* (C) 2016 by sysmocom s.f.m.c. GmbH <info@sysmocom.de>
  * All Rights Reserved
  *
  * Author: Philipp Maier
@@ -17,11 +17,9 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
-#ifndef _GPRS_LLC_XID_H
-#define _GPRS_LLC_XID_H
+#pragma once
 
 #include <stdint.h>
 #include <osmocom/core/linuxlist.h>
@@ -45,9 +43,6 @@ int gprs_llc_compile_xid(uint8_t *dst, int dst_maxlen,
 struct llist_head *gprs_llc_parse_xid(const void *ctx, const uint8_t *src,
 				      int src_len);
 
-/* Free XID-list with including all its XID-Fields */
-struct llist_head *gprs_llc_free_xid(struct llist_head *xid_fields);
-
 /* Create a duplicate of an XID-Field */
 struct gprs_llc_xid_field *gprs_llc_dup_xid_field(const void *ctx,
 				const struct gprs_llc_xid_field *xid_field);
@@ -60,4 +55,3 @@ struct llist_head *gprs_llc_copy_xid(const void *ctx,
 void gprs_llc_dump_xid_fields(const struct llist_head *xid_fields,
 			      unsigned int logl);
 
-#endif

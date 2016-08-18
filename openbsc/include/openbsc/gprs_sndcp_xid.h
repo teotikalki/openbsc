@@ -1,6 +1,6 @@
 /* GPRS SNDCP XID field encoding/decoding as per 3GPP TS 44.065 */
 
-/* (C) 2016 by Sysmocom s.f.m.c. GmbH
+/* (C) 2016 by sysmocom s.f.m.c. GmbH <info@sysmocom.de>
  * All Rights Reserved
  *
  * Author: Philipp Maier
@@ -17,11 +17,9 @@
  *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- *
  */
 
-#ifndef _GPRS_SNDCP_XID_H
-#define _GPRS_SNDCP_XID_H
+#pragma once
 
 #include <stdint.h>
 #include <osmocom/core/linuxlist.h>
@@ -29,6 +27,9 @@
 #define CURRENT_SNDCP_VERSION 0	/* See 3GPP TS 44.065, clause 8 */
 #define MAX_ENTITIES 32		/* 3GPP TS 44.065 reserves 5 bit
 				 * for compression enitity number */
+#define MAX_COMP 16	/* Maximum number of possible pcomp/dcomp values */
+#define MAX_NSAPI 11	/* Maximum number usable NSAPIs */
+#define MAX_ROHC 16	/* Maximum number of ROHC compression profiles */
 
 /* According to: 3GPP TS 44.065, 6.5.1.1 Format of the protocol control
  *		 information compression field (Figure 7)
@@ -47,10 +48,10 @@ struct gprs_sndcp_comp_field {
 	int algo;
 
 	/* Number of contained PCOMP / DCOMP values */
-	unsigned int comp_len;
+	uint8_t comp_len;
 
 	/* PCOMP / DCOMP values, see also: 6.5.1.1.5 and 6.6.1.1.5 */
-	unsigned int comp[16];
+	uint8_t comp[MAX_COMP];
 
 	/* Note: Only one of the following struct pointers may,
 	   be used unused pointers must be set to NULL! */
@@ -83,110 +84,115 @@ enum gprs_sndcp_xid_param_types {
 
 /* According to: 3GPP TS 44.065, 6.5.2.1 Parameters (Table 5) */
 struct gprs_sndcp_pcomp_rfc1144_params {
-	unsigned int nsapi_len;	/* Number of applicable NSAPIs (default 0) */
-	unsigned int nsapi[11];	/* Applicable NSAPIs (default 0) */
-	int s01;		/* (default 15) */
+	uint8_t nsapi_len;		/* Number of applicable NSAPIs
+					 * (default 0) */
+	uint8_t nsapi[MAX_NSAPI];	/* Applicable NSAPIs (default 0) */
+	int s01;			/* (default 15) */
 };
 
 /* According to: 3GPP TS 44.065, 6.5.2.2 Assignment of PCOMP values */
 enum gprs_sndcp_pcomp_rfc1144_pcomp {
-	RFC1144_PCOMP1,		/* Uncompressed TCP */
-	RFC1144_PCOMP2,		/* Compressed TCP */
-	RFC1144_PCOMP_NUM	/* Number of pcomp values */
+	RFC1144_PCOMP1,			/* Uncompressed TCP */
+	RFC1144_PCOMP2,			/* Compressed TCP */
+	RFC1144_PCOMP_NUM		/* Number of pcomp values */
 };
 
 /* According to: 3GPP TS 44.065, 6.5.3.1 Parameters (Table 6) */
 struct gprs_sndcp_pcomp_rfc2507_params {
-	unsigned int nsapi_len;	/* Number of applicable NSAPIs (default 0) */
-	unsigned int nsapi[11];	/* Applicable NSAPIs (default 0) */
-	int f_max_period;	/* (default 256) */
-	int f_max_time;		/* (default 5) */
-	int max_header;		/* (default 168) */
-	int tcp_space;		/* (default 15) */
-	int non_tcp_space;	/* (default 15) */
+	uint8_t nsapi_len;		/* Number of applicable NSAPIs
+					 * (default 0) */
+	uint8_t nsapi[MAX_NSAPI];	/* Applicable NSAPIs (default 0) */
+	int f_max_period;		/* (default 256) */
+	int f_max_time;			/* (default 5) */
+	int max_header;			/* (default 168) */
+	int tcp_space;			/* (default 15) */
+	int non_tcp_space;		/* (default 15) */
 };
 
 /* According to: 3GPP TS 44.065, 6.5.3.2 Assignment of PCOMP values for RFC2507 */
 enum gprs_sndcp_pcomp_rfc2507_pcomp {
-	RFC2507_PCOMP1,		/* Full Header */
-	RFC2507_PCOMP2,		/* Compressed TCP */
-	RFC2507_PCOMP3,		/* Compressed TCP non delta */
-	RFC2507_PCOMP4,		/* Compressed non TCP */
-	RFC2507_PCOMP5,		/* Context state */
-	RFC2507_PCOMP_NUM	/* Number of pcomp values */
+	RFC2507_PCOMP1,			/* Full Header */
+	RFC2507_PCOMP2,			/* Compressed TCP */
+	RFC2507_PCOMP3,			/* Compressed TCP non delta */
+	RFC2507_PCOMP4,			/* Compressed non TCP */
+	RFC2507_PCOMP5,			/* Context state */
+	RFC2507_PCOMP_NUM		/* Number of pcomp values */
 };
 
 /* According to: 3GPP TS 44.065, 6.5.4.1 Parameter (Table 10) */
 struct gprs_sndcp_pcomp_rohc_params {
-	unsigned int nsapi_len;	/* Number of applicable NSAPIs (default 0) */
-	unsigned int nsapi[11];	/* Applicable NSAPIs (default 0) */
-	int max_cid;		/* (default 15) */
-	int max_header;		/* (default 168) */
-	unsigned int profile_len;	/* (default 1) */
-	uint16_t profile[16];	/* (default 0, ROHC uncompressed) */
+	uint8_t nsapi_len;		/* Number of applicable NSAPIs
+					 * (default 0) */
+	uint8_t nsapi[MAX_NSAPI];	/* Applicable NSAPIs (default 0) */
+	int max_cid;			/* (default 15) */
+	int max_header;			/* (default 168) */
+	uint8_t profile_len;		/* (default 1) */
+	uint16_t profile[MAX_ROHC];	/* (default 0, ROHC uncompressed) */
 };
 
 /* According to: 3GPP TS 44.065, 6.5.4.2 Assignment of PCOMP values for ROHC */
 enum gprs_sndcp_pcomp_rohc_pcomp {
-	ROHC_PCOMP1,		/* ROHC small CIDs */
-	ROHC_PCOMP2,		/* ROHC large CIDs */
-	ROHC_PCOMP_NUM		/* Number of pcomp values */
+	ROHC_PCOMP1,			/* ROHC small CIDs */
+	ROHC_PCOMP2,			/* ROHC large CIDs */
+	ROHC_PCOMP_NUM			/* Number of pcomp values */
 };
 
 /* ROHC compression profiles, see also:
    http://www.iana.org/assignments/rohc-pro-ids/rohc-pro-ids.xhtml */
 enum gprs_sndcp_xid_rohc_profiles {
 	ROHC_UNCOMPRESSED = 0x0000,	/* ROHC uncompressed    [RFC5795] */
-	ROHC_RTP = 0x0001,	/* ROHC RTP             [RFC3095] */
-	ROHCV2_RTP = 0x0101,	/* ROHCv2 RTP           [RFC5225] */
-	ROHC_UDP = 0x0002,	/* ROHC UDP             [RFC3095] */
-	ROHCv2_UDP = 0x0102,	/* ROHCv2 UDP           [RFC5225] */
-	ROHC_ESP = 0x0003,	/* ROHC ESP             [RFC3095] */
-	ROHCV2_ESP = 0x0103,	/* ROHCv2 ESP           [RFC5225] */
-	ROHC_IP = 0x0004,	/* ROHC IP              [RFC3843] */
-	ROHCV2_IP = 0x0104,	/* ROHCv2 IP            [RFC5225] */
-	ROHC_LLA = 0x0005,	/* ROHC LLA             [RFC4362] */
+	ROHC_RTP = 0x0001,		/* ROHC RTP             [RFC3095] */
+	ROHCV2_RTP = 0x0101,		/* ROHCv2 RTP           [RFC5225] */
+	ROHC_UDP = 0x0002,		/* ROHC UDP             [RFC3095] */
+	ROHCv2_UDP = 0x0102,		/* ROHCv2 UDP           [RFC5225] */
+	ROHC_ESP = 0x0003,		/* ROHC ESP             [RFC3095] */
+	ROHCV2_ESP = 0x0103,		/* ROHCv2 ESP           [RFC5225] */
+	ROHC_IP = 0x0004,		/* ROHC IP              [RFC3843] */
+	ROHCV2_IP = 0x0104,		/* ROHCv2 IP            [RFC5225] */
+	ROHC_LLA = 0x0005,		/* ROHC LLA             [RFC4362] */
 	ROHC_LLA_WITH_R_MODE = 0x0105,	/* ROHC LLA with R-mode [RFC3408] */
-	ROHC_TCP = 0x0006,	/* ROHC TCP             [RFC6846] */
+	ROHC_TCP = 0x0006,		/* ROHC TCP             [RFC6846] */
 	ROHC_RTP_UDP_LITE = 0x0007,	/* ROHC RTP/UDP-Lite    [RFC4019] */
 	ROHCV2_RTP_UDP_LITE = 0x0107,	/* ROHCv2 RTP/UDP-Lite  [RFC5225] */
-	ROHC_UDP_LITE = 0x0008,	/* ROHC UDP-Lite        [RFC4019] */
+	ROHC_UDP_LITE = 0x0008,		/* ROHC UDP-Lite        [RFC4019] */
 	ROHCV2_UDP_LITE = 0x0108,	/* ROHCv2 UDP-Lite      [RFC5225] */
 };
 
 /* According to: 3GPP TS 44.065, 6.6.2.1 Parameters (Table 7a) */
 struct gprs_sndcp_dcomp_v42bis_params {
-	unsigned int nsapi_len;	/* Number of applicable NSAPIs (default 0) */
-	unsigned int nsapi[11];	/* Applicable NSAPIs (default 0) */
-	int p0;			/* (default 3) */
-	int p1;			/* (default 2048) */
-	int p2;			/* (default 20) */
+	uint8_t nsapi_len;		/* Number of applicable NSAPIs
+					 * (default 0) */
+	uint8_t nsapi[MAX_NSAPI];	/* Applicable NSAPIs (default 0) */
+	int p0;				/* (default 3) */
+	int p1;				/* (default 2048) */
+	int p2;				/* (default 20) */
 
 };
 
 /* According to: 3GPP TS 44.065, 6.6.2.2 Assignment of DCOMP values */
 enum gprs_sndcp_dcomp_v42bis_dcomp {
-	V42BIS_DCOMP1,		/* V.42bis enabled */
-	V42BIS_DCOMP_NUM	/* Number of dcomp values */
+	V42BIS_DCOMP1,			/* V.42bis enabled */
+	V42BIS_DCOMP_NUM		/* Number of dcomp values */
 };
 
 /* According to: 3GPP TS 44.065, 6.6.3.1 Parameters (Table 7c) */
 struct gprs_sndcp_dcomp_v44_params {
-	unsigned int nsapi_len;	/* Number of applicable NSAPIs (default 0) */
-	unsigned int nsapi[11];	/* Applicable NSAPIs (default 0) */
-	int c0;			/* (default 10000000) */
-	int p0;			/* (default 3) */
-	int p1t;		/* Refer to subclause 6.6.3.1.4 */
-	int p1r;		/* Refer to subclause 6.6.3.1.5 */
-	int p3t;		/* (default 3 x p1t) */
-	int p3r;		/* (default 3 x p1r) */
+	uint8_t nsapi_len;		/* Number of applicable NSAPIs
+					 * (default 0) */
+	uint8_t nsapi[MAX_NSAPI];	/* Applicable NSAPIs (default 0) */
+	int c0;				/* (default 10000000) */
+	int p0;				/* (default 3) */
+	int p1t;			/* Refer to subclause 6.6.3.1.4 */
+	int p1r;			/* Refer to subclause 6.6.3.1.5 */
+	int p3t;			/* (default 3 x p1t) */
+	int p3r;			/* (default 3 x p1r) */
 };
 
 /* According to: 3GPP TS 44.065, 6.6.3.2 Assignment of DCOMP values */
 enum gprs_sndcp_dcomp_v44_dcomp {
-	V44_DCOMP1,		/* Packet method compressed */
-	V44_DCOMP2,		/* Multi packet method compressed */
-	V44_DCOMP_NUM		/* Number of dcomp values */
+	V44_DCOMP1,			/* Packet method compressed */
+	V44_DCOMP2,			/* Multi packet method compressed */
+	V44_DCOMP_NUM			/* Number of dcomp values */
 };
 
 /* Transform a list with compression fields into an SNDCP-XID message (dst) */
@@ -199,9 +205,6 @@ struct llist_head *gprs_sndcp_parse_xid(const void *ctx,
 				unsigned int src_len,
 				const struct llist_head *comp_fields_req);
 
-/* Free a list with SNDCP-XID fields */
-struct llist_head *gprs_sndcp_free_comp_fields(struct llist_head *comp_fields);
-
 /* Find out to which compression class the specified comp-field belongs
  * (header compression or data compression?) */
 int gprs_sndcp_get_compression_class(
@@ -211,4 +214,3 @@ int gprs_sndcp_get_compression_class(
 void gprs_sndcp_dump_comp_fields(const struct llist_head *comp_fields,
 				 unsigned int logl);
 
-#endif

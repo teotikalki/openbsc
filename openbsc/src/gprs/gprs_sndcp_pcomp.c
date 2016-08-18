@@ -25,6 +25,7 @@
 #include <stdint.h>
 #include <math.h>
 #include <errno.h>
+#include <stdbool.h>
 
 #include <osmocom/core/utils.h>
 #include <osmocom/core/msgb.h>
@@ -39,77 +40,6 @@
 #include <openbsc/debug.h>
 #include <openbsc/gprs_sndcp_comp.h>
 #include <openbsc/gprs_sndcp_pcomp.h>
-
-#define DEBUG_RFC1144 1
-
-/* Show details of the RFC1144 compressed packet header */
-static void debug_rfc1144_header(uint8_t *header)
-{
-#if DEBUG_RFC1144 == 1
-
-	int t,c,i,p,s,a,w,u = 0;
-	t = (header[0] >> 7) & 1;
-	c = (header[0] >> 6) & 1;
-	i = (header[0] >> 5) & 1;
-	p = (header[0] >> 4) & 1;
-	s = (header[0] >> 3) & 1;
-	a = (header[0] >> 2) & 1;
-	w = (header[0] >> 1) & 1;
-	u = header[0] & 1;
-
-	DEBUGP(DSNDCP,"rfc1144 header:\n");
-	DEBUGP(DSNDCP," Tag bit = %d\n",t);
-	DEBUGP(DSNDCP," C = %d\n",c);
-	DEBUGP(DSNDCP," I = %d\n",i);
-	DEBUGP(DSNDCP," P = %d\n",p);
-	DEBUGP(DSNDCP," S = %d\n",s);
-	DEBUGP(DSNDCP," A = %d\n",a);
-	DEBUGP(DSNDCP," W = %d\n",w);
-	DEBUGP(DSNDCP," U = %d\n",u);
-
-	header++;
-	if(c) {
-		DEBUGP(DSNDCP," Connection number (C) = %d\n",*header);
-		header++;
-	}
-
-	DEBUGP(DSNDCP," TCP Checksum = %02x%02x\n",header[0],header[1]);
-	header+=2;
-
-	if(s && w && u)	{
-		DEBUGP(DSNDCP," Special case I (SPECIAL_I) => short header\n");
-		return;
-	} else if(s && a && w && u) {
-		DEBUGP(DSNDCP," Special case D (SPECIAL_D) => short header\n");
-		return;
-	}
-
-	if(u) {
-		DEBUGP(DSNDCP," Urgent Pointer (U) = %02x\n",*header);
-		header++;
-	}
-	if(w) {
-		DEBUGP(DSNDCP," Delta Window (W) = %02x\n",*header);
-		header++;
-	}
-	if(a) {
-		DEBUGP(DSNDCP," Delta Ack (A) = %02x\n",*header);
-		header++;
-	}
-	if(s) {
-		DEBUGP(DSNDCP," Delta Sequence (S) = %02x\n",*header);
-		header++;
-	}
-	if(i) {
-		DEBUGP(DSNDCP," Delta IP ID (I) = %02x\n",*header);
-		header++;
-	}
-
-	/* FIXME: Header values will be usually fit in 8 bits, implement
-	 * implement variable length decoding for values larger then 8 bit */
-#endif
-}
-
 
 /* Initalize header compression */
 int gprs_sndcp_pcomp_init(const void *ctx, struct gprs_sndcp_comp *comp_entity,
@@ -160,11 +90,12 @@ void gprs_sndcp_pcomp_term(struct gprs_sndcp_comp *comp_entity)
 }
 
 /* Compress a packet using Van Jacobson RFC1144 header compression */
-static int gprs_sndcp_pcomp_rfc1144_compress(int *pcomp_index, uint8_t *data_o,
-					     uint8_t *data_i, int len,
+static int gprs_sndcp_pcomp_rfc1144_compress(uint8_t *pcomp_index,
+					     uint8_t *data_o, uint8_t *data_i,
+					     unsigned int len,
 					     struct slcompress *comp)
 {
-	uint8_t *comp_ptr;	/* Not used */
+	uint8_t *comp_ptr;	/* Required by slhc_compress() */
 	int compr_len;
 
 	/* Create a working copy of the incoming data */
@@ -177,7 +108,6 @@ static int gprs_sndcp_pcomp_rfc1144_compress(int *pcomp_index, uint8_t *data_o,
 	if (data_o[0] & SL_TYPE_COMPRESSED_TCP) {
 		*pcomp_index = 2;
 		data_o[0] &= ~SL_TYPE_COMPRESSED_TCP;
-		debug_rfc1144_header(data_o);
 	} else if ((data_o[0] & SL_TYPE_UNCOMPRESSED_TCP) ==
 		   SL_TYPE_UNCOMPRESSED_TCP) {
 		*pcomp_index = 1;
@@ -190,7 +120,8 @@ static int gprs_sndcp_pcomp_rfc1144_compress(int *pcomp_index, uint8_t *data_o,
 
 /* Expand a packet using Van Jacobson RFC1144 header compression */
 static int gprs_sndcp_pcomp_rfc1144_expand(uint8_t *data_o, uint8_t *data_i,
-					   int len, int pcomp_index,
+					   unsigned int len,
+					   uint8_t pcomp_index,
 					   struct slcompress *comp)
 {
 	int data_decompressed_len;
@@ -216,7 +147,6 @@ static int gprs_sndcp_pcomp_rfc1144_expand(uint8_t *data_o, uint8_t *data_i,
 	/* Restore the original version nibble on
 	 * marked uncompressed packets */
 	if (type == SL_TYPE_UNCOMPRESSED_TCP) {
-
 		/* Just in case the phone tags uncompressed tcp-datas
 		 * (normally this is handled by pcomp so there is
 		 * no need for tagging the datas) */
@@ -236,11 +166,12 @@ static int gprs_sndcp_pcomp_rfc1144_expand(uint8_t *data_o, uint8_t *data_i,
 }
 
 /* Expand packet header */
-int gprs_sndcp_pcomp_expand(uint8_t *data_o, uint8_t *data_i, int len,
-			    int pcomp, const struct llist_head *comp_entities)
+int gprs_sndcp_pcomp_expand(uint8_t *data_o, uint8_t *data_i,
+			    unsigned int len, uint8_t pcomp,
+			    const struct llist_head *comp_entities)
 {
 	int rc;
-	int pcomp_index = 0;
+	uint8_t pcomp_index = 0;
 	struct gprs_sndcp_comp *comp_entity;
 
 	OSMO_ASSERT(data_o);
@@ -249,7 +180,7 @@ int gprs_sndcp_pcomp_expand(uint8_t *data_o, uint8_t *data_i, int len,
 
 	/* Skip on pcomp=0 */
 	if (pcomp == 0) {
-		memcpy(data_o,data_i,len);
+		memcpy(data_o, data_i, len);
 		return len;
 	}
 
@@ -258,7 +189,7 @@ int gprs_sndcp_pcomp_expand(uint8_t *data_o, uint8_t *data_i, int len,
 
 	/* Skip compression if no suitable compression entity can be found */
 	if (comp_entity == NULL) {
-		memcpy(data_o,data_i,len);
+		memcpy(data_o, data_i, len);
 		return len;
 	}
 
@@ -280,19 +211,18 @@ int gprs_sndcp_pcomp_expand(uint8_t *data_o, uint8_t *data_i, int len,
 	slhc_o_status(comp_entity->state);
 
 	LOGP(DSNDCP, LOGL_DEBUG,
-	     "Header expansion done, old length=%i, new length=%i\n",
-	     len, rc);
+	     "Header expansion done, old length=%d, new length=%d\n", len, rc);
 
 	return rc;
 }
 
 /* Compress packet header */
-int gprs_sndcp_pcomp_compress(uint8_t *data_o, uint8_t *data_i, int len,
-			      int *pcomp,
+int gprs_sndcp_pcomp_compress(uint8_t *data_o, uint8_t *data_i,
+			      unsigned int len, uint8_t *pcomp,
 			      const struct llist_head *comp_entities, int nsapi)
 {
 	int rc;
-	int pcomp_index = 0;
+	uint8_t pcomp_index = 0;
 	struct gprs_sndcp_comp *comp_entity;
 
 	OSMO_ASSERT(data_o);
@@ -306,7 +236,7 @@ int gprs_sndcp_pcomp_compress(uint8_t *data_o, uint8_t *data_i, int len,
 	/* Skip compression if no suitable compression entity can be found */
 	if (!comp_entity) {
 		*pcomp = 0;
-		memcpy(data_o,data_i,len);
+		memcpy(data_o, data_i, len);
 		return len;
 	}
 
@@ -328,7 +258,7 @@ int gprs_sndcp_pcomp_compress(uint8_t *data_o, uint8_t *data_i, int len,
 	*pcomp = gprs_sndcp_comp_get_comp(comp_entity, pcomp_index);
 
 	LOGP(DSNDCP, LOGL_DEBUG,
-	     "Header compression done, old length=%i, new length=%i\n",
+	     "Header compression done, old length=%d, new length=%d\n",
 	     len, rc);
 	return rc;
 }

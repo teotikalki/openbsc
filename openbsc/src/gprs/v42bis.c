@@ -46,6 +46,7 @@
 #include <openbsc/v42bis.h>
 #include <openbsc/v42bis_private.h>
 #include <openbsc/debug.h>
+#include <osmocom/core/talloc.h>
 
 
 /* Fixed parameters from the spec. */
@@ -650,7 +651,8 @@ SPAN_DECLARE(void) v42bis_compression_control(v42bis_state_t *s, int mode)
 }
 /*- End of function --------------------------------------------------------*/
 
-SPAN_DECLARE(v42bis_state_t *) v42bis_init(v42bis_state_t *s,
+SPAN_DECLARE(v42bis_state_t *) v42bis_init(const void *ctx,
+                                           v42bis_state_t *s,
                                            int negotiated_p0,
                                            int negotiated_p1,
                                            int negotiated_p2,
@@ -669,7 +671,7 @@ SPAN_DECLARE(v42bis_state_t *) v42bis_init(v42bis_state_t *s,
         return NULL;
     if (s == NULL)
     {
-        if ((s = (v42bis_state_t *) malloc(sizeof(*s))) == NULL)
+        if ((s = (v42bis_state_t *) talloc_zero_size(ctx,sizeof(*s))) == NULL)
             return NULL;
     }
     memset(s, 0, sizeof(*s));
@@ -731,7 +733,7 @@ SPAN_DECLARE(int) v42bis_release(v42bis_state_t *s)
 
 SPAN_DECLARE(int) v42bis_free(v42bis_state_t *s)
 {
-    free(s);
+    talloc_free(s);
     return 0;
 }
 /*- End of function --------------------------------------------------------*/

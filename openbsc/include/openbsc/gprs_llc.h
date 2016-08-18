@@ -179,8 +179,8 @@ struct gprs_llc_llme {
 		/* In this two list_heads we will store the
 		 * data and protocol compression entities,
 		 * together with their compression states */
-		struct llist_head proto;
-		struct llist_head data;
+		struct llist_head *proto;
+		struct llist_head *data;
 	} comp;
 
 	/* Internal management */

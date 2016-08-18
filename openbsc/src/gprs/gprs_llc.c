@@ -553,17 +553,16 @@ static struct gprs_llc_llme *llme_alloc(uint32_t tlli)
 
 	llist_add(&llme->list, &gprs_llc_llmes);
 
-	INIT_LLIST_HEAD(&llme->comp.proto);
-	INIT_LLIST_HEAD(&llme->comp.data);
-
+	llme->comp.proto = gprs_sndcp_comp_alloc(llme);
+	llme->comp.data = gprs_sndcp_comp_alloc(llme);
 
 	return llme;
 }
 
 static void llme_free(struct gprs_llc_llme *llme)
 {
-	gprs_sndcp_comp_free(&llme->comp.proto);
-	gprs_sndcp_comp_free(&llme->comp.data);
+	llme->comp.proto = gprs_sndcp_comp_free(llme->comp.proto);
+	llme->comp.data = gprs_sndcp_comp_free(llme->comp.data);
 	llme->xid = gprs_llc_free_xid(llme->xid);
 	llist_del(&llme->list);
 	talloc_free(llme);

@@ -48,8 +48,11 @@ struct gprs_sndcp_comp {
 	void *state;		/* Algorithm status and parameters */
 };
 
-/* Free a list with compression entities */
-void gprs_sndcp_comp_free(struct llist_head *comp_entities);
+/* Allocate a compression enitiy list */
+struct llist_head *gprs_sndcp_comp_alloc(const void *ctx);
+
+/* Free a compression entitiy list */
+struct llist_head *gprs_sndcp_comp_free(struct llist_head *comp_entities);
 
 /* Delete a compression entity */
 void gprs_sndcp_comp_delete(struct llist_head *comp_entities, int entity);

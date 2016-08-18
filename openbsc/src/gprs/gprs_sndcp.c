@@ -550,7 +550,7 @@ int sndcp_unitdata_req(struct msgb *msg, struct gprs_llc_lle *lle, uint8_t nsapi
 #endif
 	compr = talloc_zero_size(msg, msg->len);
 	rc = gprs_sndcp_pcomp_compress(compr,msg->data, msg->len,&pcomp, 
-				       &lle->llme->comp.proto, nsapi);
+				       lle->llme->comp.proto, nsapi);
 	if (rc < 0) {
 		talloc_free(compr);
 		return -EIO;
@@ -668,7 +668,7 @@ int sndcp_llunitdata_ind(struct msgb *msg, struct gprs_llc_lle *lle,
 	/* any non-first segment is by definition something to defragment
 	 * as is any segment that tells us there are more segments */
 	if (!sch->first || sch->more)
-		return defrag_input(sne, msg, hdr, len, &lle->llme->comp.proto);
+		return defrag_input(sne, msg, hdr, len, lle->llme->comp.proto);
 
 	npdu_num = (suh->npdu_high << 8) | suh->npdu_low;
 	npdu = (uint8_t *)suh + sizeof(*suh);
@@ -691,7 +691,7 @@ int sndcp_llunitdata_ind(struct msgb *msg, struct gprs_llc_lle *lle,
 #endif
 	expnd = talloc_zero_size(msg,npdu_len + 64);
 	rc = gprs_sndcp_pcomp_expand(expnd, npdu, npdu_len,
-				     sne->pcomp, &lle->llme->comp.proto);
+				     sne->pcomp, lle->llme->comp.proto);
 	sne->pcomp = 0;
 	if (rc < 0) {
 		talloc_free(expnd);
@@ -870,12 +870,12 @@ static int handle_pcomp_entities(struct gprs_sndcp_comp_field *comp_field,
 			LOGP(DSNDCP, LOGL_DEBUG,
 			     "Accepting RFC1144 header conpression...\n");
 			gprs_sndcp_comp_entities_add(lle->llme,
-						     &lle->llme->comp.proto,
+						     lle->llme->comp.proto,
 						     comp_field);
 		} else {
 			LOGP(DSNDCP, LOGL_DEBUG,
 			     "Rejecting RFC1144 header conpression...\n");
-			gprs_sndcp_comp_delete(&lle->llme->comp.proto,
+			gprs_sndcp_comp_delete(lle->llme->comp.proto,
 					       comp_field->entity);
 			comp_field->rfc1144_params->nsapi_len = 0;
 		}
@@ -886,7 +886,7 @@ static int handle_pcomp_entities(struct gprs_sndcp_comp_field *comp_field,
 		LOGP(DSNDCP, LOGL_DEBUG,
 		     "Rejecting RFC2507 header conpression...\n");
 		comp_field->rfc2507_params->nsapi_len = 0;
-		gprs_sndcp_comp_delete(&lle->llme->comp.proto,
+		gprs_sndcp_comp_delete(lle->llme->comp.proto,
 				       comp_field->entity);
 		break;
 	case ROHC:
@@ -895,7 +895,7 @@ static int handle_pcomp_entities(struct gprs_sndcp_comp_field *comp_field,
 		LOGP(DSNDCP, LOGL_DEBUG,
 		     "Rejecting ROHC header conpression...\n");
 		comp_field->rohc_params->nsapi_len = 0;
-		gprs_sndcp_comp_delete(&lle->llme->comp.proto,
+		gprs_sndcp_comp_delete(lle->llme->comp.proto,
 				       comp_field->entity);
 		break;
 	}
@@ -923,7 +923,7 @@ static int handle_dcomp_entities(struct gprs_sndcp_comp_field *comp_field,
 		LOGP(DSNDCP, LOGL_DEBUG,
 		     "Rejecting V42BIS data conpression...\n");
 		comp_field->rfc2507_params->nsapi_len = 0;
-		gprs_sndcp_comp_delete(&lle->llme->comp.data,
+		gprs_sndcp_comp_delete(lle->llme->comp.data,
 				       comp_field->entity);
 		break;
 	case V44:
@@ -931,7 +931,7 @@ static int handle_dcomp_entities(struct gprs_sndcp_comp_field *comp_field,
 		 * so we set applicable nsapis to zero */
 		LOGP(DSNDCP, LOGL_DEBUG, "Rejecting V44 data conpression...\n");
 		comp_field->rohc_params->nsapi_len = 0;
-		gprs_sndcp_comp_delete(&lle->llme->comp.data,
+		gprs_sndcp_comp_delete(lle->llme->comp.data,
 				       comp_field->entity);
 		break;
 	}
@@ -988,9 +988,9 @@ int sndcp_sn_xid_ind(struct gprs_llc_xid_field *xid_field_indication,
 		else if (compclass == SNDCP_XID_DATA_COMPRESSION)
 			rc = handle_dcomp_entities(comp_field, lle);
 		else {
-			gprs_sndcp_comp_delete(&lle->llme->comp.proto,
+			gprs_sndcp_comp_delete(lle->llme->comp.proto,
 					       comp_field->entity);
-			gprs_sndcp_comp_delete(&lle->llme->comp.data,
+			gprs_sndcp_comp_delete(lle->llme->comp.data,
 					       comp_field->entity);
 			rc = 0;
 		}
@@ -1085,9 +1085,9 @@ int sndcp_sn_xid_conf(struct gprs_llc_xid_field *xid_field_confirmation,
 			else if (compclass == SNDCP_XID_DATA_COMPRESSION)
 				rc = handle_dcomp_entities(comp_field, lle);
 			else {
-				gprs_sndcp_comp_delete(&lle->llme->comp.proto,
+				gprs_sndcp_comp_delete(lle->llme->comp.proto,
 						       comp_field->entity);
-				gprs_sndcp_comp_delete(&lle->llme->comp.data,
+				gprs_sndcp_comp_delete(lle->llme->comp.data,
 						       comp_field->entity);
 				rc = 0;
 			}

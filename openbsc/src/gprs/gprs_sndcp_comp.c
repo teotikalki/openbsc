@@ -50,32 +50,32 @@ static struct gprs_sndcp_comp *gprs_sndcp_comp_create(const void
 	comp_entity->entity = comp_field->entity;
 	comp_entity->comp_len = comp_field->comp_len;
 	memcpy(comp_entity->comp, comp_field->comp,
-	       comp_field->comp_len * sizeof(int));
+	       sizeof(comp_entity->comp));
 
 	if (comp_field->rfc1144_params) {
 		comp_entity->nsapi_len = comp_field->rfc1144_params->nsapi_len;
 		memcpy(comp_entity->nsapi,
 		       comp_field->rfc1144_params->nsapi,
-		       comp_entity->nsapi_len * sizeof(int));
+		       sizeof(comp_entity->nsapi));
 	} else if (comp_field->rfc2507_params) {
 		comp_entity->nsapi_len = comp_field->rfc2507_params->nsapi_len;
 		memcpy(comp_entity->nsapi,
 		       comp_field->rfc2507_params->nsapi,
-		       comp_entity->nsapi_len * sizeof(int));
+		       sizeof(comp_entity->nsapi));
 	} else if (comp_field->rohc_params) {
 		comp_entity->nsapi_len = comp_field->rohc_params->nsapi_len;
 		memcpy(comp_entity->nsapi, comp_field->rohc_params->nsapi,
-		       comp_entity->nsapi_len * sizeof(int));
+		       sizeof(comp_entity->nsapi));
 	} else if (comp_field->v42bis_params) {
 		comp_entity->nsapi_len = comp_field->v42bis_params->nsapi_len;
 		memcpy(comp_entity->nsapi,
 		       comp_field->v42bis_params->nsapi,
-		       comp_entity->nsapi_len * sizeof(int));
+		       sizeof(comp_entity->nsapi));
 	} else if (comp_field->v44_params) {
 		comp_entity->nsapi_len = comp_field->v42bis_params->nsapi_len;
 		memcpy(comp_entity->nsapi,
 		       comp_field->v42bis_params->nsapi,
-		       comp_entity->nsapi_len * sizeof(int));
+		       sizeof(comp_entity->nsapi));
 	} else {
 		/* The caller is expected to check carefully if the all
 		 * data fields required for compression entity creation
@@ -128,10 +128,20 @@ static struct gprs_sndcp_comp *gprs_sndcp_comp_create(const void
 	return comp_entity;
 }
 
-/* Free a list with compression entities */
-void gprs_sndcp_comp_free(struct llist_head *comp_entities)
+/* Allocate a compression enitiy list */
+struct llist_head *gprs_sndcp_comp_alloc(const void *ctx)
 {
-	struct llist_head *ce, *ce2;
+	struct llist_head *lh;
+
+	lh = talloc_zero(ctx,struct llist_head);
+	INIT_LLIST_HEAD(lh);
+
+	return lh;
+}
+
+/* Free a compression entitiy list */
+struct llist_head *gprs_sndcp_comp_free(struct llist_head *comp_entities)
+{
 	struct gprs_sndcp_comp *comp_entity;
 
 	OSMO_ASSERT(comp_entities);
@@ -150,11 +160,8 @@ void gprs_sndcp_comp_free(struct llist_head *comp_entities)
 		}
 	}
 
-	llist_for_each_safe(ce, ce2, comp_entities) {
-		llist_del(ce);
-		talloc_free(ce);
-	}
-
+	talloc_free(comp_entities);
+	return NULL;
 }
 
 /* Delete a compression entity */
@@ -187,7 +194,6 @@ void gprs_sndcp_comp_delete(struct llist_head *comp_entities, int entity)
 		llist_del(&comp_entity_to_delete->list);
 		talloc_free(comp_entity_to_delete);
 	}
-
 }
 
 /* Create and Add a new compression entity
@@ -210,12 +216,11 @@ struct gprs_sndcp_comp *gprs_sndcp_comp_entities_add(const void *ctx, struct
 	/* Create and add a new entity to the list */
 	comp_entity = gprs_sndcp_comp_create(ctx, comp_field);
 
-	if (comp_entity) {
-		llist_add(&comp_entity->list, comp_entities);
-		return comp_entity;
-	}
+	if (!comp_entity)
+		return NULL;
 
-	return NULL;
+	llist_add(&comp_entity->list, comp_entities);
+	return comp_entity;
 }
 
 /* Find compression entity by its entity number */
@@ -282,7 +287,6 @@ struct gprs_sndcp_comp *gprs_sndcp_comp_by_nsapi(const struct
 	     "Could not find a matching compression entity for given nsapi value %i\n",
 	     nsapi);
 	return NULL;
-
 }
 
 /* Find a comp_index for a given pcomp/dcomp value */
@@ -310,7 +314,6 @@ int gprs_sndcp_comp_get_idx(const struct
 	     "Could not find a matching comp_index for given pcomp/dcomp value %i\n",
 	     comp);
 	return 0;
-
 }
 
 /* Find a pcomp/dcomp value for a given comp_index */
@@ -333,5 +336,4 @@ int gprs_sndcp_comp_get_comp(const struct
 
 	/* Look in the pcomp/dcomp list for the comp_index */
 	return comp_entity->comp[comp_index - 1];
-
 }

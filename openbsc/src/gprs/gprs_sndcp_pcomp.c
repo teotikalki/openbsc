@@ -103,11 +103,6 @@ static int gprs_sndcp_pcomp_rfc1144_compress(uint8_t *pcomp_index,
 	uint8_t *comp_ptr;
 	int compr_len;
 
-	OSMO_ASSERT(pcomp_index);
-	OSMO_ASSERT(data_o);
-	OSMO_ASSERT(data_i);
-	OSMO_ASSERT(comp);
-
 	/* Create a working copy of the incoming data */
 	memcpy(data_o, data_i, len);
 
@@ -136,10 +131,6 @@ static int gprs_sndcp_pcomp_rfc1144_expand(uint8_t *data_o, uint8_t *data_i,
 {
 	int data_decompressed_len;
 	int type = -1;
-
-	OSMO_ASSERT(data_o);
-	OSMO_ASSERT(data_i);
-	OSMO_ASSERT(comp);
 
 	/* Note: this function should never be called with pcomp_index=0,
 	 * since this condition is already filtered

@@ -61,9 +61,6 @@ static int encode_pcomp_applicable_sapis(uint8_t *dst,
 	uint8_t nsapi;
 	int i;
 
-	OSMO_ASSERT(dst);
-	OSMO_ASSERT(nsapis);
-
 	/* Bail if number of possible nsapis exceeds valid range
 	 * (Only 11 nsapis possible for PDP-Contexts) */
 	OSMO_ASSERT(nsapis_len <= 11);
@@ -99,8 +96,6 @@ static int encode_pcomp_rfc1144_params(uint8_t *dst, unsigned int dst_maxlen,
 	int dst_counter = 0;
 	int rc;
 
-	OSMO_ASSERT(params);
-	OSMO_ASSERT(dst);
 	OSMO_ASSERT(dst_maxlen >= 3);
 
 	/* Zero out buffer */
@@ -137,8 +132,6 @@ static int encode_pcomp_rfc2507_params(uint8_t *dst, unsigned int dst_maxlen,
 	int dst_counter = 0;
 	int rc;
 
-	OSMO_ASSERT(params);
-	OSMO_ASSERT(dst);
 	OSMO_ASSERT(dst_maxlen >= 9);
 
 	/* Zero out buffer */
@@ -209,8 +202,6 @@ static int encode_pcomp_rohc_params(uint8_t *dst, unsigned int dst_maxlen,
 	int dst_counter = 0;
 	int rc;
 
-	OSMO_ASSERT(params);
-	OSMO_ASSERT(dst);
 	OSMO_ASSERT(dst_maxlen >= 38);
 
 	/* Bail if number of ROHC profiles exceeds limit
@@ -270,8 +261,6 @@ static int encode_dcomp_v42bis_params(uint8_t *dst, unsigned int dst_maxlen,
 	int dst_counter = 0;
 	int rc;
 
-	OSMO_ASSERT(params);
-	OSMO_ASSERT(dst);
 	OSMO_ASSERT(dst_maxlen >= 6);
 
 	/* Zero out buffer */
@@ -322,8 +311,6 @@ static int encode_dcomp_v44_params(uint8_t *dst, unsigned int dst_maxlen,
 	int dst_counter = 0;
 	int rc;
 
-	OSMO_ASSERT(params);
-	OSMO_ASSERT(dst);
 	OSMO_ASSERT(dst_maxlen >= 12);
 
 	/* Zero out buffer */
@@ -400,9 +387,6 @@ static int encode_comp_field(uint8_t *dst, unsigned int dst_maxlen,
 	int len;
 	int expected_length;
 	int i;
-
-	OSMO_ASSERT(dst);
-	OSMO_ASSERT(comp_field);
 
 	uint8_t payload_bytes[256];
 	int payload_bytes_len = -1;
@@ -547,9 +531,6 @@ static int gprs_sndcp_pack_fields(const struct llist_head *comp_fields,
 	int byte_counter = 0;
 	int rc;
 
-	OSMO_ASSERT(comp_fields);
-	OSMO_ASSERT(dst);
-
 	llist_for_each_entry_reverse(comp_field, comp_fields, list) {
 		if (class == gprs_sndcp_get_compression_class(comp_field)) {
 			rc = encode_comp_field(dst + byte_counter,
@@ -630,8 +611,6 @@ static int decode_pcomp_applicable_sapis(uint8_t *nsapis,
 	int i;
 	int nsapi_len = 0;
 
-	OSMO_ASSERT(src);
-
 	/* Exit immediately if no result can be stored */
 	if (!nsapis)
 		return -EINVAL;
@@ -667,8 +646,6 @@ static int decode_pcomp_16_bit_field(int *value_int, uint16_t * value_uint16,
 				     int value_min, int value_max)
 {
 	uint16_t blob;
-
-	OSMO_ASSERT(src);
 
 	/* Reset values to zero (just to be sure) */
 	if (value_int)
@@ -710,8 +687,6 @@ static int decode_pcomp_8_bit_field(int *value_int, uint8_t *value_uint8,
 {
 	uint8_t blob;
 
-	OSMO_ASSERT(src);
-
 	/* Reset values to invalid (just to be sure) */
 	if (value_int)
 		*value_int = -1;
@@ -749,9 +724,6 @@ static int decode_pcomp_rfc1144_params(struct gprs_sndcp_pcomp_rfc1144_params
 	int rc;
 	int byte_counter = 0;
 
-	OSMO_ASSERT(params);
-	OSMO_ASSERT(src);
-
 	/* Mark all optional parameters invalid by default */
 	params->s01 = -1;
 
@@ -785,9 +757,6 @@ static int decode_pcomp_rfc2507_params(struct gprs_sndcp_pcomp_rfc2507_params
 {
 	int rc;
 	int byte_counter = 0;
-
-	OSMO_ASSERT(params);
-	OSMO_ASSERT(src);
 
 	/* Mark all optional parameters invalid by default */
 	params->f_max_period = -1;
@@ -857,9 +826,6 @@ static int decode_pcomp_rohc_params(struct gprs_sndcp_pcomp_rohc_params *params,
 	int byte_counter = 0;
 	int i;
 
-	OSMO_ASSERT(params);
-	OSMO_ASSERT(src);
-
 	/* Mark all optional parameters invalid by default */
 	params->max_cid = -1;
 	params->max_header = -1;
@@ -914,9 +880,6 @@ static int decode_dcomp_v42bis_params(struct gprs_sndcp_dcomp_v42bis_params
 	int rc;
 	int byte_counter = 0;
 
-	OSMO_ASSERT(params);
-	OSMO_ASSERT(src);
-
 	/* Mark all optional parameters invalid by default */
 	params->p0 = -1;
 	params->p1 = -1;
@@ -965,9 +928,6 @@ static int decode_dcomp_v44_params(struct gprs_sndcp_dcomp_v44_params *params,
 {
 	int rc;
 	int byte_counter = 0;
-
-	OSMO_ASSERT(params);
-	OSMO_ASSERT(src);
 
 	/* Mark all optional parameters invalid by default */
 	params->c0 = -1;
@@ -1071,9 +1031,6 @@ static int decode_comp_values(struct gprs_sndcp_comp_field *comp_field,
 	int src_counter = 0;
 	int i;
 
-	OSMO_ASSERT(comp_field);
-	OSMO_ASSERT(src);
-
 	if (comp_field->p) {
 		/* Determine the number of expected PCOMP/DCOMP values */
 		if (compclass == SNDCP_XID_PROTOCOL_COMPRESSION) {
@@ -1136,9 +1093,6 @@ static int decode_pcomp_params(struct gprs_sndcp_comp_field *comp_field,
 {
 	int rc;
 
-	OSMO_ASSERT(comp_field);
-	OSMO_ASSERT(src);
-
 	switch (comp_field->algo) {
 	case RFC_1144:
 		comp_field->rfc1144_params = talloc_zero(comp_field, struct
@@ -1186,9 +1140,6 @@ static int decode_dcomp_params(struct gprs_sndcp_comp_field *comp_field,
 			       const uint8_t *src, int src_len)
 {
 	int rc;
-
-	OSMO_ASSERT(comp_field);
-	OSMO_ASSERT(src);
 
 	switch (comp_field->algo) {
 	case V42BIS:
@@ -1304,9 +1255,6 @@ static int decode_xid_block(struct llist_head *comp_fields, uint8_t tag,
 	int comp_field_count = 0;
 	int rc;
 
-	OSMO_ASSERT(comp_fields);
-	OSMO_ASSERT(val);
-
 	byte_counter = 0;
 	do {
 		/* Bail if more than the maximum number of
@@ -1350,9 +1298,6 @@ static int gprs_sndcp_decode_xid(struct llist_head *comp_fields,
 	int byte_counter = 0;
 	int rc;
 	int tlv_count = 0;
-
-	OSMO_ASSERT(comp_fields);
-	OSMO_ASSERT(src);
 
 	/* Valid TLV-Tag and types */
 	static const struct tlv_definition sndcp_xid_def = {
@@ -1416,9 +1361,6 @@ static int gprs_sndcp_fill_table(struct
 	struct gprs_sndcp_comp_field *comp_field;
 	int i = 0;
 
-	OSMO_ASSERT(lt);
-	OSMO_ASSERT(comp_fields);
-
 	if (!comp_fields)
 		return -EINVAL;
 	if (!lt)
@@ -1449,9 +1391,6 @@ static int complete_comp_field_params(struct gprs_sndcp_comp_field
 				      *comp_field_dst, const struct
 				      gprs_sndcp_comp_field *comp_field_src)
 {
-	OSMO_ASSERT(comp_field_dst);
-	OSMO_ASSERT(comp_field_src);
-
 	if (comp_field_dst->algo < 0)
 		return -EINVAL;
 
@@ -1566,9 +1505,6 @@ static int gprs_sndcp_complete_comp_field(struct gprs_sndcp_comp_field
 	struct gprs_sndcp_comp_field *comp_field_src;
 	int rc = 0;
 
-	OSMO_ASSERT(comp_field);
-	OSMO_ASSERT(comp_fields);
-
 	llist_for_each_entry(comp_field_src, comp_fields, list) {
 		if (comp_field_src->entity == comp_field->entity) {
 
@@ -1596,9 +1532,6 @@ static int gprs_sndcp_complete_comp_fields(struct llist_head
 {
 	struct gprs_sndcp_comp_field *comp_field_incomplete;
 	int rc;
-
-	OSMO_ASSERT(comp_fields_incomplete);
-	OSMO_ASSERT(comp_fields);
 
 	llist_for_each_entry(comp_field_incomplete, comp_fields_incomplete,
 			     list) {
@@ -1673,8 +1606,6 @@ static void dump_pcomp_params(const struct gprs_sndcp_comp_field
 			      *comp_field, unsigned int logl)
 {
 	int i;
-
-	OSMO_ASSERT(comp_field);
 
 	switch (comp_field->algo) {
 	case RFC_1144:
@@ -1775,8 +1706,6 @@ static void dump_dcomp_params(const struct gprs_sndcp_comp_field
 			      *comp_field, unsigned int logl)
 {
 	int i;
-
-	OSMO_ASSERT(comp_field);
 
 	switch (comp_field->algo) {
 	case V42BIS:

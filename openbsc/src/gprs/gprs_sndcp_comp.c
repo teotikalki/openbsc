@@ -41,8 +41,6 @@ static struct gprs_sndcp_comp *gprs_sndcp_comp_create(const void *ctx,
 						      gprs_sndcp_comp_field
 						      *comp_field)
 {
-	OSMO_ASSERT(comp_field);
-
 	struct gprs_sndcp_comp *comp_entity;
 	comp_entity = talloc_zero(ctx, struct gprs_sndcp_comp);
 
@@ -89,10 +87,10 @@ static struct gprs_sndcp_comp *gprs_sndcp_comp_create(const void *ctx,
 	 * in case of missing NSAPIs */
 	OSMO_ASSERT(comp_entity->nsapi_len > 0);
 
-	    /* Determine of which class our compression entity will be
-	     * (Protocol or Data compresson ?) */
-	    comp_entity->compclass =
-	    gprs_sndcp_get_compression_class(comp_field);
+	/* Determine of which class our compression entity will be
+	 * (Protocol or Data compresson ?) */
+	comp_entity->compclass = gprs_sndcp_get_compression_class(comp_field);
+
 	OSMO_ASSERT(comp_entity->compclass != -1);
 
 	/* Create an algorithm specific compression context */

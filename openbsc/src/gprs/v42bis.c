@@ -307,20 +307,20 @@ SPAN_DECLARE(int) v42bis_compress(v42bis_state_t *s, const uint8_t *buf, int len
                 {
                     if (ss->transparent)
                     {
-                        DEBUGP(DV42BIS,"Going compressed\n");
+                        printf("Going compressed\n");
                         /* 7.8.1 Transition to compressed mode */
                         /* Switch out of transparent now, between codes. We need to send the octet which did not
                         match, just before switching. */
                         if (octet == ss->escape_code)
                         {
-                            push_compressed_octet(ss, ss->escape_code++);
+                            push_compressed_octet(ss, (ss->escape_code - 0x33)%256);
                             push_compressed_octet(ss, V42BIS_EID);
                         }
                         else
                         {
                             push_compressed_octet(ss, octet);
                         }
-                        push_compressed_octet(ss, ss->escape_code++);
+                        push_compressed_octet(ss, (ss->escape_code - 0x33)%256);
                         push_compressed_octet(ss, V42BIS_ECM);
                         ss->transparent = FALSE;
                     }
@@ -329,7 +329,7 @@ SPAN_DECLARE(int) v42bis_compress(v42bis_state_t *s, const uint8_t *buf, int len
                 {
                     if (!ss->transparent)
                     {
-                        DEBUGP(DV42BIS,"Going transparent\n");
+                        printf("Going transparent\n");
                         /* 7.8.2 Transition to transparent mode */
                         /* Switch into transparent now, between codes, and the unmatched octet should
                            go out in transparent mode, just below */
@@ -347,7 +347,7 @@ SPAN_DECLARE(int) v42bis_compress(v42bis_state_t *s, const uint8_t *buf, int len
         {
             if (octet == ss->escape_code)
             {
-                push_compressed_octet(ss, ss->escape_code++);
+                push_compressed_octet(ss, (ss->escape_code - 0x33)%256);
                 push_compressed_octet(ss, V42BIS_EID);
             }
             else
@@ -398,7 +398,7 @@ SPAN_DECLARE(int) v42bis_compress_dump(v42bis_state_t *s)
     {
         if (s->compress.dict[i].parent_code != 0xFFFF)
         {
-            DEBUGP(DV42BIS,"Entry %4x, prior %4x, leaves %d, octet %2x\n", i, s->compress.dict[i].parent_code, s->compress.dict[i].leaves, s->compress.dict[i].node_octet);
+            printf("Entry %4x, prior %4x, leaves %d, octet %2x\n", i, s->compress.dict[i].parent_code, s->compress.dict[i].leaves, s->compress.dict[i].node_octet);
         }
     }
     return 0;
@@ -418,9 +418,13 @@ SPAN_DECLARE(int) v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int l
     v42bis_decompress_state_t *ss;
     uint8_t decode_buf[V42BIS_MAX_STRING_SIZE];
 
+	printf("DCOMP START\n");
+
     ss = &s->decompress;
     if ((s->v42bis_parm_p0 & 1) == 0)
     {
+	printf("COMPR OFF!\n");
+
         /* Compression is off - just push the incoming data out */
         for (i = 0;  i < len - ss->max_len;  i += ss->max_len)
             ss->handler(ss->user_data, buf + i, ss->max_len);
@@ -429,36 +433,56 @@ SPAN_DECLARE(int) v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int l
         return 0;
     }
     ptr = 0;
+
+	printf("ss->escape_code=%02x\n",ss->escape_code);
+	printf("DCOMP...\n");
+
+
+	printf("code_len=%02x\n",code_len);
     code_len = (ss->transparent)  ?  8  :  ss->v42bis_parm_c2;
+
+	printf("code_len=%02x\n",code_len);
     for (;;)
     {
+
+
         /* Fill up the bit buffer. */
+
         while (ss->input_bit_count < 32 - 8  &&  ptr < len)
         {
             ss->input_bit_count += 8;
             ss->input_bit_buffer |= (uint32_t) buf[ptr++] << (32 - ss->input_bit_count);
         }
+
+
         if (ss->input_bit_count < code_len)
             break;
         new_code = ss->input_bit_buffer >> (32 - code_len);
         ss->input_bit_count -= code_len;
         ss->input_bit_buffer <<= code_len;
+
+
+		printf(" %02x",new_code);
+
         if (ss->transparent)
         {
             code = new_code;
             if (ss->escaped)
             {
+
+
                 ss->escaped = FALSE;
                 if (code == V42BIS_ECM)
                 {
-                    DEBUGP(DV42BIS,"Hit V42BIS_ECM\n");
+                    printf("Hit V42BIS_ECM\n");
                     ss->transparent = FALSE;
                     code_len = ss->v42bis_parm_c2;
+			printf("code_len=%02x\n",code_len);
                 }
                 else if (code == V42BIS_EID)
                 {
-                    DEBUGP(DV42BIS,"Hit V42BIS_EID\n");
-                    ss->output_buf[ss->output_octet_count++] = ss->escape_code - 1;
+                    printf("Hit V42BIS_EID\n");
+                    ss->output_buf[ss->output_octet_count++] = (ss->escape_code - 0x33)%256;
                     if (ss->output_octet_count >= ss->max_len - s->v42bis_parm_n7)
                     {
                         ss->handler(ss->user_data, ss->output_buf, ss->output_octet_count);
@@ -467,16 +491,17 @@ SPAN_DECLARE(int) v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int l
                 }
                 else if (code == V42BIS_RESET)
                 {
-                    DEBUGP(DV42BIS,"Hit V42BIS_RESET\n");
+                    printf("Hit V42BIS_RESET\n");
                 }
                 else
                 {
-                    DEBUGP(DV42BIS,"Hit V42BIS_???? - %" PRIu32 "\n", code);
+                    printf("Hit V42BIS_???? - %" PRIu32 "\n", code);
                 }
             }
             else if (code == ss->escape_code)
             {
-                ss->escape_code++;
+		printf("<ESC=%02x>",ss->escape_code);
+                ss->escape_code=(ss->escape_code + 0x33)%256;
                 ss->escaped = TRUE;
             }
             else
@@ -493,24 +518,26 @@ SPAN_DECLARE(int) v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int l
         {
             if (new_code < V42BIS_N6)
             {
+		printf("(new_code < V42BIS_N6)\n");
                 /* We have a control code. */
                 switch (new_code)
                 {
                 case V42BIS_ETM:
-                    DEBUGP(DV42BIS,"Hit V42BIS_ETM\n");
+                    printf("Hit V42BIS_ETM\n");
                     ss->transparent = TRUE;
                     code_len = 8;
                     break;
                 case V42BIS_FLUSH:
-                    DEBUGP(DV42BIS,"Hit V42BIS_FLUSH\n");
+                    printf("Hit V42BIS_FLUSH\n");
                     v42bis_decompress_flush(s);
                     break;
                 case V42BIS_STEPUP:
                     /* We need to increase the codeword size */
-                    DEBUGP(DV42BIS,"Hit V42BIS_STEPUP\n");
+                    printf("Hit V42BIS_STEPUP\n");
                     if (ss->v42bis_parm_c3 >= s->v42bis_parm_n2)
                     {
                         /* Invalid condition */
+			printf("Invalid condition!\n");
                         return -1;
                     }
                     code_len = ++ss->v42bis_parm_c2;
@@ -521,6 +548,7 @@ SPAN_DECLARE(int) v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int l
             }
             if (ss->first)
             {
+		printf("ss->first\n");
                 ss->first = FALSE;
                 ss->octet = new_code - V42BIS_N6;
                 ss->output_buf[0] = (uint8_t) ss->octet;
@@ -537,14 +565,16 @@ SPAN_DECLARE(int) v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int l
             string = &decode_buf[V42BIS_MAX_STRING_SIZE - 1];
             /* Check the received code is valid. It can't be too big, as we pulled only the expected number
             of bits from the input stream. It could, however, be unknown. */
-            if (ss->dict[new_code].parent_code == 0xFFFF)
+            if (ss->dict[new_code].parent_code == 0xFFFF){
+		printf(" new_code=%02x, parent_code == 0xFFFF\n",new_code);
                 return -1;
+		}
             /* Otherwise we do a straight decode of the new code. */
             code = new_code;
             /* Trace back through the octets which form the string, and output them. */
             while (code >= V42BIS_N5)
             {
-if (code > 4095) {DEBUGP(DV42BIS,"Code is 0x%" PRIu32 "\n", code); exit(2);}
+if (code > 4095) {printf("Code is 0x%" PRIu32 "\n", code); exit(2);}
                 *string-- = ss->dict[code].node_octet;
                 code = ss->dict[code].parent_code;
             }
@@ -562,11 +592,14 @@ if (code > 4095) {DEBUGP(DV42BIS,"Code is 0x%" PRIu32 "\n", code); exit(2);}
             /* 6.4 Add the string to the dictionary */
             if (ss->last_length < s->v42bis_parm_n7)
             {
+		printf(" Add the string to the dictionary\n");
+	
                 /* 6.4(a) The string does not exceed N7 in length */
                 if (ss->last_old_code != ss->old_code
                     ||
                     ss->last_extra_octet != *string)
                 {
+			printf("The string is not in the table.\n");
                     /* 6.4(b) The string is not in the table. */
                     ss->dict[ss->old_code].leaves++;
                     /* The new one is definitely a leaf */
@@ -576,6 +609,7 @@ if (code > 4095) {DEBUGP(DV42BIS,"Code is 0x%" PRIu32 "\n", code); exit(2);}
                     /* 6.5 Recovering a dictionary entry to use next */
                     for (;;)
                     {
+			printf(".");
                         /* 6.5(a) and (b) */
                         if (++ss->v42bis_parm_c1 >= s->v42bis_parm_n2)
                             ss->v42bis_parm_c1 = V42BIS_N5;
@@ -628,7 +662,7 @@ SPAN_DECLARE(int) v42bis_decompress_dump(v42bis_state_t *s)
     {
         if (s->decompress.dict[i].parent_code != 0xFFFF)
         {
-            DEBUGP(DV42BIS,"Entry %4x, prior %4x, leaves %d, octet %2x\n", i, s->decompress.dict[i].parent_code, s->decompress.dict[i].leaves, s->decompress.dict[i].node_octet);
+            printf("Entry %4x, prior %4x, leaves %d, octet %2x\n", i, s->decompress.dict[i].parent_code, s->decompress.dict[i].leaves, s->decompress.dict[i].node_octet);
         }
     }
     return 0;

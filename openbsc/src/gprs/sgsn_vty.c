@@ -271,10 +271,9 @@ static int config_write_sgsn(struct vty *vty)
 
 	if (g_cfg->pcomp_rfc1144.enabled) {
 		vty_out(vty, " compression rfc1144 slots %d%s",
-			    g_cfg->pcomp_rfc1144.s01+1, VTY_NEWLINE);
-	} else {
+			g_cfg->pcomp_rfc1144.s01+1, VTY_NEWLINE);
+	} else
 		vty_out(vty, " no compression rfc1144%s", VTY_NEWLINE);
-	}
 
 	return CMD_SUCCESS;
 }
@@ -1084,7 +1083,7 @@ DEFUN(cfg_cdr_interval, cfg_cdr_interval_cmd,
 #define COMPRESSION_STR "Configure compression\n"
 DEFUN(cfg_no_comp_rfc1144, cfg_no_comp_rfc1144_cmd,
       "no compression rfc1144",
-      COMPRESSION_STR
+      NO_STR COMPRESSION_STR
       "disable rfc1144 TCP/IP header compression\n")
 {
 	g_cfg->pcomp_rfc1144.enabled = 0;

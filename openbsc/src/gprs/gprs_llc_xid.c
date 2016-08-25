@@ -44,9 +44,6 @@ static int decode_xid_field(struct gprs_llc_xid_field *xid_field,
 	uint8_t len;
 	int src_counter = 0;
 
-	OSMO_ASSERT(xid_field);
-	OSMO_ASSERT(src);
-
 	/* Exit immediately if it is clear that no
 	 * parseable data is present */
 	if (src_len < 1 || !src)
@@ -89,9 +86,6 @@ static int encode_xid_field(uint8_t *dst, int dst_maxlen,
 			    const struct gprs_llc_xid_field *xid_field)
 {
 	int xl = 0;
-
-	OSMO_ASSERT(xid_field);
-	OSMO_ASSERT(dst);
 
 	/* When the length does not fit into 2 bits,
 	 * we need extended length fields */

@@ -49,6 +49,9 @@ int gprs_sndcp_pcomp_init(const void *ctx, struct gprs_sndcp_comp *comp_entity,
 	 * gprs_sndcp_comp.c when a new header compression
 	 * entity is created by gprs_sndcp.c */
 
+	OSMO_ASSERT(comp_entity);
+	OSMO_ASSERT(comp_field);
+
 	if (comp_entity->compclass == SNDCP_XID_PROTOCOL_COMPRESSION
 	    && comp_entity->algo == RFC_1144) {
 		comp_entity->state =
@@ -71,6 +74,8 @@ void gprs_sndcp_pcomp_term(struct gprs_sndcp_comp *comp_entity)
 	/* Note: This function is automatically called from
 	 * gprs_sndcp_comp.c when a header compression
 	 * entity is deleted by gprs_sndcp.c */
+
+	OSMO_ASSERT(comp_entity);
 
 	if (comp_entity->compclass == SNDCP_XID_PROTOCOL_COMPRESSION
 	    && comp_entity->algo == RFC_1144) {
@@ -95,8 +100,13 @@ static int gprs_sndcp_pcomp_rfc1144_compress(uint8_t *pcomp_index,
 					     unsigned int len,
 					     struct slcompress *comp)
 {
-	uint8_t *comp_ptr;	/* Required by slhc_compress() */
+	uint8_t *comp_ptr;
 	int compr_len;
+
+	OSMO_ASSERT(pcomp_index);
+	OSMO_ASSERT(data_o);
+	OSMO_ASSERT(data_i);
+	OSMO_ASSERT(comp);
 
 	/* Create a working copy of the incoming data */
 	memcpy(data_o, data_i, len);
@@ -127,6 +137,10 @@ static int gprs_sndcp_pcomp_rfc1144_expand(uint8_t *data_o, uint8_t *data_i,
 	int data_decompressed_len;
 	int type = -1;
 
+	OSMO_ASSERT(data_o);
+	OSMO_ASSERT(data_i);
+	OSMO_ASSERT(comp);
+
 	/* Note: this function should never be called with pcomp_index=0,
 	 * since this condition is already filtered
 	 * out by gprs_sndcp_pcomp_expand() */
@@ -147,9 +161,9 @@ static int gprs_sndcp_pcomp_rfc1144_expand(uint8_t *data_o, uint8_t *data_i,
 	/* Restore the original version nibble on
 	 * marked uncompressed packets */
 	if (type == SL_TYPE_UNCOMPRESSED_TCP) {
-		/* Just in case the phone tags uncompressed tcp-datas
+		/* Just in case the phone tags uncompressed tcp-data
 		 * (normally this is handled by pcomp so there is
-		 * no need for tagging the datas) */
+		 * no need for tagging the data) */
 		data_o[0] &= 0x4F;
 		data_decompressed_len = slhc_remember(comp, data_o, len);
 		return data_decompressed_len;
@@ -177,6 +191,11 @@ int gprs_sndcp_pcomp_expand(uint8_t *data_o, uint8_t *data_i,
 	OSMO_ASSERT(data_o);
 	OSMO_ASSERT(data_i);
 	OSMO_ASSERT(comp_entities);
+
+	LOGP(DSNDCP, LOGL_DEBUG, "Compression entity list: comp_entities=%p\n",
+	     comp_entities);
+
+	LOGP(DSNDCP, LOGL_DEBUG, "Header compression mode: pcomp=%d\n", pcomp);
 
 	/* Skip on pcomp=0 */
 	if (pcomp == 0) {
@@ -211,7 +230,8 @@ int gprs_sndcp_pcomp_expand(uint8_t *data_o, uint8_t *data_i,
 	slhc_o_status(comp_entity->state);
 
 	LOGP(DSNDCP, LOGL_DEBUG,
-	     "Header expansion done, old length=%d, new length=%d\n", len, rc);
+	     "Header expansion done, old length=%d, new length=%d, entity=%p\n",
+	     len, rc, comp_entity);
 
 	return rc;
 }
@@ -219,7 +239,8 @@ int gprs_sndcp_pcomp_expand(uint8_t *data_o, uint8_t *data_i,
 /* Compress packet header */
 int gprs_sndcp_pcomp_compress(uint8_t *data_o, uint8_t *data_i,
 			      unsigned int len, uint8_t *pcomp,
-			      const struct llist_head *comp_entities, int nsapi)
+			      const struct llist_head *comp_entities,
+			      uint8_t nsapi)
 {
 	int rc;
 	uint8_t pcomp_index = 0;
@@ -229,6 +250,9 @@ int gprs_sndcp_pcomp_compress(uint8_t *data_o, uint8_t *data_i,
 	OSMO_ASSERT(data_i);
 	OSMO_ASSERT(pcomp);
 	OSMO_ASSERT(comp_entities);
+
+	LOGP(DSNDCP, LOGL_DEBUG, "Compression entity list: comp_entities=%p\n",
+	     comp_entities);
 
 	/* Find out which compression entity handles the data */
 	comp_entity = gprs_sndcp_comp_by_nsapi(comp_entities, nsapi);
@@ -257,8 +281,10 @@ int gprs_sndcp_pcomp_compress(uint8_t *data_o, uint8_t *data_i,
 	/* Find pcomp value */
 	*pcomp = gprs_sndcp_comp_get_comp(comp_entity, pcomp_index);
 
+	LOGP(DSNDCP, LOGL_DEBUG, "Header compression mode: pcomp=%d\n", *pcomp);
+
 	LOGP(DSNDCP, LOGL_DEBUG,
-	     "Header compression done, old length=%d, new length=%d\n",
-	     len, rc);
+	     "Header expansion done, old length=%d, new length=%d, entity=%p\n",
+	     len, rc, comp_entity);
 	return rc;
 }

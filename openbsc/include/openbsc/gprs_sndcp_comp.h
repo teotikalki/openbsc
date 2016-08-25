@@ -75,10 +75,9 @@ struct gprs_sndcp_comp *gprs_sndcp_comp_by_nsapi(const struct llist_head
 						 *comp_entities, uint8_t nsapi);
 
 /* Find a comp_index for a given pcomp/dcomp value */
-int gprs_sndcp_comp_get_idx(const struct gprs_sndcp_comp *comp_entity,
-			    int comp);
+uint8_t gprs_sndcp_comp_get_idx(const struct gprs_sndcp_comp *comp_entity,
+				uint8_t comp);
 
 /* Find a pcomp/dcomp value for a given comp_index */
-int gprs_sndcp_comp_get_comp(const struct gprs_sndcp_comp *comp_entity,
-			     int comp_index);
-
+uint8_t gprs_sndcp_comp_get_comp(const struct gprs_sndcp_comp *comp_entity,
+			         uint8_t comp_index);

@@ -16,13 +16,8 @@ sgsn_test_LDFLAGS = \
 sgsn_test_LDADD = \
 	$(top_builddir)/src/gprs/gprs_llc_parse.o \
 	$(top_builddir)/src/gprs/gprs_llc.o \
-	$(top_builddir)/src/gprs/gprs_llc_xid.o \
 	$(top_builddir)/src/gprs/crc24.o \
 	$(top_builddir)/src/gprs/gprs_sndcp.o \
-	$(top_builddir)/src/gprs/gprs_sndcp_xid.o \
-	$(top_builddir)/src/gprs/gprs_sndcp_pcomp.o \
-	$(top_builddir)/src/gprs/gprs_sndcp_comp.o \
-	$(top_builddir)/src/gprs/slhc.o \
 	$(top_builddir)/src/gprs/gprs_gmm.o \
 	$(top_builddir)/src/gprs/gprs_sgsn.o \
 	$(top_builddir)/src/gprs/sgsn_vty.o \
@@ -35,6 +30,11 @@ sgsn_test_LDADD = \
 	$(top_builddir)/src/gprs/gprs_gb_parse.o \
 	$(top_builddir)/src/gprs/oap.o \
 	$(top_builddir)/src/gprs/oap_messages.o \
+        $(top_builddir)/src/gprs/gprs_llc_xid.o \
+	$(top_builddir)/src/gprs/gprs_sndcp_xid.o \
+        $(top_builddir)/src/gprs/slhc.o \
+        $(top_builddir)/src/gprs/gprs_sndcp_comp.o \
+        $(top_builddir)/src/gprs/gprs_sndcp_pcomp.o \
 	$(top_builddir)/src/libcommon/libcommon.a \
 	$(LIBOSMOABIS_LIBS) \
 	$(LIBOSMOCORE_LIBS) \

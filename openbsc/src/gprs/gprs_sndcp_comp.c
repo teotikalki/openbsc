@@ -87,7 +87,7 @@ static struct gprs_sndcp_comp *gprs_sndcp_comp_create(const void *ctx,
 	 * to create the compression entity, since the caller should
 	 * have checked the presence of the NSAPI, we blow an assertion
 	 * in case of missing NSAPIs */
-	OSMO_ASSERT(comp_entity->nsapi_len > 0)
+	OSMO_ASSERT(comp_entity->nsapi_len > 0);
 
 	    /* Determine of which class our compression entity will be
 	     * (Protocol or Data compresson ?) */
@@ -177,8 +177,10 @@ void gprs_sndcp_comp_delete(struct llist_head *comp_entities,
 	OSMO_ASSERT(comp_entities);
 
 	llist_for_each_entry(comp_entity, comp_entities, list) {
-		if (comp_entity->entity == entity)
+		if (comp_entity->entity == entity) {
 			comp_entity_to_delete = comp_entity;
+			break;
+		}
 	}
 
 	if (!comp_entity_to_delete)
@@ -266,22 +268,19 @@ struct gprs_sndcp_comp *gprs_sndcp_comp_by_nsapi(const struct llist_head
 		}
 	}
 
-	LOGP(DSNDCP, LOGL_ERROR,
-	     "Could not find a matching compression entity for given nsapi value %d\n",
-	     nsapi);
 	return NULL;
 }
 
 /* Find a comp_index for a given pcomp/dcomp value */
-int gprs_sndcp_comp_get_idx(const struct gprs_sndcp_comp *comp_entity, int comp)
+uint8_t gprs_sndcp_comp_get_idx(const struct gprs_sndcp_comp *comp_entity,
+				uint8_t comp)
 {
 	int i;
 
 	OSMO_ASSERT(comp_entity);
 
-	/* A pcomp/dcomp field set to zero always disables
-	 * all sort of compression and is assigned fix. So we
-	 * just return zero in this case */
+	/* A pcomp/dcomp value of zero is reserved for "no comproession",
+	 * So we just bail and return zero in this case */
 	if (comp == 0)
 		return 0;
 
@@ -298,8 +297,8 @@ int gprs_sndcp_comp_get_idx(const struct gprs_sndcp_comp *comp_entity, int comp)
 }
 
 /* Find a pcomp/dcomp value for a given comp_index */
-int gprs_sndcp_comp_get_comp(const struct gprs_sndcp_comp *comp_entity,
-			     int comp_index)
+uint8_t gprs_sndcp_comp_get_comp(const struct gprs_sndcp_comp *comp_entity,
+			         uint8_t comp_index)
 {
 	OSMO_ASSERT(comp_entity);
 

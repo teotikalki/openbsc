@@ -89,7 +89,7 @@ static int expand(uint8_t *data_o, uint8_t *data_i, int len,
 	return len;
 }
 
-/* Calculate TCP/IP checksum */
+/* Calculate IP Header checksum */
 static uint16_t calc_ip_csum(uint8_t *data, int len)
 {
 	int i;

@@ -41,4 +41,4 @@ int gprs_sndcp_pcomp_expand(uint8_t *data_o, uint8_t *data_i, unsigned int len,
 int gprs_sndcp_pcomp_compress(uint8_t *data_o, uint8_t *data_i,
 			      unsigned int len, uint8_t *pcomp,
 			      const struct llist_head *comp_entities,
-			      int nsapi);
+			      uint8_t nsapi);

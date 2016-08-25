@@ -42,11 +42,6 @@
 #include <openbsc/gprs_sndcp_comp.h>
 #include <openbsc/gprs_sndcp.h>
 
-
-/* FIXME: Remove this switch as soon as the XID integration in
- * gprs_sndcp.c h is done */
-#define WITH_SNDCP_XID 1
-
 static struct gprs_llc_llme *llme_alloc(uint32_t tlli);
 static int gprs_llc_tx_xid(struct gprs_llc_lle *lle, struct msgb *msg,
 			   int command);
@@ -165,11 +160,10 @@ static int gprs_llc_process_xid_conf(uint8_t *bytes, int bytes_len,
 		llist_for_each_entry(xid_field, xid_fields, list) {
 
 			/* Forward SNDCP-XID fields to Layer 3 (SNDCP) */
-			if (xid_field->type == GPRS_LLC_XID_T_L3_PAR) {
-#if WITH_SNDCP_XID == 1
+			if (xid_field->type == GPRS_LLC_XID_T_L3_PAR &&
+			    xid_field_request_l3) {
 				sndcp_sn_xid_conf(xid_field,
 						  xid_field_request_l3, lle);
-#endif
 			}
 
 			/* Process LLC-XID fields: */
@@ -249,7 +243,6 @@ static int gprs_llc_process_xid_ind(uint8_t *bytes_request,
 			}
 		}
 
-#if WITH_SNDCP_XID == 1
 		/* Forward SNDCP-XID fields to Layer 3 (SNDCP) */
 		llist_for_each_entry(xid_field, xid_fields, list) {
 			if (xid_field->type == GPRS_LLC_XID_T_L3_PAR) {
@@ -266,7 +259,6 @@ static int gprs_llc_process_xid_ind(uint8_t *bytes_request,
 					talloc_free(xid_field_response);
 			}
 		}
-#endif
 
 		rc = gprs_llc_compile_xid(bytes_response,
 					  bytes_response_maxlen,

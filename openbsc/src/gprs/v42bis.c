@@ -33,6 +33,7 @@
 
 #define FALSE 0
 #define TRUE 1
+#define ESC_INC 51
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,6 +71,8 @@ enum
     V42BIS_EID = 1,         /* Escape character in data */
     V42BIS_RESET = 2        /* Force reinitialisation */
 };
+
+SPAN_DECLARE(int) v42bis_decompress_dump(v42bis_state_t *s);
 
 /*! \brief Find the bit position of the highest set bit in a word
     \param bits The word to be searched
@@ -311,16 +314,19 @@ SPAN_DECLARE(int) v42bis_compress(v42bis_state_t *s, const uint8_t *buf, int len
                         /* 7.8.1 Transition to compressed mode */
                         /* Switch out of transparent now, between codes. We need to send the octet which did not
                         match, just before switching. */
+
                         if (octet == ss->escape_code)
                         {
-                            push_compressed_octet(ss, (ss->escape_code - 0x33)%256);
+                            push_compressed_octet(ss, ss->escape_code);
+                            ss->escape_code = (ss->escape_code + ESC_INC) % 256;
                             push_compressed_octet(ss, V42BIS_EID);
                         }
                         else
                         {
                             push_compressed_octet(ss, octet);
                         }
-                        push_compressed_octet(ss, (ss->escape_code - 0x33)%256);
+                        push_compressed_octet(ss, ss->escape_code);
+                        ss->escape_code = (ss->escape_code + ESC_INC) % 256;
                         push_compressed_octet(ss, V42BIS_ECM);
                         ss->transparent = FALSE;
                     }
@@ -347,7 +353,8 @@ SPAN_DECLARE(int) v42bis_compress(v42bis_state_t *s, const uint8_t *buf, int len
         {
             if (octet == ss->escape_code)
             {
-                push_compressed_octet(ss, (ss->escape_code - 0x33)%256);
+                push_compressed_octet(ss, ss->escape_code);
+                ss->escape_code = (ss->escape_code + ESC_INC) % 256;
                 push_compressed_octet(ss, V42BIS_EID);
             }
             else
@@ -389,11 +396,13 @@ SPAN_DECLARE(int) v42bis_compress_flush(v42bis_state_t *s)
 }
 /*- End of function --------------------------------------------------------*/
 
-#if 0
+#if 1
 SPAN_DECLARE(int) v42bis_compress_dump(v42bis_state_t *s)
 {
     int i;
     
+	printf("\n======== DICTIONARY DUMP ========\n");
+
     for (i = 0;  i < V42BIS_MAX_CODEWORDS;  i++)
     {
         if (s->compress.dict[i].parent_code != 0xFFFF)
@@ -401,6 +410,8 @@ SPAN_DECLARE(int) v42bis_compress_dump(v42bis_state_t *s)
             printf("Entry %4x, prior %4x, leaves %d, octet %2x\n", i, s->compress.dict[i].parent_code, s->compress.dict[i].leaves, s->compress.dict[i].node_octet);
         }
     }
+	printf("=================================\n");
+
     return 0;
 }
 /*- End of function --------------------------------------------------------*/
@@ -417,8 +428,11 @@ SPAN_DECLARE(int) v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int l
     int code_len;
     v42bis_decompress_state_t *ss;
     uint8_t decode_buf[V42BIS_MAX_STRING_SIZE];
+    uint8_t prev_escape_code = 0;
 
 	printf("DCOMP START\n");
+
+		v42bis_decompress_dump(s);
 
     ss = &s->decompress;
     if ((s->v42bis_parm_p0 & 1) == 0)
@@ -464,6 +478,9 @@ SPAN_DECLARE(int) v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int l
 
 		printf(" %02x",new_code);
 
+//		if(new_code >= 0x20 && new_code <= 0x7E)
+//			printf("(%c)",new_code);
+
         if (ss->transparent)
         {
             code = new_code;
@@ -481,8 +498,8 @@ SPAN_DECLARE(int) v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int l
                 }
                 else if (code == V42BIS_EID)
                 {
-                    printf("Hit V42BIS_EID\n");
-                    ss->output_buf[ss->output_octet_count++] = (ss->escape_code - 0x33)%256;
+                    printf("Hit V42BIS_EID, previous_escape_code=%02x\n",prev_escape_code);
+                    ss->output_buf[ss->output_octet_count++] = prev_escape_code;
                     if (ss->output_octet_count >= ss->max_len - s->v42bis_parm_n7)
                     {
                         ss->handler(ss->user_data, ss->output_buf, ss->output_octet_count);
@@ -500,15 +517,18 @@ SPAN_DECLARE(int) v42bis_decompress(v42bis_state_t *s, const uint8_t *buf, int l
             }
             else if (code == ss->escape_code)
             {
-		printf("<ESC=%02x>",ss->escape_code);
-                ss->escape_code=(ss->escape_code + 0x33)%256;
+		printf("<ESC=%02x, prev_escape_code=%02x>",ss->escape_code,prev_escape_code);
+		prev_escape_code = ss->escape_code;
+                ss->escape_code = (ss->escape_code + ESC_INC) % 256;
                 ss->escaped = TRUE;
             }
             else
             {
+
                 ss->output_buf[ss->output_octet_count++] = (uint8_t) code;
                 if (ss->output_octet_count >= ss->max_len - s->v42bis_parm_n7)
                 {
+		printf("+");
                     ss->handler(ss->user_data, ss->output_buf, ss->output_octet_count);
                     ss->output_octet_count = 0;
                 }
@@ -624,6 +644,8 @@ if (code > 4095) {printf("Code is 0x%" PRIu32 "\n", code); exit(2);}
                         break;
                     }
                 }
+
+		v42bis_decompress_dump(s);
             }
             /* Record the addition to the dictionary, so we can check for repeat attempts
                at the next code - see II.4.3 */
@@ -653,10 +675,12 @@ SPAN_DECLARE(int) v42bis_decompress_flush(v42bis_state_t *s)
 }
 /*- End of function --------------------------------------------------------*/
 
-#if 0
+#if 1
 SPAN_DECLARE(int) v42bis_decompress_dump(v42bis_state_t *s)
 {
     int i;
+
+	printf("\n======== DICTIONARY DUMP ========\n");
     
     for (i = 0;  i < V42BIS_MAX_CODEWORDS;  i++)
     {
@@ -665,6 +689,8 @@ SPAN_DECLARE(int) v42bis_decompress_dump(v42bis_state_t *s)
             printf("Entry %4x, prior %4x, leaves %d, octet %2x\n", i, s->decompress.dict[i].parent_code, s->decompress.dict[i].leaves, s->decompress.dict[i].node_octet);
         }
     }
+
+	printf("=================================\n");
     return 0;
 }
 /*- End of function --------------------------------------------------------*/

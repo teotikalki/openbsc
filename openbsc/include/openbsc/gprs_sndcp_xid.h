@@ -27,14 +27,14 @@
 #define CURRENT_SNDCP_VERSION 0	/* See 3GPP TS 44.065, clause 8 */
 #define MAX_ENTITIES 32		/* 3GPP TS 44.065 reserves 5 bit
 				 * for compression enitity number */
+
 #define MAX_COMP 16	/* Maximum number of possible pcomp/dcomp values */
 #define MAX_NSAPI 11	/* Maximum number usable NSAPIs */
 #define MAX_ROHC 16	/* Maximum number of ROHC compression profiles */
 
 /* According to: 3GPP TS 44.065, 6.5.1.1 Format of the protocol control
- *		 information compression field (Figure 7)
- *               3GPP TS 44.065, 6.6.1.1 Format of the data compression
- *		 field (Figure 9) */
+ * information compression field (Figure 7) and 3GPP TS 44.065, 
+ * 6.6.1.1 Format of the data compression field (Figure 9) */
 struct gprs_sndcp_comp_field {
 	struct llist_head list;
 
@@ -54,7 +54,7 @@ struct gprs_sndcp_comp_field {
 	uint8_t comp[MAX_COMP];
 
 	/* Note: Only one of the following struct pointers may,
-	   be used unused pointers must be set to NULL! */
+	   be used. Unused pointers must be set to NULL! */
 	struct gprs_sndcp_pcomp_rfc1144_params *rfc1144_params;
 	struct gprs_sndcp_pcomp_rfc2507_params *rfc2507_params;
 	struct gprs_sndcp_pcomp_rohc_params *rohc_params;

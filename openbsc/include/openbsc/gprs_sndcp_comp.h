@@ -60,11 +60,10 @@ void gprs_sndcp_comp_delete(struct llist_head *comp_entities, unsigned int entit
 
 /* Create and Add a new compression entity
  * (returns a pointer to the compression entity that has just been created) */
-struct gprs_sndcp_comp *gprs_sndcp_comp_entities_add(const void *ctx, struct
-						     llist_head *comp_entities,
-						     const struct
-						     gprs_sndcp_comp_field
-						     *comp_field);
+struct gprs_sndcp_comp *gprs_sndcp_comp_add(const void *ctx,
+					    struct llist_head *comp_entities,
+					    const struct gprs_sndcp_comp_field
+					    *comp_field);
 
 /* Find which compression entity handles the specified pcomp/dcomp */
 struct gprs_sndcp_comp *gprs_sndcp_comp_by_comp(const struct llist_head

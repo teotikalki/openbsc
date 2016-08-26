@@ -176,7 +176,7 @@ struct gprs_llc_llme {
 
 	/* Compression entities */
 	struct {
-		/* In this two list_heads we will store the
+		/* In these two list_heads we will store the
 		 * data and protocol compression entities,
 		 * together with their compression states */
 		struct llist_head *proto;

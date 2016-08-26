@@ -202,12 +202,10 @@ void gprs_sndcp_comp_delete(struct llist_head *comp_entities,
 
 /* Create and Add a new compression entity
  * (returns a pointer to the compression entity that has just been created) */
-struct gprs_sndcp_comp *gprs_sndcp_comp_entities_add(const void *ctx,
-						     struct llist_head
-						     *comp_entities,
-						     const struct
-						     gprs_sndcp_comp_field
-						     *comp_field)
+struct gprs_sndcp_comp *gprs_sndcp_comp_add(const void *ctx,
+					    struct llist_head *comp_entities,
+					    const struct gprs_sndcp_comp_field
+					    *comp_field)
 {
 	struct gprs_sndcp_comp *comp_entity;
 
@@ -273,8 +271,13 @@ struct gprs_sndcp_comp *gprs_sndcp_comp_by_nsapi(const struct llist_head
 uint8_t gprs_sndcp_comp_get_idx(const struct gprs_sndcp_comp *comp_entity,
 				uint8_t comp)
 {
-	int i;
+	/* Note: This function returns a normalized version of the comp value,
+	 * which matches up with the position of the comp field. Since comp=0
+	 * is reserved for "no compression", the index value starts counting
+	 * at one. The return value is the PCOMPn/DCOMPn value one can find 
+	 * in the Specification (see e.g. 3GPP TS 44.065, 6.5.3.2, Table 7) */
 
+	int i;
 	OSMO_ASSERT(comp_entity);
 
 	/* A pcomp/dcomp value of zero is reserved for "no comproession",
@@ -311,6 +314,7 @@ uint8_t gprs_sndcp_comp_get_comp(const struct gprs_sndcp_comp *comp_entity,
 		return 0;
 	}
 
-	/* Look in the pcomp/dcomp list for the comp_index */
+	/* Look in the pcomp/dcomp list for the comp_index, see
+	 * note in gprs_sndcp_comp_get_idx() */
 	return comp_entity->comp[comp_index - 1];
 }

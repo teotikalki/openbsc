@@ -130,7 +130,7 @@ static int gprs_sndcp_pcomp_rfc1144_expand(uint8_t *data_o, uint8_t *data_i,
 					   struct slcompress *comp)
 {
 	int data_decompressed_len;
-	int type = -1;
+	int type;
 
 	/* Note: this function should never be called with pcomp_index=0,
 	 * since this condition is already filtered
@@ -138,11 +138,18 @@ static int gprs_sndcp_pcomp_rfc1144_expand(uint8_t *data_o, uint8_t *data_i,
 
 	/* Determine the data type by the PCOMP index */
 	switch (pcomp_index) {
+	case 0:
+		type = SL_TYPE_IP;
 	case 1:
 		type = SL_TYPE_UNCOMPRESSED_TCP;
 		break;
 	case 2:
 		type = SL_TYPE_COMPRESSED_TCP;
+		break;
+	default:
+		LOGP(DSNDCP, LOGL_ERROR, "gprs_sndcp_pcomp_rfc1144_expand() Invalid pcomp_index value (%d) detected, assuming no compression!\n",
+		     pcomp_index);
+		type = SL_TYPE_IP;
 		break;
 	}
 

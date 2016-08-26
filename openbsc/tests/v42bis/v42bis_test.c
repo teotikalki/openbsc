@@ -30,13 +30,14 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <stdbool.h>
 
 #define P0 3
 #define P1 512
 #define P2 20
 
 #define BLOCK_SIZE 1024
-#define MAX_BLOCK_SIZE 2048
+#define MAX_BLOCK_SIZE 1024
 
 /* Sample packets to test with */
 #define COMPR_PACKETS_LEN 11
@@ -103,19 +104,15 @@ static uint16_t calc_tcpip_csum(const void *ctx, uint8_t *packet, int len)
 	return csum;
 }
 
-
-
-
-
+/* A simple function to show the ascii content of a packet */
 void show_packet(uint8_t *packet, int len)
 {
 	int i;
 	char c;
-	for(i=0;i<len;i++)
-	{
+	for (i = 0; i < len; i++) {
 		c = packet[i];
-		if(c >= 0x20 && c <= 0x7E)
-			printf("%c",c);
+		if (c >= 0x20 && c <= 0x7E)
+			printf("%c", c);
 		else
 			printf(".");
 	}
@@ -151,14 +148,16 @@ void tx_v42bis_frame_handler(void *user_data, const uint8_t *pkt, int len)
 /* Handler to capture the output data from the decompressor */
 void tx_v42bis_data_handler(void *user_data, const uint8_t *buf, int len)
 {
-	/* stub */
+	/* stub, never used */
+	OSMO_ASSERT(false);
 	return;
 }
 
 /* Handler to capture the output data from the compressor */
 void rx_v42bis_frame_handler(void *user_data, const uint8_t *pkt, int len)
 {
-	/* stub */
+	/* stub, never used */
+	OSMO_ASSERT(false);
 	return;
 }
 
@@ -174,17 +173,24 @@ void rx_v42bis_data_handler(void *user_data, const uint8_t *buf, int len)
 }
 
 /* Test V.42bis compression and decompression */
-static void test_v42bis(const void *ctx)
+static void v42bis(const void *ctx, int mode, uint8_t *testvec, int len)
 {
 	v42bis_state_t *tx_state;
 	v42bis_state_t *rx_state;
-	uint8_t uncompressed_original[BLOCK_SIZE];
-	uint8_t compressed[BLOCK_SIZE];
-	uint8_t uncompressed[BLOCK_SIZE];
+	uint8_t *uncompressed_original;
+	uint8_t *compressed;
+	uint8_t *uncompressed;
 
-	printf("Testing compression/decompression with generated data:\n");
+	uncompressed_original = talloc_zero_size(ctx, len);
+	uncompressed = talloc_zero_size(ctx, len);
+
+	/* Note: We allocate double the size for the compressed buffer,
+	 * because in some cases the compression may increase the amount.
+	 * of data. */
+	compressed = talloc_zero_size(ctx, len * 2);
 
 	int rc;
+	int rc_sum = 0;
 	struct v42bis_output_buffer compressed_data;
 	struct v42bis_output_buffer uncompressed_data;
 
@@ -199,23 +205,21 @@ static void test_v42bis(const void *ctx)
 			&rx_v42bis_frame_handler, NULL, MAX_BLOCK_SIZE,
 			&rx_v42bis_data_handler, NULL, MAX_BLOCK_SIZE);
 	OSMO_ASSERT(rx_state);
-	tx_state->compress.transparent = 1;
-	rx_state->decompress.transparent = 1;
+	v42bis_compression_control(tx_state, mode);
 
-	/* Generate test pattern for input */
-	gen_test_pattern(uncompressed_original, sizeof(uncompressed_original));
+	/* Setup input data */
+	memcpy(uncompressed_original, testvec, len);
 
 	/* Run compressor */
 	compressed_data.buf = compressed;
 	compressed_data.buf_pointer = compressed;
 	compressed_data.len = 0;
 	tx_state->compress.user_data = (&compressed_data);
-	rc = v42bis_compress(tx_state, uncompressed_original,
-			     sizeof(uncompressed_original));
-	printf("v42bis_compress() rc=%d\n",rc);
+	rc = v42bis_compress(tx_state, uncompressed_original, len);
+	printf("v42bis_compress() rc=%d\n", rc);
 	OSMO_ASSERT(rc == 0);
 	rc = v42bis_compress_flush(tx_state);
-	printf("v42bis_compress_flush() rc=%d\n",rc);
+	printf("v42bis_compress_flush() rc=%d\n", rc);
 	OSMO_ASSERT(rc == 0);
 
 	/* Decompress again */
@@ -225,89 +229,18 @@ static void test_v42bis(const void *ctx)
 	rx_state->decompress.user_data = (&uncompressed_data);
 	rc = v42bis_decompress(rx_state, compressed_data.buf,
 			       compressed_data.len);
-	printf("v42bis_decompress() rc=%d\n",rc);
-//	OSMO_ASSERT(rc == 0);
+	printf("v42bis_decompress() rc=%d\n", rc);
 	rc = v42bis_decompress_flush(rx_state);
-	printf("v42bis_decompress_flush() rc=%d\n",rc);
-	OSMO_ASSERT(rc == 0);
+	rc_sum += rc;
+	printf("v42bis_decompress_flush() rc=%d\n", rc);
+	rc_sum += rc;
 
 	/* Check results */
-	printf("uncompressed_original= %s\n",
-	       osmo_hexdump_nospc(uncompressed_original,
-				  sizeof(uncompressed_original)));
-	printf("uncompressed=          %s\n",
-	       osmo_hexdump_nospc(uncompressed_data.buf,
-				  uncompressed_data.len));
-	printf("compressed=            %s\n",
-	       osmo_hexdump_nospc(compressed_data.buf, compressed_data.len));
-	rc = memcmp(uncompressed, uncompressed_original, BLOCK_SIZE);
-	printf("memcmp() rc=%d\n",rc);
-	OSMO_ASSERT(rc == 0);
+	printf("Mode: %i\n", mode);
 
-	v42bis_free(tx_state);
-	v42bis_free(rx_state);
-	printf("\n");
-}
-
-/* Test V.42bis compression and decompression with some TCP/IP packets */
-static void test_v42bis_tcpip(const void *ctx, int packet)
-{
-	v42bis_state_t *tx_state;
-	v42bis_state_t *rx_state;
-	uint8_t uncompressed_original[BLOCK_SIZE];
-	uint8_t compressed[BLOCK_SIZE];
-	uint8_t uncompressed[BLOCK_SIZE];
-	int compressed_len;
-
-	printf("Testing compression/decompression with realistic TCP/IP packets:\n");
-
-	int rc;
-	struct v42bis_output_buffer compressed_data;
-	struct v42bis_output_buffer uncompressed_data;
-
-	/* Initalize */
-	tx_state =
-	    v42bis_init(ctx, NULL, P0, P1, P2,
-			&tx_v42bis_frame_handler, NULL, MAX_BLOCK_SIZE,
-			&tx_v42bis_data_handler, NULL, MAX_BLOCK_SIZE);
-	OSMO_ASSERT(tx_state);
-	rx_state =
-	    v42bis_init(ctx, NULL, P0, P1, P2,
-			&rx_v42bis_frame_handler, NULL, MAX_BLOCK_SIZE,
-			&rx_v42bis_data_handler, NULL, MAX_BLOCK_SIZE);
-	OSMO_ASSERT(rx_state);
-
-	/* Generate test pattern for input */
-	compressed_len = osmo_hexparse(uncompr_packets[packet], uncompressed_original, sizeof(uncompressed_original));
-
-	/* Run compressor */
-	compressed_data.buf = compressed;
-	compressed_data.buf_pointer = compressed;
-	compressed_data.len = 0;
-	tx_state->compress.user_data = (&compressed_data);
-	rc = v42bis_compress(tx_state, uncompressed_original, compressed_len);
-	printf("v42bis_compress() rc=%d\n",rc);
-	OSMO_ASSERT(rc == 0);
-	rc = v42bis_compress_flush(tx_state);
-	printf("v42bis_compress_flush() rc=%d\n",rc);
-	OSMO_ASSERT(rc == 0);
-
-	/* Decompress again */
-	uncompressed_data.buf = uncompressed;
-	uncompressed_data.buf_pointer = uncompressed;
-	uncompressed_data.len = 0;
-	rx_state->decompress.user_data = (&uncompressed_data);
-	rc = v42bis_decompress(rx_state, compressed_data.buf, compressed_data.len);
-	printf("v42bis_decompress() rc=%d\n",rc);
-	OSMO_ASSERT(rc == 0);
-	rc = v42bis_decompress_flush(rx_state);
-	printf("v42bis_decompress_flush() rc=%d\n",rc);
-	OSMO_ASSERT(rc == 0);
-
-	/* Check results */
 	printf("uncompressed_original= %s ASCII:",
-	       osmo_hexdump_nospc(uncompressed_original, compressed_len));
-	show_packet(uncompressed_original, compressed_len);
+	       osmo_hexdump_nospc(uncompressed_original, len));
+	show_packet(uncompressed_original, len);
 	printf("uncompressed=          %s ASCII:",
 	       osmo_hexdump_nospc(uncompressed_data.buf,
 				  uncompressed_data.len));
@@ -316,29 +249,68 @@ static void test_v42bis_tcpip(const void *ctx, int packet)
 	       osmo_hexdump_nospc(compressed_data.buf, compressed_data.len));
 	show_packet(compressed_data.buf, compressed_data.len);
 
-	rc = memcmp(uncompressed, uncompressed_original, compressed_len);
-	printf("rc=%d\n",rc);
-	OSMO_ASSERT(rc == 0);
+	rc = memcmp(uncompressed, uncompressed_original, len);
+	printf("memcmp() rc=%d\n", rc);
+	rc_sum += rc;
+	OSMO_ASSERT(rc_sum == 0);
 
+	/* Free buffers and exit */
 	v42bis_free(tx_state);
 	v42bis_free(rx_state);
+	talloc_free(uncompressed_original);
+	talloc_free(compressed);
+	talloc_free(uncompressed);
 	printf("\n");
 }
 
-/* Test V.42bis decompression with real, sniffed packets */
-static void test_v42bis_realdata(const void *ctx, int packet)
+/* Test V.42bis compression and decompression with generated data*/
+static void test_v42bis(const void *ctx)
 {
-	uint8_t compressed[BLOCK_SIZE];
+	printf("Testing compression/decompression with generated data:\n");
+	uint8_t testvec[BLOCK_SIZE];
+	int len = sizeof(testvec);
+	gen_test_pattern(testvec, len);
+	v42bis(ctx, V42BIS_COMPRESSION_MODE_DYNAMIC, testvec, len);
+	v42bis(ctx, V42BIS_COMPRESSION_MODE_NEVER, testvec, len);
+	v42bis(ctx, V42BIS_COMPRESSION_MODE_ALWAYS, testvec, len);
+}
+
+/* Test V.42bis compression and decompression with some TCP/IP packets */
+static void test_v42bis_tcpip(const void *ctx, int packet_id)
+{
+	uint8_t *testvec;
+	int len;
+	printf
+	    ("Testing compression/decompression with realistic TCP/IP packets:\n");
+	printf("Packet No.: %i\n", packet_id);
+	len = strlen(uncompr_packets[packet_id]);
+	testvec = talloc_zero_size(ctx, len);
+	len = osmo_hexparse(uncompr_packets[packet_id], testvec, len);
+	v42bis(ctx, V42BIS_COMPRESSION_MODE_DYNAMIC, testvec, len);
+	v42bis(ctx, V42BIS_COMPRESSION_MODE_NEVER, testvec, len);
+	v42bis(ctx, V42BIS_COMPRESSION_MODE_ALWAYS, testvec, len);
+	talloc_free(testvec);
+}
+
+/* Test V.42bis decompression with real, sniffed packets */
+static void test_v42bis_tcpip_decompress(const void *ctx, int packet_id)
+{
+	uint8_t *compressed;
 	int compressed_len;
-	uint8_t uncompressed[BLOCK_SIZE];
+	uint8_t *uncompressed;
 	v42bis_state_t *rx_state;
 	int rc;
+	int rc_sum = 0;
+	int len;
 	struct v42bis_output_buffer uncompressed_data;
 
-	printf("Testing decompression with sniffed data:\n");
+	printf
+	    ("Testing decompression with sniffed compressed TCP/IP packets:\n");
+	printf("Packet No.: %i\n", packet_id);
+	len = strlen(compr_packets[packet_id]);
 
-	memset(uncompressed,0,sizeof(uncompressed));
-	memset(compressed,0,sizeof(compressed));
+	uncompressed = talloc_zero_size(ctx, len);
+	compressed = talloc_zero_size(ctx, len);
 
 	/* Initalize */
 	rx_state =
@@ -347,46 +319,48 @@ static void test_v42bis_realdata(const void *ctx, int packet)
 			&rx_v42bis_data_handler, NULL, MAX_BLOCK_SIZE);
 	OSMO_ASSERT(rx_state);
 	rx_state->decompress.transparent = 1;
+	rx_state->compress.change_transparency = 1;
 
-
-	compressed_len = osmo_hexparse(compr_packets[packet], compressed, sizeof(compressed));
+	/* Setup input data */
+	compressed_len =
+	    osmo_hexparse(compr_packets[packet_id], compressed, len);
 
 	/* Decompress */
 	uncompressed_data.buf = uncompressed;
 	uncompressed_data.buf_pointer = uncompressed;
 	uncompressed_data.len = 0;
 	rx_state->decompress.user_data = (&uncompressed_data);
-
-
 	rc = v42bis_decompress_flush(rx_state);
-	printf("rc=%d\n",rc);
+	printf("v42bis_decompress_flush() rc=%d\n", rc);
+	rc_sum += rc;
 	rc = v42bis_decompress(rx_state, compressed, compressed_len);
-	printf("rc=%d\n",rc);
-//	OSMO_ASSERT(rc == 0);
+	printf("v42bis_decompress() rc=%d\n", rc);
+	rc_sum += rc;
 	rc = v42bis_decompress_flush(rx_state);
-	printf("rc=%d\n",rc);
-//	OSMO_ASSERT(rc == 0);
+	printf("v42bis_decompress_flush() rc=%d\n", rc);
+	rc_sum += rc;
 
-	printf("compressed=   %s\n",
+	/* Check results */
+	printf("compressed=   %s ASCII:",
 	       osmo_hexdump_nospc(compressed, compressed_len));
 	show_packet(compressed, compressed_len);
-
-	printf("CSUM=%d\n",calc_ip_csum(compressed,20));
-
-	printf("uncompressed= %s\n",
+	printf("uncompressed= %s ASCII:",
 	       osmo_hexdump_nospc(uncompressed_data.buf,
 				  uncompressed_data.len));
-
 	show_packet(uncompressed_data.buf, uncompressed_data.len);
 
-	printf("CSUM=%d\n",calc_ip_csum(uncompressed_data.buf,20));
-	printf("CSUM=%d\n",calc_tcpip_csum(ctx,uncompressed_data.buf,20));
+	printf("IP-Header checksum=%d\n",
+	       calc_ip_csum(uncompressed_data.buf, 20));
+	printf("TCP/IP Checksum=%d\n",
+	       calc_tcpip_csum(ctx, uncompressed_data.buf, 20));
+	OSMO_ASSERT(rc_sum == 0);
 
-
+	/* Free buffers and exit */
 	v42bis_free(rx_state);
+	talloc_free(uncompressed);
+	talloc_free(compressed);
 	printf("\n");
 }
-
 
 static struct log_info_cat gprs_categories[] = {
 	[DV42BIS] = {
@@ -404,20 +378,21 @@ static struct log_info info = {
 int main(int argc, char **argv)
 {
 	void *v42bis_ctx;
-//	int i;
+	int i;
 
 	osmo_init_logging(&info);
 
 	v42bis_ctx = talloc_named_const(NULL, 0, "v42bis_ctx");
 
-	test_v42bis(v42bis_ctx);
+//      test_v42bis(v42bis_ctx);
 
-//	for(i=0;i<UNCOMPR_PACKETS_LEN;i++)
-//		test_v42bis_tcpip(v42bis_ctx,i);
+//      for(i=0;i<UNCOMPR_PACKETS_LEN;i++)
+//              test_v42bis_tcpip(v42bis_ctx,i);
 
-//	for(i=0;i<COMPR_PACKETS_LEN;i++)
-//		test_v42bis_realdata(v42bis_ctx,i);
-//	test_v42bis_realdata(v42bis_ctx,0);
+//      for(i=0;i<COMPR_PACKETS_LEN;i++)
+//              test_v42bis_tcpip_decompress(v42bis_ctx,i);
+
+	test_v42bis_tcpip_decompress(v42bis_ctx, 0);
 
 	printf("Done\n");
 	talloc_report_full(v42bis_ctx, stderr);

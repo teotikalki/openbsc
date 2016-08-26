@@ -27,7 +27,7 @@
 
 /* Initalize header compression */
 int gprs_sndcp_pcomp_init(const void *ctx, struct gprs_sndcp_comp *comp_entity,
-			    const struct gprs_sndcp_comp_field *comp_field);
+			  const struct gprs_sndcp_comp_field *comp_field);
 
 /* Terminate header compression */
 void gprs_sndcp_pcomp_term(struct gprs_sndcp_comp *comp_entity);

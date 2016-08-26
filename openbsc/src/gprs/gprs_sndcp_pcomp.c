@@ -205,7 +205,7 @@ int gprs_sndcp_pcomp_expand(uint8_t *data_o, uint8_t *data_i,
 	comp_entity = gprs_sndcp_comp_by_comp(comp_entities, pcomp);
 
 	/* Skip compression if no suitable compression entity can be found */
-	if (comp_entity == NULL) {
+	if (!comp_entity) {
 		memcpy(data_o, data_i, len);
 		return len;
 	}

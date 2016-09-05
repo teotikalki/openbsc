@@ -90,11 +90,21 @@ struct sgsn_config {
 
 	struct oap_config oap;
 
-	/* RFC1144 TCP/IP Header compression */
+	/* RFC1144 TCP/IP header compression */
 	struct {
-		int enabled;
+		int active;
+		int passive;
 		int s01;
 	} pcomp_rfc1144;
+
+	/* V.42vis data compression */
+	struct {
+		int active;
+		int passive;
+		int p0;
+		int p1;
+		int p2;
+	} dcomp_v42bis;
 };
 
 struct sgsn_instance {

@@ -88,17 +88,16 @@ void gprs_sndcp_pcomp_term(struct gprs_sndcp_comp *comp_entity)
 		return;
 	}
 
-	/* Just in case someone tries to initalize an unknown or unsupported
-	 * header compresson. Since everything is checked during the SNDCP
+	/* Just in case someone tries to terminate an unknown or unsupported
+	 * data compresson. Since everything is checked during the SNDCP
 	 * negotiation process, this should never happen! */
 	OSMO_ASSERT(false);
 }
 
 /* Compress a packet using Van Jacobson RFC1144 header compression */
-static int gprs_sndcp_pcomp_rfc1144_compress(uint8_t *pcomp_index,
-					     uint8_t *data_o, uint8_t *data_i,
-					     unsigned int len,
-					     struct slcompress *comp)
+static int rfc1144_compress(uint8_t *pcomp_index,
+			    uint8_t *data_o, uint8_t *data_i,
+			    unsigned int len, struct slcompress *comp)
 {
 	uint8_t *comp_ptr;
 	int compr_len;
@@ -124,10 +123,9 @@ static int gprs_sndcp_pcomp_rfc1144_compress(uint8_t *pcomp_index,
 }
 
 /* Expand a packet using Van Jacobson RFC1144 header compression */
-static int gprs_sndcp_pcomp_rfc1144_expand(uint8_t *data_o, uint8_t *data_i,
-					   unsigned int len,
-					   uint8_t pcomp_index,
-					   struct slcompress *comp)
+static int rfc1144_expand(uint8_t *data_o, uint8_t *data_i,
+			  unsigned int len,
+			  uint8_t pcomp_index, struct slcompress *comp)
 {
 	int data_decompressed_len;
 	int type;
@@ -147,7 +145,8 @@ static int gprs_sndcp_pcomp_rfc1144_expand(uint8_t *data_o, uint8_t *data_i,
 		type = SL_TYPE_COMPRESSED_TCP;
 		break;
 	default:
-		LOGP(DSNDCP, LOGL_ERROR, "gprs_sndcp_pcomp_rfc1144_expand() Invalid pcomp_index value (%d) detected, assuming no compression!\n",
+		LOGP(DSNDCP, LOGL_ERROR,
+		     "rfc1144_expand() Invalid pcomp_index value (%d) detected, assuming no compression!\n",
 		     pcomp_index);
 		type = SL_TYPE_IP;
 		break;
@@ -190,7 +189,8 @@ int gprs_sndcp_pcomp_expand(uint8_t *data_o, uint8_t *data_i,
 	OSMO_ASSERT(data_i);
 	OSMO_ASSERT(comp_entities);
 
-	LOGP(DSNDCP, LOGL_DEBUG, "Compression entity list: comp_entities=%p\n",
+	LOGP(DSNDCP, LOGL_DEBUG,
+	     "Header compression entity list: comp_entities=%p\n",
 	     comp_entities);
 
 	LOGP(DSNDCP, LOGL_DEBUG, "Header compression mode: pcomp=%d\n", pcomp);
@@ -222,8 +222,8 @@ int gprs_sndcp_pcomp_expand(uint8_t *data_o, uint8_t *data_i,
 	pcomp_index = gprs_sndcp_comp_get_idx(comp_entity, pcomp);
 
 	/* Run decompression algo */
-	rc = gprs_sndcp_pcomp_rfc1144_expand(data_o, data_i, len, pcomp_index,
-					     comp_entity->state);
+	rc = rfc1144_expand(data_o, data_i, len, pcomp_index,
+			    comp_entity->state);
 	slhc_i_status(comp_entity->state);
 	slhc_o_status(comp_entity->state);
 
@@ -249,7 +249,8 @@ int gprs_sndcp_pcomp_compress(uint8_t *data_o, uint8_t *data_i,
 	OSMO_ASSERT(pcomp);
 	OSMO_ASSERT(comp_entities);
 
-	LOGP(DSNDCP, LOGL_DEBUG, "Compression entity list: comp_entities=%p\n",
+	LOGP(DSNDCP, LOGL_DEBUG,
+	     "Header compression entity list: comp_entities=%p\n",
 	     comp_entities);
 
 	/* Find out which compression entity handles the data */
@@ -271,8 +272,8 @@ int gprs_sndcp_pcomp_compress(uint8_t *data_o, uint8_t *data_i,
 	OSMO_ASSERT(comp_entity->algo == RFC_1144);
 
 	/* Run compression algo */
-	rc = gprs_sndcp_pcomp_rfc1144_compress(&pcomp_index, data_o, data_i,
-					       len, comp_entity->state);
+	rc = rfc1144_compress(&pcomp_index, data_o, data_i,
+			      len, comp_entity->state);
 	slhc_i_status(comp_entity->state);
 	slhc_o_status(comp_entity->state);
 
@@ -282,7 +283,7 @@ int gprs_sndcp_pcomp_compress(uint8_t *data_o, uint8_t *data_i,
 	LOGP(DSNDCP, LOGL_DEBUG, "Header compression mode: pcomp=%d\n", *pcomp);
 
 	LOGP(DSNDCP, LOGL_DEBUG,
-	     "Header expansion done, old length=%d, new length=%d, entity=%p\n",
+	     "Header compression done, old length=%d, new length=%d, entity=%p\n",
 	     len, rc, comp_entity);
 	return rc;
 }

@@ -34,6 +34,7 @@
 #include <openbsc/gprs_sndcp_xid.h>
 #include <openbsc/gprs_sndcp_comp.h>
 #include <openbsc/gprs_sndcp_pcomp.h>
+#include <openbsc/gprs_sndcp_dcomp.h>
 
 /* Create a new compression entity from a XID-Field */
 static struct gprs_sndcp_comp *gprs_sndcp_comp_create(const void *ctx,
@@ -100,16 +101,16 @@ static struct gprs_sndcp_comp *gprs_sndcp_comp_create(const void *ctx,
 			comp_entity = NULL;
 		}
 	} else {
-		LOGP(DSNDCP, LOGL_ERROR,
-		     "We don't support data compression yet!\n");
-		talloc_free(comp_entity);
-		return NULL;
+		if (gprs_sndcp_dcomp_init(ctx, comp_entity, comp_field) != 0) {
+			talloc_free(comp_entity);
+			comp_entity = NULL;
+		}
 	}
 
 	/* Display info message */
 	if (comp_entity == NULL) {
 		LOGP(DSNDCP, LOGL_ERROR,
-		     "Header compression entity (%d) creation failed!\n",
+		     "Compression entity (%d) creation failed!\n",
 		     comp_entity->entity);
 		return NULL;
 	}
@@ -159,6 +160,7 @@ void gprs_sndcp_comp_free(struct llist_head *comp_entities)
 			LOGP(DSNDCP, LOGL_INFO,
 			     "Deleting data compression entity %d ...\n",
 			     comp_entity->entity);
+			gprs_sndcp_dcomp_term(comp_entity);
 		}
 	}
 
@@ -274,7 +276,7 @@ uint8_t gprs_sndcp_comp_get_idx(const struct gprs_sndcp_comp *comp_entity,
 	/* Note: This function returns a normalized version of the comp value,
 	 * which matches up with the position of the comp field. Since comp=0
 	 * is reserved for "no compression", the index value starts counting
-	 * at one. The return value is the PCOMPn/DCOMPn value one can find 
+	 * at one. The return value is the PCOMPn/DCOMPn value one can find
 	 * in the Specification (see e.g. 3GPP TS 44.065, 6.5.3.2, Table 7) */
 
 	int i;

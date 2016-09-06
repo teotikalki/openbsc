@@ -2155,6 +2155,7 @@ static int gsm48_cc_rx_call_conf(struct gsm_trans *trans, struct msgb *msg)
 			    &call_conf);
 }
 
+#if 0
 /* TODO move to libosmocore/src/gsm/gsm0808.c */
 #define BSSMAP_MSG_SIZE 512
 #define BSSMAP_MSG_HEADROOM 128
@@ -2205,6 +2206,7 @@ struct msgb *gsm0808_create_assignment_request(struct gsm_trans *trans,
 
 	return msg;
 }
+#endif
 
 static int gsm48_cc_tx_call_proc_and_assign(struct gsm_trans *trans, void *arg)
 {

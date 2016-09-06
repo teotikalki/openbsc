@@ -2157,6 +2157,7 @@ static int gsm48_cc_rx_call_conf(struct gsm_trans *trans, struct msgb *msg)
 
 static int gsm48_cc_tx_call_proc(struct gsm_trans *trans, void *arg)
 {
+	/* MARK CC Setup, Accepting call */
 	struct gsm_mncc *proceeding = arg;
 	struct msgb *msg = gsm48_msgb_alloc_name("GSM 04.08 CC PROC");
 	struct gsm48_hdr *gh = (struct gsm48_hdr *) msgb_put(msg, sizeof(*gh));
@@ -2175,6 +2176,7 @@ static int gsm48_cc_tx_call_proc(struct gsm_trans *trans, void *arg)
 	if (proceeding->fields & MNCC_F_PROGRESS)
 		gsm48_encode_progress(msg, 0, &proceeding->progress);
 
+	/* MARK "Sending 'CALL_PROC' to MS." */
 	return gsm48_conn_sendmsg(msg, trans->conn, trans);
 }
 
@@ -3314,6 +3316,7 @@ static struct downstate {
 
 int mncc_tx_to_cc(struct gsm_network *net, int msg_type, void *arg)
 {
+	/* MARK accepting call */
 	int i, rc = 0;
 	struct gsm_trans *trans = NULL, *transt;
 	struct gsm_subscriber_connection *conn = NULL;

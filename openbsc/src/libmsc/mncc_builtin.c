@@ -84,6 +84,7 @@ static uint8_t determine_lchan_mode(struct gsm_mncc *setup)
 static int mncc_setup_ind(struct gsm_call *call, int msg_type,
 			  struct gsm_mncc *setup)
 {
+	/* MARK rx CC setup */
 	struct gsm_mncc mncc;
 	struct gsm_call *remote;
 
@@ -311,6 +312,7 @@ static int mncc_rcv_data(struct gsm_call *call, int msg_type,
 /* Internal MNCC handler input function (from CC -> MNCC -> here) */
 int int_mncc_recv(struct gsm_network *net, struct msgb *msg)
 {
+	/* MARK rx CC setup */
 	void *arg = msgb_data(msg);
 	struct gsm_mncc *data = arg;
 	int msg_type = data->msg_type;

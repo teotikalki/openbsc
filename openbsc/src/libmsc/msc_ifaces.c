@@ -81,3 +81,7 @@ int msc_gsm48_tx_mm_serv_rej(struct gsm_subscriber_connection *conn,
 
 	return msc_tx_dtap(conn, msg);
 }
+
+int msc_call_assignment(struct gsm_subscriber_connection *conn)
+{
+}

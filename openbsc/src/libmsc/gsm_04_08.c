@@ -2232,7 +2232,8 @@ static int gsm48_cc_tx_call_proc_and_assign(struct gsm_trans *trans, void *arg)
 	rc = gsm48_conn_sendmsg(msg, trans->conn, trans);
 	if (rc)
 		return rc;
-	return 0;
+
+	return msc_call_assignment(trans->conn);
 }
 
 static int gsm48_cc_rx_alerting(struct gsm_trans *trans, struct msgb *msg)

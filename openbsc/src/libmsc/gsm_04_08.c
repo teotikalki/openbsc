@@ -969,7 +969,9 @@ static int _gsm48_rx_mm_serv_req_sec_cb(
 			break;
 
 		case GSM_SECURITY_SUCCEEDED:
-			/* nothing to do. CIPHER MODE COMMAND is
+			if (conn->via_iface == IFACE_IU)
+				rc = msc_tx_iu_common_id(conn);
+			/* For IFACE_A: nothing to do. CIPHER MODE COMMAND is
 			 * implicit CM SERV ACK */
 			implit_attach(conn);
 			break;

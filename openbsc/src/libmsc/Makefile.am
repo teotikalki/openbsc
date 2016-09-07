@@ -13,6 +13,9 @@ AM_CFLAGS = \
 	$(LIBCRYPTO_CFLAGS) \
 	$(LIBSMPP34_CFLAGS) \
 	$(NULL)
+if BUILD_IU
+AM_CFLAGS += $(LIBASN1C_CFLAGS)
+endif
 
 noinst_HEADERS = \
 	meas_feed.h \

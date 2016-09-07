@@ -23,6 +23,8 @@
 #include <openbsc/debug.h>
 #include <openbsc/gsm_data.h>
 #include <openbsc/msc_ifaces.h>
+#include <openbsc/iu.h>
+#include <openbsc/gsm_subscriber.h>
 
 static int msc_tx(struct gsm_subscriber_connection *conn, struct msgb *msg)
 {
@@ -83,6 +85,14 @@ int msc_gsm48_tx_mm_serv_rej(struct gsm_subscriber_connection *conn,
 }
 
 #ifdef BUILD_IU
+int msc_tx_iu_common_id(struct gsm_subscriber_connection *conn)
+{
+	if (conn->via_iface != IFACE_IU)
+		return 0;
+
+	return iu_tx_common_id(conn->iu.ue_ctx, conn->subscr->imsi);
+}
+
 static int iu_rab_act_cs(uint8_t rab_id,
 			 struct gsm_subscriber_connection *conn,
 			 bool use_x213_nsap)

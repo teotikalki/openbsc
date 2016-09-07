@@ -169,6 +169,7 @@ struct gsm_subscriber_connection {
 	struct {
 		struct ue_conn_ctx *ue_ctx;
 		int integrity_protection;
+		uint8_t rab_id;
 	} iu;
 };
 

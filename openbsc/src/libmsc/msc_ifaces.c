@@ -20,11 +20,15 @@
 
 #include <osmocom/core/logging.h>
 
+#include <osmocom/ranap/ranap_msg_factory.h>
+
 #include <openbsc/debug.h>
 #include <openbsc/gsm_data.h>
 #include <openbsc/msc_ifaces.h>
 #include <openbsc/iu.h>
 #include <openbsc/gsm_subscriber.h>
+
+#include "../../bscconfig.h"
 
 static int msc_tx(struct gsm_subscriber_connection *conn, struct msgb *msg)
 {
@@ -93,16 +97,12 @@ int msc_tx_iu_common_id(struct gsm_subscriber_connection *conn)
 	return iu_tx_common_id(conn->iu.ue_ctx, conn->subscr->imsi);
 }
 
-static int iu_rab_act_cs(uint8_t rab_id,
-			 struct gsm_subscriber_connection *conn,
+static int iu_rab_act_cs(struct ue_conn_ctx *uectx, uint8_t rab_id,
 			 bool use_x213_nsap)
 {
 	struct msgb *msg;
-	struct ue_conn_ctx *uectx;
 	uint32_t rtp_ip;
 	uint16_t rtp_port;
-
-	uectx = conn->iu.ue_ctx;
 
 	/* DEV HACK */
 	rtp_ip = 0xc0a80084; // 192.168.0.132
@@ -113,9 +113,21 @@ static int iu_rab_act_cs(uint8_t rab_id,
 
 	msg = ranap_new_msg_rab_assign_voice(rab_id, rtp_ip, rtp_port);
 	msg->l2h = msg->data;
-	msg->dst = uectx; /* not needed, just a habit. */
 
 	return iu_rab_act(uectx, msg);
+}
+
+static int conn_iu_rab_act_cs(struct gsm_subscriber_connection *conn)
+{
+	struct ue_conn_ctx *uectx = conn->iu.ue_ctx;
+
+	/* HACK. what is the scope of a RAB Id, the conn? the subscriber? the
+	 * ue_conn_ctx? */
+	static uint8_t next_rab_id = 23;
+	conn->iu.rab_id = next_rab_id ++;
+
+	return iu_rab_act_cs(uectx, conn->iu.rab_id, 0);
+	/* use_x213_nsap == 0 for ip.access nano3G */
 }
 #endif
 
@@ -130,7 +142,7 @@ int msc_call_assignment(struct gsm_subscriber_connection *conn)
 
 	case IFACE_IU:
 #ifdef BUILD_IU
-		return iu_rab_act_cs(conn);
+		return conn_iu_rab_act_cs(conn);
 #else
 		LOGP(DMSC, LOGL_ERROR,
 		     "msc_call_assignment(): IuCS RAB Activation not supported"

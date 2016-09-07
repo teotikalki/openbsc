@@ -95,8 +95,8 @@ static int iu_rab_act_cs(uint8_t rab_id,
 	uectx = conn->iu.ue_ctx;
 
 	/* DEV HACK */
-	rtp_ip = 0x7f000001;
-	rtp_port = 2342;
+	rtp_ip = 0xc0a80084; // 192.168.0.132
+	rtp_port = 4000;
 
 	LOGP(DIUCS, LOGL_DEBUG, "Assigning RAB: rab_id=%d, rtp=%x:%u,"
 	     " use_x213_nsap=%d\n", rab_id, rtp_ip, rtp_port, use_x213_nsap);

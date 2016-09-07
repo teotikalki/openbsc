@@ -82,6 +82,56 @@ int msc_gsm48_tx_mm_serv_rej(struct gsm_subscriber_connection *conn,
 	return msc_tx_dtap(conn, msg);
 }
 
+#ifdef BUILD_IU
+static int iu_rab_act_cs(uint8_t rab_id,
+			 struct gsm_subscriber_connection *conn,
+			 bool use_x213_nsap)
+{
+	struct msgb *msg;
+	struct ue_conn_ctx *uectx;
+	uint32_t rtp_ip;
+	uint16_t rtp_port;
+
+	uectx = conn->iu.ue_ctx;
+
+	/* DEV HACK */
+	rtp_ip = 0x7f000001;
+	rtp_port = 2342;
+
+	LOGP(DIUCS, LOGL_DEBUG, "Assigning RAB: rab_id=%d, rtp=%x:%u,"
+	     " use_x213_nsap=%d\n", rab_id, rtp_ip, rtp_port, use_x213_nsap);
+
+	msg = ranap_new_msg_rab_assign_voice(rab_id, rtp_ip, rtp_port);
+	msg->l2h = msg->data;
+	msg->dst = uectx; /* not needed, just a habit. */
+
+	return iu_rab_act(uectx, msg);
+}
+#endif
+
 int msc_call_assignment(struct gsm_subscriber_connection *conn)
 {
+	switch (conn->via_iface) {
+	case IFACE_A:
+		LOGP(DMSC, LOGL_ERROR,
+		     "msc_call_assignment(): A-interface BSSMAP Assignment"
+		     " Request not yet implemented\n");
+		return -ENOTSUP;
+
+	case IFACE_IU:
+#ifdef BUILD_IU
+		return iu_rab_act_cs(conn);
+#else
+		LOGP(DMSC, LOGL_ERROR,
+		     "msc_call_assignment(): IuCS RAB Activation not supported"
+		     " in this build\n");
+		return -ENOTSUP;
+#endif
+
+	default:
+		LOGP(DMSC, LOGL_ERROR,
+		     "msc_tx(): conn->via_iface invalid (%d)\n",
+		     conn->via_iface);
+		return -1;
+	}
 }

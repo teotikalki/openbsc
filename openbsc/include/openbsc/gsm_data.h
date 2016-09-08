@@ -399,6 +399,11 @@ struct gsm_network {
 
 	/* Periodic location update default value */
 	uint8_t t3212;
+
+	/* temporary place to test something. */
+	struct {
+		struct osmo_wqueue *mgcp_agent;
+	} hack;
 };
 
 struct osmo_esme;

@@ -95,6 +95,128 @@ void *tall_map_ctx = NULL;
 void *tall_upq_ctx = NULL;
 /* end deps from libbsc legacy. */
 
+
+/* TODO: move mgcp utilities to libmgcp */
+
+typedef void (* mgcp_read_cb_t )(struct msgb *msg);
+
+static void mgcp_read_cb(struct msgb *msg)
+{
+	static char strbuf[4096];
+	unsigned int l = msg->len < sizeof(strbuf)-1 ? msg->len : sizeof(strbuf)-1;
+	strncpy(strbuf, (const char*)msg->data, l);
+	strbuf[l] = '\0';
+	DEBUGP(DMGCP, "Rx MGCP msg from MGCP GW: '%s'\n", strbuf);
+	talloc_free(msg);
+}
+
+/*
+ * MGCP forwarding code
+ */
+static int mgcp_do_read(struct osmo_fd *fd)
+{
+	mgcp_read_cb_t cb = (mgcp_read_cb_t)fd->data;
+	struct msgb *msg;
+	int ret;
+
+	msg = msgb_alloc_headroom(4096, 128, "mgcp_from_gw");
+	if (!msg) {
+		LOGP(DMGCP, LOGL_ERROR, "Failed to allocate MGCP message.\n");
+		return -1;
+	}
+
+	ret = read(fd->fd, msg->data, 4096 - 128);
+	if (ret <= 0) {
+		LOGP(DMGCP, LOGL_ERROR, "Failed to read: %d/%s\n", errno, strerror(errno));
+		msgb_free(msg);
+		return -1;
+	} else if (ret > 4096 - 128) {
+		LOGP(DMGCP, LOGL_ERROR, "Too much data: %d\n", ret);
+		msgb_free(msg);
+		return -1;
+        }
+
+	msg->l2h = msgb_put(msg, ret);
+	if (cb)
+		cb(msg);
+	return 0;
+}
+
+static int mgcp_do_write(struct osmo_fd *fd, struct msgb *msg)
+{
+	int ret;
+	static char strbuf[4096];
+	unsigned int l = msg->len < sizeof(strbuf)-1 ? msg->len : sizeof(strbuf)-1;
+	strncpy(strbuf, (const char*)msg->data, l);
+	strbuf[l] = '\0';
+	DEBUGP(DMGCP, "Tx MGCP msg to MGCP GW: '%s'\n", strbuf);
+
+	LOGP(DMGCP, LOGL_DEBUG, "Sending msg to MGCP GW size: %u\n", msg->len);
+
+	ret = write(fd->fd, msg->data, msg->len);
+	if (ret != msg->len)
+		LOGP(DMGCP, LOGL_ERROR, "Failed to forward message to MGCP"
+		     " GW: %s\n", strerror(errno));
+
+	return ret;
+}
+
+static int mgcp_create_port(struct osmo_wqueue *mgcp_agent, mgcp_read_cb_t read_cb)
+{
+	int on;
+	struct sockaddr_in addr;
+
+	mgcp_agent->bfd.fd = socket(AF_INET, SOCK_DGRAM, 0);
+	if (mgcp_agent->bfd.fd < 0) {
+		LOGP(DMGCP, LOGL_FATAL, "Failed to create UDP socket errno: %d\n", errno);
+		return -1;
+	}
+
+	on = 1;
+	setsockopt(mgcp_agent->bfd.fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+
+	/* try to bind the socket */
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_addr.s_addr = htonl((in_addr_t)0xc0a80084); // 192.168.0.132
+	addr.sin_port = 0;
+
+	if (bind(mgcp_agent->bfd.fd, (struct sockaddr *) &addr, sizeof(addr)) < 0) {
+		LOGP(DMGCP, LOGL_FATAL, "Failed to bind to any port.\n");
+		close(mgcp_agent->bfd.fd);
+		mgcp_agent->bfd.fd = -1;
+		return -1;
+	}
+
+	/* connect to the remote */
+	addr.sin_port = htons(2427);
+	if (connect(mgcp_agent->bfd.fd, (struct sockaddr *) & addr, sizeof(addr)) < 0) {
+		LOGP(DMGCP, LOGL_FATAL, "Failed to connect to local MGCP GW. %s\n", strerror(errno));
+		close(mgcp_agent->bfd.fd);
+		mgcp_agent->bfd.fd = -1;
+		return -1;
+	}
+
+	osmo_wqueue_init(mgcp_agent, 10);
+	mgcp_agent->bfd.when = BSC_FD_READ;
+	mgcp_agent->bfd.data = read_cb;
+	mgcp_agent->read_cb = mgcp_do_read;
+	mgcp_agent->write_cb = mgcp_do_write;
+
+	if (osmo_fd_register(&mgcp_agent->bfd) != 0) {
+		LOGP(DMGCP, LOGL_FATAL, "Failed to register BFD\n");
+		close(mgcp_agent->bfd.fd);
+		mgcp_agent->bfd.fd = -1;
+		return -1;
+	}
+	LOGP(DMGCP, LOGL_INFO, "Registered MGCP BFD\n");
+
+	return 0;
+}
+
+/* End of mgcp utilities */
+
+
 static struct {
 	const char *database_name;
 	const char *config_file;
@@ -472,6 +594,11 @@ TODO: we probably want some of the _net_ ctrl commands from bsc_base_ctrl_cmds_i
 		return 3;
 	}
 #endif
+
+	cscn_network->hack.mgcp_agent = talloc_zero(cscn_network, struct osmo_wqueue);
+	osmo_wqueue_init(cscn_network->hack.mgcp_agent, 10);
+	mgcp_create_port(cscn_network->hack.mgcp_agent,
+			 mgcp_read_cb);
 
 	if (db_init(cscn_cmdline_config.database_name)) {
 		printf("DB: Failed to init database: %s\n",

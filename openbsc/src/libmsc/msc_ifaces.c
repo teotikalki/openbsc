@@ -111,7 +111,8 @@ static int iu_rab_act_cs(struct ue_conn_ctx *uectx, uint8_t rab_id,
 	LOGP(DIUCS, LOGL_DEBUG, "Assigning RAB: rab_id=%d, rtp=%x:%u,"
 	     " use_x213_nsap=%d\n", rab_id, rtp_ip, rtp_port, use_x213_nsap);
 
-	msg = ranap_new_msg_rab_assign_voice(rab_id, rtp_ip, rtp_port);
+	msg = ranap_new_msg_rab_assign_voice(rab_id, rtp_ip, rtp_port,
+					     use_x213_nsap);
 	msg->l2h = msg->data;
 
 	return iu_rab_act(uectx, msg);

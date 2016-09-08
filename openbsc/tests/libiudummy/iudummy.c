@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stdbool.h>
 
 #include <osmocom/core/logging.h>
 #include <osmocom/vty/logging.h>
@@ -34,7 +35,9 @@ int iu_page_ps(const char *imsi, const uint32_t *ptmsi, uint16_t lac, uint8_t ra
 	return 0;
 }
 
-struct msgb *ranap_new_msg_rab_assign_voice(uint8_t rab_id, uint32_t rtp_ip, uint16_t rtp_port)
+struct msgb *ranap_new_msg_rab_assign_voice(uint8_t rab_id, uint32_t rtp_ip,
+					    uint16_t rtp_port,
+					    bool use_x213_nsap)
 {
 	LOGP(DLGLOBAL, LOGL_INFO, "ranap_new_msg_rab_assign_voice() dummy called, NOT composing RAB Assignment\n");
 	return NULL;

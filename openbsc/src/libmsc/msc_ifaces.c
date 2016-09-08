@@ -124,7 +124,7 @@ static int conn_iu_rab_act_cs(struct gsm_subscriber_connection *conn)
 
 	/* HACK. what is the scope of a RAB Id, the conn? the subscriber? the
 	 * ue_conn_ctx? */
-	static uint8_t next_rab_id = 23;
+	static uint8_t next_rab_id = 1;
 	conn->iu.rab_id = next_rab_id ++;
 
 	return iu_rab_act_cs(uectx, conn->iu.rab_id, 0);

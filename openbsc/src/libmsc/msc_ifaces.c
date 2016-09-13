@@ -170,7 +170,7 @@ static int conn_iu_rab_act_cs(struct gsm_subscriber_connection *conn)
 	static uint8_t next_rab_id = 1;
 	conn->iu.rab_id = next_rab_id ++;
 
-	return iu_rab_act_cs(uectx, conn->iu.rab_id, rtp_ip, rtp_port, 0);
+	return iu_rab_act_cs(uectx, conn->iu.rab_id, rtp_ip, rtp_port, 1);
 	/* use_x213_nsap == 0 for ip.access nano3G */
 }
 #endif

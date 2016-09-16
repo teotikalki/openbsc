@@ -1735,8 +1735,7 @@ static int tch_bridge(struct gsm_network *net, struct gsm_mncc_bridge *bridge)
 	/* through-connect channel */
 	return tch_map(trans1->conn->lchan, trans2->conn->lchan);
 #else
-	/* not implemented yet! */
-	return -1;
+	return msc_call_bridge(trans1, trans2);
 #endif
 }
 
@@ -2155,6 +2154,8 @@ static int gsm48_cc_rx_call_conf(struct gsm_trans *trans, struct msgb *msg)
 
 	new_cc_state(trans, GSM_CSTATE_MO_TERM_CALL_CONF);
 
+	msc_call_assignment(trans);
+
 	return mncc_recvmsg(trans->net, trans, MNCC_CALL_CONF_IND,
 			    &call_conf);
 }
@@ -2239,7 +2240,7 @@ static int gsm48_cc_tx_call_proc_and_assign(struct gsm_trans *trans, void *arg)
 	if (rc)
 		return rc;
 
-	return msc_call_assignment(trans->conn);
+	return msc_call_assignment(trans);
 }
 
 static int gsm48_cc_rx_alerting(struct gsm_trans *trans, struct msgb *msg)

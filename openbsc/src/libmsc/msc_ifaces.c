@@ -28,6 +28,7 @@
 #include <openbsc/msc_ifaces.h>
 #include <openbsc/iu.h>
 #include <openbsc/gsm_subscriber.h>
+#include <openbsc/transaction.h>
 
 #include "../../bscconfig.h"
 
@@ -131,19 +132,24 @@ static void mgcp_forward(struct osmo_wqueue *mgcpa, struct msgb *msg)
 		     msgb_l2len(msg));
 }
 
-static void mgcp_crcx(struct osmo_wqueue *mgcpa, uint16_t rtp_idx)
+static unsigned int mgcp_next_trans_id = 423;
+static uint16_t mgcp_next_endpoint = 3;
+
+static void mgcp_crcx(struct osmo_wqueue *mgcpa, uint16_t rtp_endpoint,
+		      unsigned int call_id)
 {
 	struct msgb *msg = msgb_alloc_headroom(1024, 128, "MGCP Tx");
 
 	static char compose[1024];
 	snprintf(compose, sizeof(compose),
-		 "CRCX %d %u@mgw MGCP 1.0\r\n"
-		 "C: 23\r\n"
+		 "CRCX %u %u@mgw MGCP 1.0\r\n"
+		 "C: %u\r\n"
 		 "L: p:20, a:AMR, nt:IN\r\n"
 		 "M: recvonly\r\n"
 		 ,
-		 423 + rtp_idx,
-		 rtp_idx);
+		 mgcp_next_trans_id ++,
+		 rtp_endpoint,
+		 call_id);
 
 
 	char *dst = (char*)msgb_put(msg, strlen(compose));
@@ -154,31 +160,65 @@ static void mgcp_crcx(struct osmo_wqueue *mgcpa, uint16_t rtp_idx)
 	mgcp_forward(mgcpa, msg);
 }
 
-
-static int conn_iu_rab_act_cs(struct gsm_subscriber_connection *conn)
+static void mgcp_mdcx(struct osmo_wqueue *mgcpa, uint16_t rtp_endpoint,
+		      const char *rtp_conn_addr, uint16_t rtp_port)
 {
+	struct msgb *msg = msgb_alloc_headroom(1024, 128, "MGCP Tx");
+	static unsigned int mgcp_next_trans_id = 423;
+
+	static char compose[1024];
+	snprintf(compose, sizeof(compose),
+		 "MDCX %u %u@mgw MGCP 1.0\r\n"
+		 "Z: noasnwer\r\n"
+		 "c=IN IP4 1 %s\r\n"
+		 "m=audio %u RTP/AVP 255\r\n"
+		 ,
+		 mgcp_next_trans_id ++,
+		 rtp_endpoint,
+		 rtp_conn_addr,
+		 rtp_port);
+
+
+	char *dst = (char*)msgb_put(msg, strlen(compose));
+	memcpy(dst, compose, strlen(compose));
+	msg->l2h = msg->data;
+	DEBUGP(DMGCP, "mgcp_mdcx msgb_l2len=%u\n", msgb_l2len(msg));
+
+	mgcp_forward(mgcpa, msg);
+}
+
+
+static int conn_iu_rab_act_cs(struct gsm_trans *trans)
+{
+	struct gsm_subscriber_connection *conn = trans->conn;
 	struct ue_conn_ctx *uectx = conn->iu.ue_ctx;
 	struct osmo_wqueue *mgcpa = conn->network->hack.mgcp_agent;
-
-	/* DEV HACK */
-	uint16_t rtp_idx = 1;
-	uint32_t rtp_ip = 0xc0a80084; // 192.168.0.132
-	uint16_t rtp_port = 4000 + 2*rtp_idx;
 	OSMO_ASSERT(mgcpa);
-	mgcp_crcx(mgcpa, rtp_idx);
 
-	/* HACK. where to scope the RAB Id, the conn? the subscriber? the
+	/* DEV HACK. Where to scope the rtp endpoint? At the conn / subscriber
+	 * / ue_conn_ctx? */
+	conn->iu.mgcp_rtp_endpoint = mgcp_next_endpoint ++;
+	conn->iu.mgcp_rtp_port_ue = 4000 + 2 * conn->iu.mgcp_rtp_endpoint;
+	conn->iu.mgcp_rtp_port_cn = 16000 + 2 * conn->iu.mgcp_rtp_endpoint;
+
+	uint32_t rtp_ip = 0xc0a80084; // 192.168.0.132
+	//uint32_t rtp_ip = 0x0a090178; // 10.9.1.120
+	mgcp_crcx(mgcpa, conn->iu.mgcp_rtp_endpoint, trans->callref);
+
+	/* HACK. where to scope the RAB Id? At the conn / subscriber /
 	 * ue_conn_ctx? */
 	static uint8_t next_rab_id = 1;
 	conn->iu.rab_id = next_rab_id ++;
 
-	return iu_rab_act_cs(uectx, conn->iu.rab_id, rtp_ip, rtp_port, 1);
+	return iu_rab_act_cs(uectx, conn->iu.rab_id, rtp_ip, conn->iu.mgcp_rtp_port_ue, 1);
 	/* use_x213_nsap == 0 for ip.access nano3G */
 }
 #endif
 
-int msc_call_assignment(struct gsm_subscriber_connection *conn)
+int msc_call_assignment(struct gsm_trans *trans)
 {
+	struct gsm_subscriber_connection *conn = trans->conn;
+
 	switch (conn->via_iface) {
 	case IFACE_A:
 		LOGP(DMSC, LOGL_ERROR,
@@ -188,7 +228,7 @@ int msc_call_assignment(struct gsm_subscriber_connection *conn)
 
 	case IFACE_IU:
 #ifdef BUILD_IU
-		return conn_iu_rab_act_cs(conn);
+		return conn_iu_rab_act_cs(trans);
 #else
 		LOGP(DMSC, LOGL_ERROR,
 		     "msc_call_assignment(): IuCS RAB Activation not supported"
@@ -202,4 +242,22 @@ int msc_call_assignment(struct gsm_subscriber_connection *conn)
 		     conn->via_iface);
 		return -1;
 	}
+}
+
+int msc_call_bridge(struct gsm_trans *trans1, struct gsm_trans *trans2)
+{
+	struct gsm_subscriber_connection *conn1 = trans1->conn;
+	struct gsm_subscriber_connection *conn2 = trans2->conn;
+
+	struct osmo_wqueue *mgcpa = conn1->network->hack.mgcp_agent;
+	OSMO_ASSERT(mgcpa);
+
+	const char *ip = "192.168.0.132";
+
+	mgcp_mdcx(mgcpa, conn1->iu.mgcp_rtp_endpoint,
+		  ip, conn2->iu.mgcp_rtp_port_cn);
+	mgcp_mdcx(mgcpa, conn2->iu.mgcp_rtp_endpoint,
+		  ip, conn1->iu.mgcp_rtp_port_cn);
+
+	return 0;
 }

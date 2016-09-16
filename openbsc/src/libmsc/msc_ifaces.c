@@ -137,11 +137,13 @@ static void mgcp_crcx(struct osmo_wqueue *mgcpa, uint16_t rtp_idx)
 
 	static char compose[1024];
 	snprintf(compose, sizeof(compose),
-		 "CRCX 1234 %u@mgw MGCP 1.0\r\n"
+		 "CRCX %d %u@mgw MGCP 1.0\r\n"
 		 "C: 23\r\n"
 		 "L: p:20, a:AMR, nt:IN\r\n"
 		 "M: recvonly\r\n"
-		 , rtp_idx);
+		 ,
+		 423 + rtp_idx,
+		 rtp_idx);
 
 
 	char *dst = (char*)msgb_put(msg, strlen(compose));

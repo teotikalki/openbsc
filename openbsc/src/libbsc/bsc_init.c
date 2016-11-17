@@ -37,6 +37,9 @@
 #include <osmocom/gsm/sysinfo.h>
 #include <openbsc/e1_config.h>
 #include <openbsc/common_bsc.h>
+#include <openbsc/pcu_if.h>
+#include <limits.h>
+
 
 /* global pointer to the gsm network data structure */
 extern struct gsm_network *bsc_gsmnet;
@@ -190,6 +193,10 @@ int gsm_bts_trx_set_system_infos(struct gsm_bts_trx *trx)
 		if (rc < 0)
 			return rc;
 	}
+
+	/* Make sure the PCU is aware (in case anything GPRS related has
+	 * changed in SI */
+	pcu_info_update(bts);
 
 	return 0;
 err_out:
@@ -478,7 +485,13 @@ static int bootstrap_bts(struct gsm_bts *bts)
 
 int bsc_network_alloc(mncc_recv_cb_t mncc_recv)
 {
-	bsc_gsmnet = bsc_network_init(tall_bsc_ctx, 1, 1, mncc_recv);
+	struct gsm_bts *bts;
+	int rc;
+	char pcu_sock_path[PATH_MAX];
+	char pcu_sock_path_ending[PATH_MAX];
+
+	/* initialize our data structures */
+	bsc_gsmnet = gsm_network_init(tall_bsc_ctx, 1, 1, mncc_recv);
 	if (!bsc_gsmnet)
 		return -ENOMEM;
 
@@ -519,6 +532,19 @@ int bsc_network_configure(const char *config_file)
 			LOGP(DNM, LOGL_FATAL, "Error enabling E1 input driver\n");
 			return rc;
 		}
+
+		strcpy(pcu_sock_path, PCU_SOCK_DEFAULT);
+		sprintf(pcu_sock_path_ending,"_%i", bts->nr);
+		if (bts->nr > 0)
+			strcat(pcu_sock_path, pcu_sock_path_ending);
+		rc = pcu_sock_init(pcu_sock_path, bts);
+
+		if (rc < 0) {
+			LOGP(DNM, LOGL_FATAL,
+			     "PCU L1 socket failed for bts %i\n", bts->nr);
+			return rc;
+		}
 	}
+
 	return 0;
 }

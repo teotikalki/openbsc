@@ -73,7 +73,8 @@
 void *tall_locop_ctx;
 void *tall_authciphop_ctx;
 
-static struct vlr_instance *g_vlr;
+/* Keep the global VLR instance non-static for direct access by unit tests. */
+struct vlr_instance *g_vlr;
 
 static int tch_rtp_signal(struct gsm_lchan *lchan, int signal);
 
@@ -431,8 +432,9 @@ static const struct value_string lupd_names[] = {
 	{ 0, NULL }
 };
 
-/* Chapter 9.2.15: Receive Location Updating Request */
-static int mm_rx_loc_upd_req(struct gsm_subscriber_connection *conn, struct msgb *msg)
+/* Chapter 9.2.15: Receive Location Updating Request.
+ * Keep this function non-static for direct invocation by unit tests. */
+int mm_rx_loc_upd_req(struct gsm_subscriber_connection *conn, struct msgb *msg)
 {
 	struct gsm48_hdr *gh = msgb_l3(msg);
 	struct gsm48_loc_upd_req *lu;
@@ -788,8 +790,10 @@ static int _gsm48_rx_mm_serv_req_sec_cb(
  * c) Check that we know the subscriber with the TMSI otherwise reject
  *    with a HLR cause
  * d) Set the subscriber on the gsm_lchan and accept
+ *
+ * Keep this function non-static for direct invocation by unit tests.
  */
-static int gsm48_rx_mm_serv_req(struct gsm_subscriber_connection *conn, struct msgb *msg)
+int gsm48_rx_mm_serv_req(struct gsm_subscriber_connection *conn, struct msgb *msg)
 {
 	uint8_t mi_type;
 	char mi_string[GSM48_MI_SIZE];

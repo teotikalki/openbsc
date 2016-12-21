@@ -248,6 +248,7 @@ AC_OUTPUT(
     tests/v42bis/Makefile
     tests/nanobts_omlattr/Makefile
     tests/vlr/Makefile
+    tests/subscr_conn/Makefile
     doc/Makefile
     doc/examples/Makefile
     Makefile)

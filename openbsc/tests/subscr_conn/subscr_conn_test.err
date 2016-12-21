@@ -1,0 +1,178 @@
+===== test_early_stage
+- NULL conn
+msc_subscr_conn_is_accepted() == false
+- freshly allocated conn
+msc_subscr_conn_is_accepted() == false
+- no master_fsm present
+msc_subscr_conn_is_accepted() == false
+- master_fsm present, in new state
+DVLR Subscr_Conn(test){SUBSCR_CONN_S_NEW}: Allocated
+msc_subscr_conn_is_accepted() == false
+- requests shall be thwarted
+- fake rx 04.08: pdisc=3 msg_type=5
+DRLL Dispatching 04.08 message, pdisc=3
+DRLL subscr unknown: Message not permitted for initial conn: pdisc=3 msg_type=5
+- fake rx 04.08: rc=-13
+- fake rx 04.08: pdisc=5 msg_type=27
+DRLL Dispatching 04.08 message, pdisc=5
+DRLL subscr unknown: Message not permitted for initial conn: pdisc=5 msg_type=27
+- fake rx 04.08: rc=-13
+- fake rx 04.08: pdisc=6 msg_type=39
+DRLL Dispatching 04.08 message, pdisc=6
+DRLL subscr unknown: Message not permitted for initial conn: pdisc=6 msg_type=39
+- fake rx 04.08: rc=-13
+- fake rx 04.08: pdisc=9 msg_type=1
+DRLL Dispatching 04.08 message, pdisc=9
+DRLL subscr unknown: Message not permitted for initial conn: pdisc=9 msg_type=1
+- fake rx 04.08: rc=-13
+- fake: acceptance
+DVLR Subscr_Conn(test){SUBSCR_CONN_S_NEW}: state_chg to SUBSCR_CONN_S_ACCEPTED
+msc_subscr_conn_is_accepted() == true
+- subscr_con_put() implicitly deallocates conn and all FSMs
+DVLR Subscr_Conn(test){SUBSCR_CONN_S_ACCEPTED}: Received Event SUBSCR_CONN_E_MO_CLOSE
+DVLR Subscr_Conn(test){SUBSCR_CONN_S_ACCEPTED}: state_chg to SUBSCR_CONN_S_RELEASED
+DRLL subscr unknown: Freeing subscriber connection
+DVLR Subscr_Conn(test){SUBSCR_CONN_S_RELEASED}: Terminating (cause = OSMO_FSM_TERM_REGULAR)
+DVLR Subscr_Conn(test){SUBSCR_CONN_S_RELEASED}: Freeing instance
+DVLR Subscr_Conn(test){SUBSCR_CONN_S_RELEASED}: Deallocated
+- new conn, accepted
+DVLR Subscr_Conn(test){SUBSCR_CONN_S_NEW}: Allocated
+DVLR Subscr_Conn(test){SUBSCR_CONN_S_NEW}: state_chg to SUBSCR_CONN_S_ACCEPTED
+msc_subscr_conn_is_accepted() == true
+- close event also implicitly deallocates conn
+DVLR Subscr_Conn(test){SUBSCR_CONN_S_ACCEPTED}: Received Event SUBSCR_CONN_E_CN_CLOSE
+DVLR Subscr_Conn(test){SUBSCR_CONN_S_ACCEPTED}: state_chg to SUBSCR_CONN_S_RELEASED
+DRLL subscr unknown: Freeing subscriber connection
+DVLR Subscr_Conn(test){SUBSCR_CONN_S_RELEASED}: Terminating (cause = OSMO_FSM_TERM_REGULAR)
+DVLR Subscr_Conn(test){SUBSCR_CONN_S_RELEASED}: Freeing instance
+DVLR Subscr_Conn(test){SUBSCR_CONN_S_RELEASED}: Deallocated
+===== test_early_stage: SUCCESS
+
+===== test_no_authen
+- new conn
+- Location Update request causes a GSUP LU request to HLR
+DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: Allocated
+MI(IMSI)=901700000004620 type=IMSI ATTACH LU/new-LAC: 1/0 DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_IDLE}: Allocated
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_IDLE}: is child of Subscr_Conn(901700000004620)
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_IDLE}: Received Event VLR_ULA_E_UPDATE_LA
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_IDLE}: vlr_loc_upd_node1()
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_IDLE}: vlr_loc_upd_post_auth()
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_IDLE}: vlr_loc_upd_node4()
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_IDLE}: state_chg to VLR_ULA_S_WAIT_HLR_UPD
+DVLR upd_hlr_vlr_fsm(901700000004620){UPD_HLR_VLR_S_INIT}: Allocated
+DVLR upd_hlr_vlr_fsm(901700000004620){UPD_HLR_VLR_S_INIT}: is child of vlr_lu_fsm(901700000004620)
+DVLR upd_hlr_vlr_fsm(901700000004620){UPD_HLR_VLR_S_INIT}: Received Event UPD_HLR_VLR_E_START
+DVLR GSUP tx: 04010809710000004026f0
+--> GSUP tx: 04010809710000004026f0
+DVLR upd_hlr_vlr_fsm(901700000004620){UPD_HLR_VLR_S_INIT}: state_chg to UPD_HLR_VLR_S_WAIT_FOR_DATA
+- HLR sends _INSERT_DATA_REQUEST, VLR responds with _INSERT_DATA_RESULT
+<-- GSUP rx _INSERT_DATA_RESULT: 10010809710000004026f00804036470f1
+DVLR GSUP rx 17: 10010809710000004026f00804036470f1
+DVLR 901700000004620 has MSISDN 46071
+DVLR GSUP tx: 12010809710000004026f0
+--> GSUP tx: 12010809710000004026f0
+<-- GSUP rx _INSERT_DATA_RESULT: vlr_gsupc_read_cb() returns 0
+- having received subscriber data does not mean acceptance
+msc_subscr_conn_is_accepted() == false
+- requests shall be thwarted
+- fake rx 04.08: pdisc=3 msg_type=5
+DRLL Dispatching 04.08 message, pdisc=3
+DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=3 msg_type=5
+- fake rx 04.08: rc=-13
+- fake rx 04.08: pdisc=5 msg_type=27
+DRLL Dispatching 04.08 message, pdisc=5
+DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=5 msg_type=27
+- fake rx 04.08: rc=-13
+- fake rx 04.08: pdisc=6 msg_type=39
+DRLL Dispatching 04.08 message, pdisc=6
+DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=6 msg_type=39
+- fake rx 04.08: rc=-13
+- fake rx 04.08: pdisc=9 msg_type=1
+DRLL Dispatching 04.08 message, pdisc=9
+DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=9 msg_type=1
+- fake rx 04.08: rc=-13
+- HLR also sends GSUP _UPDATE_LOCATION_RESULT
+<-- GSUP rx _UPDATE_LOCATION_RESULT: 06010809710000004026f0
+DVLR GSUP rx 11: 06010809710000004026f0
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_WAIT_HLR_UPD}: Received Event VLR_ULA_E_HLR_LU_RES
+DVLR upd_hlr_vlr_fsm(901700000004620){UPD_HLR_VLR_S_WAIT_FOR_DATA}: Received Event UPD_HLR_VLR_E_UPD_LOC_ACK
+DVLR upd_hlr_vlr_fsm(901700000004620){UPD_HLR_VLR_S_WAIT_FOR_DATA}: state_chg to UPD_HLR_VLR_S_DONE
+DVLR upd_hlr_vlr_fsm(901700000004620){UPD_HLR_VLR_S_DONE}: Terminating (cause = OSMO_FSM_TERM_REGULAR)
+DVLR upd_hlr_vlr_fsm(901700000004620){UPD_HLR_VLR_S_DONE}: Removing from parent vlr_lu_fsm(901700000004620)
+DVLR upd_hlr_vlr_fsm(901700000004620){UPD_HLR_VLR_S_DONE}: Freeing instance
+DVLR upd_hlr_vlr_fsm(901700000004620){UPD_HLR_VLR_S_DONE}: Deallocated
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_WAIT_HLR_UPD}: Received Event VLR_ULA_E_UPD_HLR_COMPL
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_WAIT_HLR_UPD}: state_chg to VLR_ULA_S_WAIT_LU_COMPL
+DVLR lu_compl_vlr_fsm(901700000004620){LU_COMPL_VLR_S_INIT}: Allocated
+DVLR lu_compl_vlr_fsm(901700000004620){LU_COMPL_VLR_S_INIT}: is child of vlr_lu_fsm(901700000004620)
+DVLR lu_compl_vlr_fsm(901700000004620){LU_COMPL_VLR_S_INIT}: Received Event LU_COMPL_VLR_E_START
+DVLR lu_compl_vlr_fsm(901700000004620){LU_COMPL_VLR_S_INIT}: state_chg to LU_COMPL_VLR_S_WAIT_SUB_PRES
+DVLR sub_pres_vlr_fsm(901700000004620){SUB_PRES_VLR_S_INIT}: Allocated
+DVLR sub_pres_vlr_fsm(901700000004620){SUB_PRES_VLR_S_INIT}: is child of lu_compl_vlr_fsm(901700000004620)
+DVLR sub_pres_vlr_fsm(901700000004620){SUB_PRES_VLR_S_INIT}: Received Event SUB_PRES_VLR_E_START
+DVLR sub_pres_vlr_fsm(901700000004620){SUB_PRES_VLR_S_INIT}: state_chg to SUB_PRES_VLR_S_DONE
+DVLR sub_pres_vlr_fsm(901700000004620){SUB_PRES_VLR_S_DONE}: Terminating (cause = OSMO_FSM_TERM_REGULAR)
+DVLR sub_pres_vlr_fsm(901700000004620){SUB_PRES_VLR_S_DONE}: Removing from parent lu_compl_vlr_fsm(901700000004620)
+DVLR sub_pres_vlr_fsm(901700000004620){SUB_PRES_VLR_S_DONE}: Freeing instance
+DVLR sub_pres_vlr_fsm(901700000004620){SUB_PRES_VLR_S_DONE}: Deallocated
+DVLR lu_compl_vlr_fsm(901700000004620){LU_COMPL_VLR_S_WAIT_SUB_PRES}: Received Event LU_COMPL_VLR_E_SUB_PRES_COMPL
+LU Accept for 901700000004620
+DVLR lu_compl_vlr_fsm(901700000004620){LU_COMPL_VLR_S_WAIT_SUB_PRES}: state_chg to LU_COMPL_VLR_S_DONE
+DVLR lu_compl_vlr_fsm(901700000004620){LU_COMPL_VLR_S_DONE}: Terminating (cause = OSMO_FSM_TERM_REGULAR)
+DVLR lu_compl_vlr_fsm(901700000004620){LU_COMPL_VLR_S_DONE}: Removing from parent vlr_lu_fsm(901700000004620)
+DVLR lu_compl_vlr_fsm(901700000004620){LU_COMPL_VLR_S_DONE}: Freeing instance
+DVLR lu_compl_vlr_fsm(901700000004620){LU_COMPL_VLR_S_DONE}: Deallocated
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_WAIT_LU_COMPL}: Received Event VLR_ULA_E_LU_COMPL_TERM
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_WAIT_LU_COMPL}: state_chg to VLR_ULA_S_DONE
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_DONE}: Terminating (cause = OSMO_FSM_TERM_REGULAR)
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_DONE}: Removing from parent Subscr_Conn(901700000004620)
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_DONE}: fsm_lu_cleanup called with cause OSMO_FSM_TERM_REGULAR
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_DONE}: Freeing instance
+DVLR vlr_lu_fsm(901700000004620){VLR_ULA_S_DONE}: Deallocated
+DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: Received Event SUBSCR_CONN_E_LU_SUCCESS
+DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: state_chg to SUBSCR_CONN_S_ACCEPTED
+<-- GSUP rx _UPDATE_LOCATION_RESULT: vlr_gsupc_read_cb() returns 0
+- now the conn is accepted
+msc_subscr_conn_is_accepted() == true
+- some time passes, the conn is discarded
+DRLL subscr 901700000004620: Freeing subscriber connection
+DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_ACCEPTED}: Terminating (cause = OSMO_FSM_TERM_ERROR)
+DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_ACCEPTED}: Freeing instance
+DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_ACCEPTED}: Deallocated
+- after a while, a new conn...
+msc_subscr_conn_is_accepted() == false
+- ...sends a CM Service Request
+DMM gsm48_rx_mm_serv_req 05247803305886089910070000006402 l1h@0 l2h@0 l3h@0
+DMM <- CM SERVICE REQUEST serv_type=0x08 MI(IMSI)=901700000004620
+DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: Allocated
+DVLR Process_Access_Request_VLR(901700000004620){INIT}: Allocated
+DVLR Process_Access_Request_VLR(901700000004620){INIT}: is child of Subscr_Conn(901700000004620)
+DVLR Process_Access_Request_VLR(901700000004620){INIT}: Received Event PR_ARQ_E_START
+DVLR Process_Access_Request_VLR(901700000004620){INIT}: _proc_arq_vlr_node2()
+DVLR Process_Access_Request_VLR(901700000004620){INIT}: _proc_arq_vlr_node2_post_vlr()
+DVLR Process_Access_Request_VLR(901700000004620){INIT}: _proc_arq_vlr_post_pres()
+DVLR Process_Access_Request_VLR(901700000004620){INIT}: _proc_arq_vlr_post_trace()
+DVLR Process_Access_Request_VLR(901700000004620){INIT}: _proc_arq_vlr_post_imei()
+DVLR Process_Access_Request_VLR(901700000004620){INIT}: Process Access Request result: VLR_PR_ARQ_RES_PASSED
+DMM -> CM SERVICE ACK
+tx DTAP to MS: 0521
+DVLR Process_Access_Request_VLR(901700000004620){INIT}: Unhandled proc_arq_fsm_success
+DVLR Process_Access_Request_VLR(901700000004620){INIT}: state_chg to DONE
+DVLR Process_Access_Request_VLR(901700000004620){DONE}: Terminating (cause = OSMO_FSM_TERM_REGULAR)
+DVLR Process_Access_Request_VLR(901700000004620){DONE}: Removing from parent Subscr_Conn(901700000004620)
+DVLR Process_Access_Request_VLR(901700000004620){DONE}: Freeing instance
+DVLR Process_Access_Request_VLR(901700000004620){DONE}: Deallocated
+DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: Received Event SUBSCR_CONN_E_PARQ_SUCCESS
+DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: state_chg to SUBSCR_CONN_S_ACCEPTED
+DMM -> CM SERVICE ACK
+tx DTAP to MS: 0521
+msc_subscr_conn_is_accepted() == true
+- conn is released
+DRLL subscr 901700000004620: Freeing subscriber connection
+DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_ACCEPTED}: Terminating (cause = OSMO_FSM_TERM_ERROR)
+DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_ACCEPTED}: Freeing instance
+DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_ACCEPTED}: Deallocated
+===== test_no_authen: SUCCESS
+
+full talloc report on 'msgb' (total      0 bytes in   1 blocks)
+talloc_total_blocks(tall_bsc_ctx) == 9

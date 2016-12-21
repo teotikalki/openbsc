@@ -158,3 +158,10 @@ AT_KEYWORDS([nanobts_omlattr])
 cat $abs_srcdir/nanobts_omlattr/nanobts_omlattr_test.ok > expout
 AT_CHECK([$abs_top_builddir/tests/nanobts_omlattr/nanobts_omlattr_test], [], [expout], [ignore])
 AT_CLEANUP
+
+AT_SETUP([subscr_conn])
+AT_KEYWORDS([subscr_conn])
+cat $abs_srcdir/subscr_conn/subscr_conn_test.ok > expout
+cat $abs_srcdir/subscr_conn/subscr_conn_test.err > experr
+AT_CHECK([$abs_top_builddir/tests/subscr_conn/subscr_conn_test], [], [expout], [experr])
+AT_CLEANUP

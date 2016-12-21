@@ -585,8 +585,9 @@ static int vlr_sub_handle_cancel_req(struct vlr_subscriber *vsub,
 	return 0;
 }
 
-/* Incoming handler for GSUP from HLR */
-static int vlr_gsupc_read_cb(struct gsup_client *gsupc, struct msgb *msg)
+/* Incoming handler for GSUP from HLR.
+ * Keep this function non-static for direct invocation by unit tests. */
+int vlr_gsupc_read_cb(struct gsup_client *gsupc, struct msgb *msg)
 {
 	struct vlr_instance *vlr = (struct vlr_instance *) gsupc->data;
 	struct vlr_subscriber *vsub;

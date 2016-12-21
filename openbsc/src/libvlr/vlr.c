@@ -106,8 +106,8 @@ static int vlr_tx_gsup_message(struct vlr_instance *vlr,
 		return -ENOTSUP;
 	}
 
-	LOGP(DVLR, LOGL_DEBUG,
-		    "Sending GSUP, will send: %s\n", msgb_hexdump(msg));
+	LOGP(DVLR, LOGL_DEBUG, "GSUP tx: %s\n",
+	     osmo_hexdump_nospc(msg->data, msg->len));
 
 	return gsup_client_send(vlr->gsup_client, msg);
 }
@@ -431,9 +431,7 @@ static void vlr_sub_gsup_insert_data(struct vlr_subscriber *vsub,
 				       gsup_msg->msisdn_enc_len, 0);
 		LOGP(DVLR, LOGL_DEBUG, "%s has MSISDN %s\n",
 		     vlr_sub_name(vsub), vsub->msisdn);
-	} else
-		LOGP(DVLR, LOGL_DEBUG, "%s: no MSISDN data received (is '%s')\n",
-		     vlr_sub_name(vsub), vsub->msisdn);
+	}
 
 	if (gsup_msg->hlr_enc) {
 		if (gsup_msg->hlr_enc_len > sizeof(vsub->hlr.buf)) {
@@ -594,6 +592,9 @@ static int vlr_gsupc_read_cb(struct gsup_client *gsupc, struct msgb *msg)
 	struct vlr_subscriber *vsub;
 	struct osmo_gsup_message gsup;
 	int rc;
+
+	DEBUGP(DVLR, "GSUP rx %u: %s\n", msgb_l2len(msg),
+	       osmo_hexdump_nospc(msgb_l2(msg), msgb_l2len(msg)));
 
 	rc = osmo_gsup_decode(msgb_l2(msg), msgb_l2len(msg), &gsup);
 	if (rc < 0) {

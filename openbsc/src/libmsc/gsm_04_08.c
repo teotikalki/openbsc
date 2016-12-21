@@ -3653,9 +3653,6 @@ static void msc_vlr_subscr_assoc(void *msc_conn_ref,
 				 struct vlr_subscriber *vsub)
 {
 	struct gsm_subscriber_connection *conn = msc_conn_ref;
-	DEBUGP(DVLR, "%s: msc_vlr_subscr_assoc(%p) vsub->lu_fsm=%p\n",
-	       vlr_sub_name(vsub), conn, vsub->lu_fsm
-	       );
 	OSMO_ASSERT(!conn->subscr);
 	conn->subscr = subscr_alloc();
 	conn->subscr->vsub = vsub;

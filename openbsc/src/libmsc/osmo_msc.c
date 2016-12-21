@@ -243,7 +243,10 @@ void msc_release_connection(struct gsm_subscriber_connection *conn)
 	if (conn->subscr)
 		vlr_sub_disconnected(conn->subscr->vsub);
 
+#if BEFORE_MSCSPLIT
 	gsm0808_clear(conn);
+#endif
+
 	/* TODO: is there anything to wait for? */
 	osmo_fsm_inst_dispatch(conn->master_fsm, SUB_CON_E_CLOSE_CONF, NULL);
 }

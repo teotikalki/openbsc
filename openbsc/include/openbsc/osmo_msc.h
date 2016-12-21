@@ -27,6 +27,15 @@ enum subscr_conn_fsm_event {
 	SUB_CON_E_CLOSE_CONF,
 };
 
+enum subscr_conn_fsm_state {
+	SUBSCR_CONN_S_NEW,
+	SUBSCR_CONN_S_ACCEPTED,
+	SUBSCR_CONN_S_REJECTED,
+	SUBSCR_CONN_S_RELEASING,
+	SUBSCR_CONN_S_RELEASED,
+};
+
+void msc_subscr_conn_init(void);
 
 struct bsc_api *msc_bsc_api();
 struct gsm_subscriber_connection *subscr_con_get(struct gsm_subscriber_connection *conn);
@@ -39,5 +48,7 @@ int msc_vlr_init(void *ctx,
 		 uint16_t gsup_server_port);
 
 void msc_release_connection(struct gsm_subscriber_connection *conn);
+
+bool msc_subscr_conn_is_accepted(struct gsm_subscriber_connection *conn);
 
 #endif

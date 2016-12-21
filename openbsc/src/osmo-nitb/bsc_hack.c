@@ -358,6 +358,7 @@ int main(int argc, char **argv)
 	osmo_fsm_log_addr(true);
 	msc_vlr_init(tall_bsc_ctx, bsc_gsmnet->gsup_server_addr_str,
 		     bsc_gsmnet->gsup_server_port);
+	msc_subscr_conn_init();
 
 	if (db_init(database_name)) {
 		printf("DB: Failed to init database. Please check the option settings.\n");

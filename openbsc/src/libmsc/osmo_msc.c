@@ -278,6 +278,6 @@ void subscr_con_put(struct gsm_subscriber_connection *conn)
 	conn->use_count--;
 	DEBUGP(DMSC, "decreased subscr_con use_count to %u\n", conn->use_count);
 
-	if (conn->use_count == 0)
+	if (conn->use_count == 0 && conn->master_fsm)
 		osmo_fsm_inst_dispatch(conn->master_fsm, SUB_CON_E_MO_CLOSE, NULL);
 }

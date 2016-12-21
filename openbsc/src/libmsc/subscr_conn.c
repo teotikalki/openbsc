@@ -42,6 +42,9 @@ void subscr_conn_fsm_new(struct osmo_fsm_inst *fi, uint32_t event, void *data)
 	int rc;
 	struct gsm_subscriber_connection *conn = fi->priv;
 	switch (event) {
+	case SUB_CON_E_LU_RES:
+		osmo_fsm_inst_state_chg(fi, SUBSCR_CONN_S_ACCEPTED, 0, 0);
+		break;
 	case SUB_CON_E_PARQ_SUCCESS:
 		osmo_fsm_inst_state_chg(fi, SUBSCR_CONN_S_ACCEPTED, 0, 0);
 		rc = gsm48_tx_mm_serv_ack(conn);
@@ -131,8 +134,13 @@ int msc_create_conn_fsm(struct gsm_subscriber_connection *conn, const char *id)
 
 bool msc_subscr_conn_is_accepted(struct gsm_subscriber_connection *conn)
 {
-
-	return false;
+	if (!conn)
+		return false;
+	if (!conn->master_fsm)
+		return false;
+	if (conn->master_fsm->state != SUBSCR_CONN_S_ACCEPTED)
+		return false;
+	return true;
 }
 
 void msc_subscr_conn_init(void)

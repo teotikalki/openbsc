@@ -556,7 +556,7 @@ static int vlr_sub_handle_lu_err(struct vlr_subscriber *vsub,
 	return 0;
 }
 
-/* Handel LOCATION CANCEL request from HLR */
+/* Handle LOCATION CANCEL request from HLR */
 static int vlr_sub_handle_cancel_req(struct vlr_subscriber *vsub,
 				     struct osmo_gsup_message *gsup_msg)
 {

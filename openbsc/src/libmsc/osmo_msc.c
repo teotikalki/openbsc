@@ -288,6 +288,8 @@ void _subscr_con_put(struct gsm_subscriber_connection *conn,
 		"subscr %s: decreased subscr_conn use_count to %u\n",
 		subscr_name(conn->subscr), conn->use_count);
 
+#if 0
 	if (conn->use_count == 0 && conn->conn_fsm)
 		osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_MO_CLOSE, NULL);
+#endif
 }

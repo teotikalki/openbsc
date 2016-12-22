@@ -60,9 +60,25 @@ void gsup_rx(const char *label, const char *rx_hex, const char *expect_tx_hex)
 	talloc_free(msg);
 }
 
-#define EXPECT_ACCEPTED(accepted) do { \
-		OSMO_ASSERT(msc_subscr_conn_is_accepted(conn) == accepted); \
-		fprintf(stderr, "msc_subscr_conn_is_accepted() == " #accepted "\n"); \
+bool conn_exists(struct gsm_subscriber_connection *conn)
+{
+	struct gsm_subscriber_connection *c;
+	llist_for_each_entry(c, &net->subscr_conns, entry) {
+		if (c == conn)
+			return true;
+	}
+	return false;
+}
+
+#define EXPECT_ACCEPTED(expect_accepted) do { \
+		if (conn) { \
+			OSMO_ASSERT(conn); \
+			OSMO_ASSERT(conn_exists(conn)); \
+		} \
+		bool accepted = msc_subscr_conn_is_accepted(conn); \
+		fprintf(stderr, "msc_subscr_conn_is_accepted() == %s\n", \
+			accepted ? "true" : "false"); \
+		OSMO_ASSERT(accepted == expect_accepted); \
 	} while (false)
 
 struct gsm_subscriber_connection *conn_new(void)
@@ -70,15 +86,26 @@ struct gsm_subscriber_connection *conn_new(void)
 	struct gsm_subscriber_connection *conn;
 	conn = msc_subscr_con_allocate(net);
 	conn->bts = the_bts;
-	subscr_con_get(conn);
 	return conn;
 }
 
-void conn_free(struct gsm_subscriber_connection *conn)
+/* TODO copied from libosmo-abis/src/subchan_demux.c, remove dup */
+static int llist_len(struct llist_head *head)
 {
-	subscr_con_put(conn);
-	msc_subscr_con_free(conn);
+	struct llist_head *entry;
+	int i = 0;
+
+	llist_for_each(entry, head)
+		i++;
+
+	return i;
 }
+
+#define EXPECT_CONN_COUNT(N) do { \
+		int l = llist_len(&net->subscr_conns); \
+		fprintf(stderr, "nr of conns == %d\n", l); \
+		OSMO_ASSERT(l == (N)); \
+	} while (false)
 
 int mm_rx_loc_upd_req(struct gsm_subscriber_connection *conn, struct msgb *msg);
 int gsm48_rx_mm_serv_req(struct gsm_subscriber_connection *conn, struct msgb *msg);
@@ -107,9 +134,6 @@ void fake_rx_cm_service_req(struct gsm_subscriber_connection *conn,
 			    "05247803305886089910070000006402");
 	msg->l3h = msg->l2h = msg->l1h = msg->data;
 	OSMO_ASSERT( gsm48_rx_mm_serv_req(conn, msg) == 0 );
-	OSMO_ASSERT(conn->conn_fsm);
-	OSMO_ASSERT(conn->subscr);
-	OSMO_ASSERT(conn->subscr->vsub);
 	talloc_free(msg);
 }
 
@@ -162,11 +186,7 @@ void test_early_stage()
 	conn->bts = the_bts;
 	EXPECT_ACCEPTED(false);
 
-	btw("no conn_fsm present");
-	subscr_con_get(conn);
-	EXPECT_ACCEPTED(false);
-
-	btw("conn_fsm present, in new state");
+	btw("conn_fsm present, in state NEW");
 	OSMO_ASSERT(msc_create_conn_fsm(conn, "test") == 0);
 	OSMO_ASSERT(conn->conn_fsm);
 	OSMO_ASSERT(conn->conn_fsm->state == SUBSCR_CONN_S_NEW);
@@ -181,9 +201,10 @@ void test_early_stage()
 	osmo_fsm_inst_state_chg(conn->conn_fsm, SUBSCR_CONN_S_ACCEPTED, 0, 0);
 	EXPECT_ACCEPTED(true);
 
-	btw("subscr_con_put() implicitly deallocates conn and all FSMs");
-	subscr_con_put(conn);
-	OSMO_ASSERT(llist_empty(&net->subscr_conns));
+	btw("CLOSE event implicitly deallocates conn and all FSMs");
+	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
+	EXPECT_CONN_COUNT(0);
+	conn = NULL;
 
 	btw("new conn, accepted");
 	conn = conn_new();
@@ -195,7 +216,23 @@ void test_early_stage()
 
 	btw("close event also implicitly deallocates conn");
 	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
-	OSMO_ASSERT(llist_empty(&net->subscr_conns));
+	EXPECT_CONN_COUNT(0);
+
+	comment_end();
+}
+
+void test_cm_service_without_lu()
+{
+	comment_start();
+
+	btw("new conn");
+	struct gsm_subscriber_connection *conn = conn_new();
+
+	btw("CM Service Request without a prior Location Updating");
+	fake_rx_cm_service_req(conn, false);
+
+	btw("conn was released");
+	EXPECT_CONN_COUNT(0);
 
 	comment_end();
 }
@@ -229,8 +266,9 @@ void test_no_authen()
 	btw("now the conn is accepted");
 	EXPECT_ACCEPTED(true);
 
-	btw("some time passes, the conn is discarded");
-	conn_free(conn);
+	btw("the conn is discarded");
+	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
+	EXPECT_CONN_COUNT(0);
 
 	btw("after a while, a new conn...");
 	conn = conn_new();
@@ -238,27 +276,24 @@ void test_no_authen()
 
 	btw("...sends a CM Service Request");
 	fake_rx_cm_service_req(conn, false);
+	OSMO_ASSERT(conn->conn_fsm);
+	OSMO_ASSERT(conn->subscr);
+	OSMO_ASSERT(conn->subscr->vsub);
 	EXPECT_ACCEPTED(true);
 
 	btw("conn is released");
-	conn_free(conn);
-	comment_end();
-}
+	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
+	EXPECT_CONN_COUNT(0);
 
-void test_cm_service_without_lu()
-{
-	comment_start();
-
-	struct gsm_subscriber_connection *conn = conn_new();
-
-	/* Having received subscriber data is not sufficient. */
-	EXPECT_ACCEPTED(false);
-
-	conn_free(conn);
 	comment_end();
 }
 
 static struct log_info_cat test_categories[] = {
+	[DMSC] = {
+		.name = "DMSC",
+		.description = "Mobile Switching Center",
+		.enabled = 1, .loglevel = LOGL_DEBUG,
+	},
 	[DRLL] = {
 		.name = "DRLL",
 		.description = "A-bis Radio Link Layer (RLL)",
@@ -282,6 +317,11 @@ static struct log_info_cat test_categories[] = {
 	[DVLR] = {
 		.name = "DVLR",
 		.description = "Visitor Location Register",
+		.enabled = 1, .loglevel = LOGL_DEBUG,
+	},
+	[DREF] = {
+		.name = "DREF",
+		.description = "Reference Counting",
 		.enabled = 1, .loglevel = LOGL_DEBUG,
 	},
 };
@@ -342,8 +382,7 @@ int __real_gsm0808_submit_dtap(struct gsm_subscriber_connection *conn,
 int __wrap_gsm0808_submit_dtap(struct gsm_subscriber_connection *conn,
 			       struct msgb *msg, int link_id, int allow_sacch)
 {
-	fprintf(stderr, "tx DTAP to MS: %s\n",
-		osmo_hexdump_nospc(msg->data, msg->len));
+	btw("tx DTAP to MS: %s", osmo_hexdump_nospc(msg->data, msg->len));
 	talloc_free(msg);
 	return 0;
 }
@@ -351,12 +390,35 @@ int __wrap_gsm0808_submit_dtap(struct gsm_subscriber_connection *conn,
 static int fake_vlr_tx_lu_acc(void *msc_conn_ref)
 {
 	struct gsm_subscriber_connection *conn = msc_conn_ref;
-	fprintf(stderr, "LU Accept for %s\n", subscr_name(conn->subscr));
+	btw("LU Accept for %s", subscr_name(conn->subscr));
 	return 0;
 }
 
+static int fake_vlr_tx_lu_rej(void *msc_conn_ref, uint8_t cause)
+{
+	struct gsm_subscriber_connection *conn = msc_conn_ref;
+	btw("LU Reject for %s, cause %u", subscr_name(conn->subscr), cause);
+	return 0;
+}
 
-int main(void)
+static int fake_vlr_tx_cm_serv_acc(void *msc_conn_ref)
+{
+	struct gsm_subscriber_connection *conn = msc_conn_ref;
+	btw("CM Service Accept for %s", subscr_name(conn->subscr));
+	return 0;
+}
+
+static int fake_vlr_tx_cm_serv_rej(void *msc_conn_ref,
+				   enum vlr_proc_arq_result result)
+{
+	struct gsm_subscriber_connection *conn = msc_conn_ref;
+	btw("CM Service Reject for %s, result %s",
+	    subscr_name(conn->subscr),
+	    vlr_proc_arq_result_name(result));
+	return 0;
+}
+
+int main(int argc, const char **argv)
 {
 	void *msgb_ctx;
 	tall_bsc_ctx = talloc_named_const(NULL, 0, "subscr_conn_test_ctx");
@@ -366,13 +428,12 @@ int main(void)
 	OSMO_ASSERT(osmo_stderr_target);
 	log_set_use_color(osmo_stderr_target, 0);
 	log_set_print_timestamp(osmo_stderr_target, 0);
-	log_set_print_filename(osmo_stderr_target, 0);
+	log_set_print_filename(osmo_stderr_target, argc > 1? 1 : 0);
 	log_set_print_category(osmo_stderr_target, 1);
 
 	net = gsm_network_init(tall_bsc_ctx, 1, 1, fake_mncc_recv);
-	the_bts = gsm_bts_alloc(net);
-
 	bsc_api_init(net, msc_bsc_api());
+	the_bts = gsm_bts_alloc(net);
 
 	osmo_fsm_log_addr(false);
 	OSMO_ASSERT(msc_vlr_init(tall_bsc_ctx, "none", 0) == 0);
@@ -381,8 +442,12 @@ int main(void)
 	msc_subscr_conn_init();
 
 	g_vlr->ops.tx_lu_acc = fake_vlr_tx_lu_acc;
+	g_vlr->ops.tx_lu_rej = fake_vlr_tx_lu_rej;
+	g_vlr->ops.tx_cm_serv_acc = fake_vlr_tx_cm_serv_acc;
+	g_vlr->ops.tx_cm_serv_rej = fake_vlr_tx_cm_serv_rej;
 
 	test_early_stage();
+	test_cm_service_without_lu();
 	test_no_authen();
 
 	printf("Done\n");

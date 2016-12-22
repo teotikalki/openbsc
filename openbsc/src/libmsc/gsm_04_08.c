@@ -843,6 +843,8 @@ int gsm48_rx_mm_serv_req(struct gsm_subscriber_connection *conn, struct msgb *ms
 					    GSM48_REJECT_INCORRECT_MESSAGE);
 	}
 
+	osmo_signal_dispatch(SS_SUBSCR, S_SUBSCR_IDENTITY, (classmark2 + classmark2_len));
+
 	rc = msc_create_conn_fsm(conn, mi_string);
 	if (rc)
 		/* logging already happened in msc_create_conn_fsm() */
@@ -858,7 +860,6 @@ int gsm48_rx_mm_serv_req(struct gsm_subscriber_connection *conn, struct msgb *ms
 
 
 #if 0
-	osmo_signal_dispatch(SS_SUBSCR, S_SUBSCR_IDENTITY, (classmark2 + classmark2_len));
 
 	subscr->equipment.classmark2_len = classmark2_len;
 	memcpy(subscr->equipment.classmark2, classmark2, classmark2_len);

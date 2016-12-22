@@ -807,7 +807,6 @@ int gsm48_rx_mm_serv_req(struct gsm_subscriber_connection *conn, struct msgb *ms
 	uint8_t mi_len = *(classmark2 + classmark2_len);
 	uint8_t *mi = (classmark2 + classmark2_len + 1);
 	struct osmo_location_area_id lai;
-	struct osmo_fsm_inst *proc_arq_fsm;
 	int rc;
 
 	lai.plmn.mcc = conn->network->country_code;
@@ -849,21 +848,14 @@ int gsm48_rx_mm_serv_req(struct gsm_subscriber_connection *conn, struct msgb *ms
 		/* logging already happened in msc_create_conn_fsm() */
 		return rc;
 
-	/* increase use count for new PARQ FSM */
-	subscr_con_get(conn);
-
-	proc_arq_fsm = vlr_proc_acc_req(conn->conn_fsm,
-					SUBSCR_CONN_E_ACCEPTED, SUBSCR_CONN_E_CN_CLOSE,
-					g_vlr, conn, VLR_PR_ARQ_T_CM_SERV_REQ,
-					mi-1, &lai,
-					conn->network->authentication_required);
-	if (!proc_arq_fsm) {
-		subscr_con_put(conn);
-		return;
-	}
-
 	if (is_siemens_bts(conn->bts))
 		send_siemens_mrpci(msg->lchan, classmark2-1);
+
+	vlr_proc_acc_req(conn->conn_fsm, SUBSCR_CONN_E_ACCEPTED,
+			 SUBSCR_CONN_E_CN_CLOSE, g_vlr, conn,
+			 VLR_PR_ARQ_T_CM_SERV_REQ, mi-1, &lai,
+			 conn->network->authentication_required);
+
 
 #if 0
 	osmo_signal_dispatch(SS_SUBSCR, S_SUBSCR_IDENTITY, (classmark2 + classmark2_len));
@@ -1043,7 +1035,6 @@ static int gsm48_rx_rr_pag_resp(struct gsm_subscriber_connection *conn, struct m
 	char mi_string[GSM48_MI_SIZE];
 	int rc = 0;
 	struct osmo_location_area_id lai;
-	struct osmo_fsm_inst *proc_arq_fsm;
 
 	lai.plmn.mcc = conn->network->country_code;
 	lai.plmn.mnc = conn->network->network_code;
@@ -1061,16 +1052,10 @@ static int gsm48_rx_rr_pag_resp(struct gsm_subscriber_connection *conn, struct m
 		return -1;
 	}
 
-	proc_arq_fsm = vlr_proc_acc_req(conn->conn_fsm,
-					SUBSCR_CONN_E_ACCEPTED, SUBSCR_CONN_E_CN_CLOSE,
-					g_vlr, conn, VLR_PR_ARQ_T_PAGING_RESP,
-					mi_lv, &lai,
-					conn->network->authentication_required);
-	if (!proc_arq_fsm) {
-		/* FIXME */
-		return -1;
-	}
-	subscr_con_get(conn);
+	vlr_proc_acc_req(conn->conn_fsm, SUBSCR_CONN_E_ACCEPTED,
+			 SUBSCR_CONN_E_CN_CLOSE, g_vlr, conn,
+			 VLR_PR_ARQ_T_PAGING_RESP, mi_lv, &lai,
+			 conn->network->authentication_required);
 
 #if 0
 	/* FIXME */
@@ -3679,9 +3664,32 @@ static int msc_vlr_tx_cm_serv_acc(void *msc_conn_ref)
 }
 
 /* VLR asks us to transmit a CM Service Reject */
-static int msc_vlr_tx_cm_serv_rej(void *msc_conn_ref, uint8_t cause)
+static int msc_vlr_tx_cm_serv_rej(void *msc_conn_ref, enum vlr_proc_arq_result result)
 {
+	uint8_t cause;
 	struct gsm_subscriber_connection *conn = msc_conn_ref;
+
+	switch (result) {
+	default:
+	case VLR_PR_ARQ_RES_NONE:
+	case VLR_PR_ARQ_RES_SYSTEM_FAILURE:
+	case VLR_PR_ARQ_RES_UNKNOWN_ERROR:
+		cause = GSM48_REJECT_NETWORK_FAILURE;
+		break;
+	case VLR_PR_ARQ_RES_ILLEGAL_SUBSCR:
+		cause = GSM48_REJECT_LOC_NOT_ALLOWED;
+		break;
+	case VLR_PR_ARQ_RES_UNIDENT_SUBSCR:
+		cause = GSM48_REJECT_INVALID_MANDANTORY_INF;
+		break;
+	case VLR_PR_ARQ_RES_ROAMING_NOTALLOWED:
+		cause = GSM48_REJECT_ROAMING_NOT_ALLOWED;
+		break;
+	case VLR_PR_ARQ_RES_ILLEGAL_EQUIP:
+		cause = GSM48_REJECT_ILLEGAL_MS;
+		break;
+	};
+
 	return gsm48_tx_mm_serv_rej(conn, cause);
 }
 

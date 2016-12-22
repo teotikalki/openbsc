@@ -141,6 +141,8 @@ struct vlr_subscriber {
 	} cs;
 };
 
+enum vlr_proc_arq_result;
+
 struct vlr_ops {
 	/* encode + transmit an AUTH REQ towards the MS */
 	int (*tx_auth_req)(void *msc_conn_ref,
@@ -154,7 +156,7 @@ struct vlr_ops {
 	int (*tx_lu_acc)(void *msc_conn_ref);
 	int (*tx_lu_rej)(void *msc_conn_ref, uint8_t cause);
 	int (*tx_cm_serv_acc)(void *msc_conn_ref);
-	int (*tx_cm_serv_rej)(void *msc_conn_ref, uint8_t cause);
+	int (*tx_cm_serv_rej)(void *msc_conn_ref, enum vlr_proc_arq_result result);
 
 	int (*set_ciph_mode)(void *msc_conn_ref);
 
@@ -249,6 +251,7 @@ uint32_t vlr_timer(struct vlr_instance *vlr, uint32_t timer);
 /* Process Acccess Request FSM */
 
 enum vlr_proc_arq_result {
+	VLR_PR_ARQ_RES_NONE,
 	VLR_PR_ARQ_RES_SYSTEM_FAILURE,
 	VLR_PR_ARQ_RES_ILLEGAL_SUBSCR,
 	VLR_PR_ARQ_RES_UNIDENT_SUBSCR,
@@ -283,10 +286,10 @@ enum vlr_parq_type {
 };
 
 /* Process Access Request (CM SERV REQ / PAGING RESP) */
-struct osmo_fsm_inst *
+void
 vlr_proc_acc_req(struct osmo_fsm_inst *parent,
-		 uint32_t success_parent_term,
-		 uint32_t failure_parent_term,
+		 uint32_t parent_event_success,
+		 uint32_t parent_event_failure,
 		 struct vlr_instance *vlr, void *msc_conn_ref,
 		 enum vlr_parq_type type, const uint8_t *mi_lv,
 		 const struct osmo_location_area_id *lai,

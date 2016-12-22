@@ -35,6 +35,7 @@
  ***********************************************************************/
 
 const struct value_string vlr_proc_arq_result_names[] = {
+	OSMO_VALUE_STRING(VLR_PR_ARQ_RES_NONE),
 	OSMO_VALUE_STRING(VLR_PR_ARQ_RES_SYSTEM_FAILURE),
 	OSMO_VALUE_STRING(VLR_PR_ARQ_RES_ILLEGAL_SUBSCR),
 	OSMO_VALUE_STRING(VLR_PR_ARQ_RES_UNIDENT_SUBSCR),
@@ -78,9 +79,11 @@ struct proc_arq_priv {
 	void *msc_conn_ref;
 	struct osmo_fsm_inst *ul_child_fsm;
 	struct osmo_fsm_inst *sub_pres_vlr_fsm;
-	uint32_t success_parent_term_event;
+	uint32_t parent_event_success;
+	uint32_t parent_event_failure;
 
 	enum vlr_parq_type type;
+	enum vlr_proc_arq_result result;
 	bool by_tmsi;
 	char imsi[16];
 	uint32_t tmsi;
@@ -101,20 +104,64 @@ static void assoc_par_with_subscr(struct osmo_fsm_inst *fi, struct vlr_subscribe
 	vlr->ops.subscr_assoc(par->msc_conn_ref, par->vsub);
 }
 
-static void proc_arq_fsm_done(struct osmo_fsm_inst *fi,
-			      enum osmo_fsm_term_cause cause,
-			      enum vlr_proc_arq_result res)
+#define proc_arq_fsm_done(fi, res) _proc_arq_fsm_done(fi, res, __FILE__, __LINE__)
+static void _proc_arq_fsm_done(struct osmo_fsm_inst *fi,
+			       enum vlr_proc_arq_result res,
+			       const char *file, int line)
 {
 	struct proc_arq_priv *par = fi->priv;
-	enum vlr_parq_type type;
-	LOGPFSM(fi, "Process Access Request result: %s\n",
-		vlr_proc_arq_result_name(res));
-	if (res == VLR_PR_ARQ_RES_PASSED)
-		fi->proc.parent_term_event = par->success_parent_term_event;
+	LOGPFSMSRC(fi, file, line, "proc_arq_fsm_done(%s)\n",
+		   vlr_proc_arq_result_name(res));
+	par->result = res;
 	osmo_fsm_inst_state_chg(fi, PR_ARQ_S_DONE, 0, 0);
-	/* remember the type outside of the fi, it will be deallocated */
-	type = par->type;
-	osmo_fsm_inst_term(fi, cause, &type);
+}
+
+static void proc_arq_vlr_signal_result(struct osmo_fsm_inst *fi,
+				       uint32_t prev_state)
+{
+	struct proc_arq_priv *par = fi->priv;
+	bool success;
+	int rc;
+	LOGPFSM(fi, "Process Access Request result: %s\n",
+		vlr_proc_arq_result_name(par->result));
+
+	success = (par->result == VLR_PR_ARQ_RES_PASSED);
+
+	/* It would be logical to first dispatch the success event to the
+	 * parent FSM, but that could start actions that send messages to the
+	 * MS. Rather send the CM Service Accept message first and then signal
+	 * success. Since messages are handled synchronously, the success event
+	 * will be processed before we handle new incoming data from the MS. */
+
+	if (par->type == VLR_PR_ARQ_T_CM_SERV_REQ) {
+		if (success) {
+			rc = par->vlr->ops.tx_cm_serv_acc(par->msc_conn_ref);
+			if (rc) {
+				LOGPFSML(fi, LOGL_ERROR,
+					 "Failed to send CM Service Accept\n");
+				success = false;
+			}
+		}
+		if (!success) {
+			rc = par->vlr->ops.tx_cm_serv_rej(par->msc_conn_ref,
+							  par->result);
+			if (rc)
+				LOGPFSML(fi, LOGL_ERROR,
+					 "Failed to send CM Service Reject\n");
+		}
+	}
+
+	/* For VLR_PR_ARQ_T_PAGING_RESP, there is nothing to send. The conn_fsm
+	 * will start handling pending paging transactions. */
+
+	if (!fi->proc.parent) {
+		LOGPFSML(fi, LOGL_ERROR, "No parent FSM");
+		return;
+	}
+	osmo_fsm_inst_dispatch(fi->proc.parent,
+			       success ? par->parent_event_success
+				       : par->parent_event_failure,
+			       NULL);
 }
 
 static void _proc_arq_vlr_post_imei(struct osmo_fsm_inst *fi)
@@ -143,7 +190,7 @@ static void _proc_arq_vlr_post_imei(struct osmo_fsm_inst *fi)
 	return;
 
 done_success:
-	proc_arq_fsm_done(fi, OSMO_FSM_TERM_REGULAR, VLR_PR_ARQ_RES_PASSED);
+	proc_arq_fsm_done(fi, VLR_PR_ARQ_RES_PASSED);
 }
 
 /* After Subscriber_Present_VLR */
@@ -197,13 +244,13 @@ static void _proc_arq_vlr_node2_post_vlr(struct osmo_fsm_inst *fi)
 
 	if (!vsub->sub_dataconf_by_hlr_ind) {
 		/* Set User Error: Unidentified Subscriber */
-		proc_arq_fsm_done(fi, OSMO_FSM_TERM_ERROR,
-					VLR_PR_ARQ_RES_UNIDENT_SUBSCR);
+		proc_arq_fsm_done(fi, VLR_PR_ARQ_RES_UNIDENT_SUBSCR);
+		return;
 	}
 	if (0 /* roaming not allowed in LA */) {
 		/* Set User Error: Roaming not allowed in this LA */
-		proc_arq_fsm_done(fi, OSMO_FSM_TERM_ERROR,
-					VLR_PR_ARQ_RES_ROAMING_NOTALLOWED);
+		proc_arq_fsm_done(fi, VLR_PR_ARQ_RES_ROAMING_NOTALLOWED);
+		return;
 	}
 	vsub->imsi_detached_flag = false;
 	if (vsub->ms_not_reachable_flag) {
@@ -282,19 +329,19 @@ static void proc_arq_vlr_fn_init(struct osmo_fsm_inst *fi,
 	if (!par->by_tmsi) {
 		/* We couldn't find a subscriber even by IMSI,
 		 * Set User Error: Unidentified Subscriber */
-		proc_arq_fsm_done(fi, OSMO_FSM_TERM_ERROR,
-						VLR_PR_ARQ_RES_UNIDENT_SUBSCR);
-			return;
+		proc_arq_fsm_done(fi, VLR_PR_ARQ_RES_UNIDENT_SUBSCR);
+		return;
 	} else {
 		/* TMSI was included, are we permitted to use it? */
 		if (vlr->cfg.parq_retrieve_imsi) {
 			/* Obtain_IMSI_VLR */
 			osmo_fsm_inst_state_chg(fi, PR_ARQ_S_WAIT_OBTAIN_IMSI,
 						vlr_timer(vlr, 3270), 3270);
+			return;
 		} else {
 			/* Set User Error: Unidentified Subscriber */
-			proc_arq_fsm_done(fi, OSMO_FSM_TERM_ERROR,
-					VLR_PR_ARQ_RES_UNIDENT_SUBSCR);
+			proc_arq_fsm_done(fi, VLR_PR_ARQ_RES_UNIDENT_SUBSCR);
+			return;
 		}
 	}
 }
@@ -312,8 +359,7 @@ static void proc_arq_vlr_fn_w_obt_imsi(struct osmo_fsm_inst *fi,
 	vsub = vlr_subscr_find_by_imsi(vlr, par->imsi);
 	if (!vsub) {
 		/* Set User Error: Unidentified Subscriber */
-		proc_arq_fsm_done(fi, OSMO_FSM_TERM_ERROR,
-				VLR_PR_ARQ_RES_UNIDENT_SUBSCR);
+		proc_arq_fsm_done(fi, VLR_PR_ARQ_RES_UNIDENT_SUBSCR);
 		return;
 	}
 	assoc_par_with_subscr(fi, vsub);
@@ -358,7 +404,7 @@ static void proc_arq_vlr_fn_w_auth(struct osmo_fsm_inst *fi,
 	}
 	/* send process_access_req response to caller */
 	/* enter error state */
-	proc_arq_fsm_done(fi, OSMO_FSM_TERM_ERROR, ret);
+	proc_arq_fsm_done(fi, ret);
 }
 
 /* Update_Location_Child_VLR has completed */
@@ -403,7 +449,7 @@ static void proc_arq_vlr_fn_w_tmsi(struct osmo_fsm_inst *fi,
 	OSMO_ASSERT(event == PR_ARQ_E_TMSI_ACK);
 
 	/* FIXME: check confirmation? unfreeze? */
-	proc_arq_fsm_done(fi, OSMO_FSM_TERM_REGULAR, VLR_PR_ARQ_RES_PASSED);
+	proc_arq_fsm_done(fi, VLR_PR_ARQ_RES_PASSED);
 }
 
 static const struct osmo_fsm_state proc_arq_vlr_states[] = {
@@ -485,6 +531,7 @@ static const struct osmo_fsm_state proc_arq_vlr_states[] = {
 	},
 	[PR_ARQ_S_DONE] = {
 		.name = "DONE",
+		.onenter = proc_arq_vlr_signal_result,
 	},
 };
 
@@ -498,10 +545,10 @@ static struct osmo_fsm proc_arq_vlr_fsm = {
 	.event_names = proc_arq_vlr_event_names,
 };
 
-struct osmo_fsm_inst *
+void
 vlr_proc_acc_req(struct osmo_fsm_inst *parent,
-		 uint32_t success_parent_term,
-		 uint32_t failure_parent_term,
+		 uint32_t parent_event_success,
+		 uint32_t parent_event_failure,
 		 struct vlr_instance *vlr, void *msc_conn_ref,
 		 enum vlr_parq_type type, const uint8_t *mi_lv,
 		 const struct osmo_location_area_id *lai,
@@ -513,9 +560,9 @@ vlr_proc_acc_req(struct osmo_fsm_inst *parent,
 	uint8_t mi_type;
 
 	fi = osmo_fsm_inst_alloc_child(&proc_arq_vlr_fsm, parent,
-				       failure_parent_term);
+				       parent_event_failure);
 	if (!fi)
-		return NULL;
+		return;
 
 	par = talloc_zero(fi, struct proc_arq_priv);
 	fi->priv = par;
@@ -523,7 +570,8 @@ vlr_proc_acc_req(struct osmo_fsm_inst *parent,
 	par->msc_conn_ref = msc_conn_ref;
 	par->type = type;
 	par->lai = *lai;
-	par->success_parent_term_event = success_parent_term;
+	par->parent_event_success = parent_event_success;
+	par->parent_event_failure = parent_event_failure;
 	par->authentication_required = authentication_required;
 
 	gsm48_mi_to_string(mi_string, sizeof(mi_string), mi_lv+1, mi_lv[0]);
@@ -542,15 +590,11 @@ vlr_proc_acc_req(struct osmo_fsm_inst *parent,
 		/* TODO: IMEI (emergency call) */
 	default:
 		/* FIXME: directly send reject? */
-		osmo_fsm_inst_term(fi, OSMO_FSM_TERM_ERROR, NULL);
-		return NULL;
+		proc_arq_fsm_done(fi, VLR_PR_ARQ_RES_UNIDENT_SUBSCR);
+		return;
 	}
 
 	osmo_fsm_inst_dispatch(fi, PR_ARQ_E_START, NULL);
-
-	if (fi->state == PR_ARQ_S_DONE)
-		return NULL;
-	return fi;
 }
 
 

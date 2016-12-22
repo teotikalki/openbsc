@@ -13,6 +13,8 @@
 #define MSC_HLR_REMOTE_PORT_DEFAULT 2222
 
 enum subscr_conn_fsm_event {
+	/* Mark 0 as invalid to catch uninitialized vars */
+	SUBSCR_CONN_E_INVALID = 0,
 	/* LU FSM has terminated */
 	SUBSCR_CONN_E_LU_SUCCESS,
 	SUBSCR_CONN_E_LU_FAILURE,
@@ -31,8 +33,6 @@ enum subscr_conn_fsm_event {
 enum subscr_conn_fsm_state {
 	SUBSCR_CONN_S_NEW,
 	SUBSCR_CONN_S_ACCEPTED,
-	SUBSCR_CONN_S_REJECTED,
-	SUBSCR_CONN_S_RELEASING,
 	SUBSCR_CONN_S_RELEASED,
 };
 

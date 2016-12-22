@@ -174,11 +174,15 @@ void msc_subscr_con_cleanup(struct gsm_subscriber_connection *conn)
 		DEBUGP(DRLL, "Freeing subscriber connection %p"
 		       " with NULL subscriber\n", conn);
 
-	if (conn->master_fsm) {
-		osmo_fsm_inst_term(conn->master_fsm, OSMO_FSM_TERM_ERROR,
-				   NULL);
-		conn->master_fsm = NULL;
-	}
+	if (!conn->master_fsm)
+		return;
+
+	osmo_fsm_inst_term(conn->master_fsm,
+			   (conn->master_fsm->state == SUBSCR_CONN_S_RELEASED)
+				? OSMO_FSM_TERM_REGULAR
+				: OSMO_FSM_TERM_ERROR,
+			   NULL);
+	conn->master_fsm = NULL;
 }
 
 void msc_subscr_con_free(struct gsm_subscriber_connection *conn)

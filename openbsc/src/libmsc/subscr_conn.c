@@ -25,6 +25,7 @@
 #include <osmocom/core/fsm.h>
 
 #include <openbsc/osmo_msc.h>
+#include <openbsc/vlr.h>
 #include <openbsc/debug.h>
 
 static const struct value_string subscr_conn_fsm_event_names[] = {
@@ -39,34 +40,106 @@ static const struct value_string subscr_conn_fsm_event_names[] = {
 	{ 0, NULL }
 };
 
+/* Return true to keep the conn open, i.e. if Process Access Request ended
+ * successfully and the response was sent successfully. */
+static bool handle_cm_serv_result(struct osmo_fsm_inst *fi, bool success)
+{
+	struct gsm_subscriber_connection *conn = fi->priv;
+	int tx_rc;
+
+	if (success)
+		tx_rc = gsm48_tx_mm_serv_ack(conn);
+	else
+		tx_rc = gsm48_tx_mm_serv_rej(conn, GSM48_REJECT_IMSI_UNKNOWN_IN_VLR);
+		/* TODO: actual reject reason? */
+
+	if (tx_rc) {
+		LOGPFSML(fi, LOGL_ERROR, "Failed to send CM Service %s\n",
+			 success ? "Accept" : "Reject");
+		success = false;
+	}
+
+	return success;
+}
+
+static bool handle_paging_result(struct osmo_fsm_inst *fi, bool success)
+{
+	/* if it is an unsolicited paging response, there's nothing to do. */
+	if (!success)
+		return false;
+	
+	/* FIXME: handle paging response? */
+	return success;
+}
+
 void subscr_conn_fsm_new(struct osmo_fsm_inst *fi, uint32_t event, void *data)
 {
-	int rc;
-	struct gsm_subscriber_connection *conn = fi->priv;
+	enum vlr_parq_type parq_type;
+	bool accept_conn = false;
+
 	switch (event) {
-	case SUB_CON_E_LU_RES:
+
+	case SUBSCR_CONN_E_LU_SUCCESS:
 		osmo_fsm_inst_state_chg(fi, SUBSCR_CONN_S_ACCEPTED, 0, 0);
+		accept_conn = true;
 		break;
-	case SUB_CON_E_PARQ_SUCCESS:
+
+	case SUBSCR_CONN_E_PARQ_SUCCESS:
 		osmo_fsm_inst_state_chg(fi, SUBSCR_CONN_S_ACCEPTED, 0, 0);
-		rc = gsm48_tx_mm_serv_ack(conn);
-		if (rc)
+		accept_conn = true;
+		/* fall through */
+	case SUBSCR_CONN_E_PARQ_FAILURE:
+		parq_type = data ? *(enum vlr_parq_type*)data : VLR_PR_ARQ_T_INVALID;
+		switch (parq_type) {
+
+		case VLR_PR_ARQ_T_CM_SERV_REQ:
+			accept_conn = handle_cm_serv_result(fi, accept_conn);
+			break;
+
+		case VLR_PR_ARQ_T_PAGING_RESP:
+			accept_conn = handle_paging_result(fi, accept_conn);
+			break;
+
+		default:
 			LOGPFSML(fi, LOGL_ERROR,
-				 "Failed to send CM Service Accept\n");
+				 "Invalid VLR Process Access Request type"
+				 " %d\n", parq_type);
+			accept_conn = false;
+			break;
+		}
 		break;
+
+	case SUBSCR_CONN_E_LU_FAILURE:
+	case SUBSCR_CONN_E_MO_CLOSE:
+	case SUBSCR_CONN_E_CN_CLOSE:
+	case SUBSCR_CONN_E_CLOSE_CONF:
+		break;
+
 	default:
 		LOGPFSM(fi, "Unhandled event: %s\n",
 			osmo_fsm_event_name(fi->fsm, event));
 		break;
 	}
+
+	if (!accept_conn)
+		osmo_fsm_inst_state_chg(fi, SUBSCR_CONN_S_RELEASED, 0, 0);
 }
 
 void subscr_conn_fsm_accepted(struct osmo_fsm_inst *fi, uint32_t event, void *data)
 {
+	/* Whatever happens in the accepted state, it means release. Even if an
+	 * unexpected event is passed, the safest thing to do is discard the
+	 * conn. */
+	osmo_fsm_inst_state_chg(fi, SUBSCR_CONN_S_RELEASED, 0, 0);
 }
 
-void subscr_conn_fsm_releasing(struct osmo_fsm_inst *fi, uint32_t event, void *data)
+void subscr_conn_fsm_release(struct osmo_fsm_inst *fi, uint32_t prev_state)
 {
+	struct gsm_subscriber_connection *conn = fi->priv;
+	if (!conn)
+		return;
+	gsm0808_clear(conn);
+	bsc_subscr_con_free(conn);
 }
 
 #define S(x)	(1 << (x))
@@ -74,31 +147,33 @@ void subscr_conn_fsm_releasing(struct osmo_fsm_inst *fi, uint32_t event, void *d
 static const struct osmo_fsm_state subscr_conn_fsm_states[] = {
 	[SUBSCR_CONN_S_NEW] = {
 		.name = OSMO_STRINGIFY(SUBSCR_CONN_S_NEW),
-		.in_event_mask = S(SUB_CON_E_LU_RES) |
-				 S(SUB_CON_E_PARQ_SUCCESS) |
-				 S(SUB_CON_E_PARQ_FAILURE) |
-				 S(SUB_CON_E_MO_CLOSE) |
-				 S(SUB_CON_E_CN_CLOSE) |
-				 S(SUB_CON_E_CLOSE_CONF),
+		.in_event_mask = S(SUBSCR_CONN_E_LU_SUCCESS) |
+				 S(SUBSCR_CONN_E_LU_FAILURE) |
+				 S(SUBSCR_CONN_E_PARQ_SUCCESS) |
+				 S(SUBSCR_CONN_E_PARQ_FAILURE) |
+				 S(SUBSCR_CONN_E_MO_CLOSE) |
+				 S(SUBSCR_CONN_E_CN_CLOSE) |
+				 S(SUBSCR_CONN_E_CLOSE_CONF),
 		.out_state_mask = S(SUBSCR_CONN_S_ACCEPTED) |
-				  S(SUBSCR_CONN_S_RELEASING),
+				  S(SUBSCR_CONN_S_RELEASED),
 		.action = subscr_conn_fsm_new,
 	},
 	[SUBSCR_CONN_S_ACCEPTED] = {
 		.name = OSMO_STRINGIFY(SUBSCR_CONN_S_ACCEPTED),
-		.in_event_mask = S(SUB_CON_E_MO_CLOSE) |
-				 S(SUB_CON_E_CN_CLOSE) |
-				 S(SUB_CON_E_CLOSE_CONF),
-		.out_state_mask = S(SUBSCR_CONN_S_RELEASING),
-		.action = subscr_conn_fsm_accepted,
-	},
-	[SUBSCR_CONN_S_RELEASING] = {
-		.name = OSMO_STRINGIFY(SUBSCR_CONN_S_RELEASING),
+		/* allow everything to release for any odd behavior */
+		.in_event_mask = S(SUBSCR_CONN_E_LU_SUCCESS) |
+				 S(SUBSCR_CONN_E_LU_FAILURE) |
+				 S(SUBSCR_CONN_E_PARQ_SUCCESS) |
+				 S(SUBSCR_CONN_E_PARQ_FAILURE) |
+				 S(SUBSCR_CONN_E_MO_CLOSE) |
+				 S(SUBSCR_CONN_E_CN_CLOSE) |
+				 S(SUBSCR_CONN_E_CLOSE_CONF),
 		.out_state_mask = S(SUBSCR_CONN_S_RELEASED),
-		.action = subscr_conn_fsm_releasing,
+		.action = subscr_conn_fsm_accepted,
 	},
 	[SUBSCR_CONN_S_RELEASED] = {
 		.name = OSMO_STRINGIFY(SUBSCR_CONN_S_RELEASED),
+		.onenter = subscr_conn_fsm_release,
 	},
 };
 
@@ -137,6 +212,8 @@ int msc_create_conn_fsm(struct gsm_subscriber_connection *conn, const char *id)
 bool msc_subscr_conn_is_accepted(struct gsm_subscriber_connection *conn)
 {
 	if (!conn)
+		return false;
+	if (!conn->subscr)
 		return false;
 	if (!conn->master_fsm)
 		return false;

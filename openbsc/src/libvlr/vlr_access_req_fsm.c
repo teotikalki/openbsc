@@ -101,39 +101,20 @@ static void assoc_par_with_subscr(struct osmo_fsm_inst *fi, struct vlr_subscribe
 	vlr->ops.subscr_assoc(par->msc_conn_ref, par->vsub);
 }
 
-static void proc_arq_fsm_success(struct osmo_fsm_inst *fi)
-{
-	struct proc_arq_priv *par = fi->priv;
-	fi->proc.parent_term_event = par->success_parent_term_event;
-
-#if 0
-	int rc;
-
-	switch (par->type) {
-	case VLR_PR_ARQ_T_CM_SERV_REQ:
-		rc = -1;
-		if (par->msc_conn_ref)
-			rc = gsm48_tx_mm_serv_ack(par->msc_conn_ref);
-		if (rc)
-			LOGPFSML(fi, LOGL_ERROR,
-				 "Failed to send CM Service Accept\n");
-	default:
-		LOGPFSML(fi, LOGL_ERROR,
-			 "Unhandled proc_arq_fsm_success\n");
-	}
-#endif
-}
-
 static void proc_arq_fsm_done(struct osmo_fsm_inst *fi,
 			      enum osmo_fsm_term_cause cause,
 			      enum vlr_proc_arq_result res)
 {
+	struct proc_arq_priv *par = fi->priv;
+	enum vlr_parq_type type;
 	LOGPFSM(fi, "Process Access Request result: %s\n",
 		vlr_proc_arq_result_name(res));
 	if (res == VLR_PR_ARQ_RES_PASSED)
-		proc_arq_fsm_success(fi);
+		fi->proc.parent_term_event = par->success_parent_term_event;
 	osmo_fsm_inst_state_chg(fi, PR_ARQ_S_DONE, 0, 0);
-	osmo_fsm_inst_term(fi, cause, &res);
+	/* remember the type outside of the fi, it will be deallocated */
+	type = par->type;
+	osmo_fsm_inst_term(fi, cause, &type);
 }
 
 static void _proc_arq_vlr_post_imei(struct osmo_fsm_inst *fi)

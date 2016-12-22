@@ -3538,6 +3538,35 @@ int gsm0408_new_conn(struct gsm_subscriber_connection *conn)
 	return 0;
 }
 
+static bool msg_is_initially_permitted(uint8_t pdisc, uint8_t msg_type)
+{
+	switch (pdisc) {
+	case GSM48_PDISC_MM:
+		switch (msg_type) {
+		case GSM48_MT_MM_LOC_UPD_REQUEST:
+		case GSM48_MT_MM_CM_SERV_REQ:
+		case GSM48_MT_MM_AUTH_RESP:
+		case GSM48_MT_MM_ID_RESP:
+			return true;
+		default:
+			break;
+		}
+		break;
+	case GSM48_PDISC_RR:
+		switch (msg_type) {
+		case GSM48_MT_RR_CIPH_M_COMPL:
+			return true;
+		default:
+			break;
+		}
+		break;
+	default:
+		break;
+	}
+
+	return false;
+}
+
 /* Main entry point for GSM 04.08/44.008 Layer 3 data (e.g. from the BSC). */
 int gsm0408_dispatch(struct gsm_subscriber_connection *conn, struct msgb *msg)
 {
@@ -3549,6 +3578,16 @@ int gsm0408_dispatch(struct gsm_subscriber_connection *conn, struct msgb *msg)
 	OSMO_ASSERT(msg);
 
 	LOGP(DRLL, LOGL_DEBUG, "Dispatching 04.08 message, pdisc=%d\n", pdisc);
+
+	if (!msc_subscr_conn_is_accepted(conn)
+	    && !msg_is_initially_permitted(pdisc, gh->msg_type)) {
+		LOGP(DRLL, LOGL_ERROR,
+		     "subscr %s: Message not permitted for initial conn:"
+		     " pdisc=%u msg_type=%u\n",
+		     subscr_name(conn->subscr), gh->proto_discr, gh->msg_type);
+		return -EACCES;
+	}
+
 	if (silent_call_reroute(conn, msg))
 		return silent_call_rx(conn, msg);
 

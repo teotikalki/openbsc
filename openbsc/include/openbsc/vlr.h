@@ -273,6 +273,7 @@ enum proc_arq_vlr_event {
 };
 
 enum vlr_parq_type {
+	VLR_PR_ARQ_T_INVALID = 0, /* to guard against unset vars */
 	VLR_PR_ARQ_T_CM_SERV_REQ,
 	VLR_PR_ARQ_T_PAGING_RESP,
 	/* FIXME: differentiate between services of 24.008 10.5.3.3 */

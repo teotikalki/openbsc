@@ -542,6 +542,7 @@ vlr_proc_acc_req(struct osmo_fsm_inst *parent,
 	par->msc_conn_ref = msc_conn_ref;
 	par->type = type;
 	par->lai = *lai;
+	par->success_parent_term_event = success_parent_term;
 	par->authentication_required = authentication_required;
 
 	gsm48_mi_to_string(mi_string, sizeof(mi_string), mi_lv+1, mi_lv[0]);

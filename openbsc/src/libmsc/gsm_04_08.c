@@ -508,8 +508,8 @@ int mm_rx_loc_upd_req(struct gsm_subscriber_connection *conn, struct msgb *msg)
 	DEBUGPC(DMM, "LU/new-LAC: %u/%u ", old_lai.lac, new_lai.lac);
 
 	lu_fsm = vlr_loc_update(conn->conn_fsm,
-				SUBSCR_CONN_E_LU_SUCCESS,
-				SUBSCR_CONN_E_LU_FAILURE,
+				SUBSCR_CONN_E_ACCEPTED,
+				SUBSCR_CONN_E_CN_CLOSE,
 				g_vlr, conn, vlr_lu_type, tmsi, imsi,
 				&old_lai, &new_lai,
 				conn->network->authentication_required);
@@ -853,7 +853,7 @@ int gsm48_rx_mm_serv_req(struct gsm_subscriber_connection *conn, struct msgb *ms
 	subscr_con_get(conn);
 
 	proc_arq_fsm = vlr_proc_acc_req(conn->conn_fsm,
-					SUBSCR_CONN_E_PARQ_SUCCESS, SUBSCR_CONN_E_PARQ_FAILURE,
+					SUBSCR_CONN_E_ACCEPTED, SUBSCR_CONN_E_CN_CLOSE,
 					g_vlr, conn, VLR_PR_ARQ_T_CM_SERV_REQ,
 					mi-1, &lai,
 					conn->network->authentication_required);
@@ -1062,7 +1062,7 @@ static int gsm48_rx_rr_pag_resp(struct gsm_subscriber_connection *conn, struct m
 	}
 
 	proc_arq_fsm = vlr_proc_acc_req(conn->conn_fsm,
-					SUBSCR_CONN_E_PARQ_SUCCESS, SUBSCR_CONN_E_PARQ_FAILURE,
+					SUBSCR_CONN_E_ACCEPTED, SUBSCR_CONN_E_CN_CLOSE,
 					g_vlr, conn, VLR_PR_ARQ_T_PAGING_RESP,
 					mi_lv, &lai,
 					conn->network->authentication_required);

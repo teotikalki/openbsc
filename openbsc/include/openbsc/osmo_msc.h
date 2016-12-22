@@ -15,18 +15,13 @@
 enum subscr_conn_fsm_event {
 	/* Mark 0 as invalid to catch uninitialized vars */
 	SUBSCR_CONN_E_INVALID = 0,
-	/* LU FSM has terminated */
-	SUBSCR_CONN_E_LU_SUCCESS,
-	SUBSCR_CONN_E_LU_FAILURE,
-	/* Process Access Request has terminated */
-	SUBSCR_CONN_E_PARQ_SUCCESS,
-	SUBSCR_CONN_E_PARQ_FAILURE,
+	/* LU or Process Access FSM has determined that this conn is good */
+	SUBSCR_CONN_E_ACCEPTED,
 	/* MS/BTS/BSC originated close request */
 	SUBSCR_CONN_E_MO_CLOSE,
-	/* MSC originated close request, primarily originates from
-	 * subscr_con_put() in case reference coult reaches 0 */
+	/* MSC originated close request, e.g. failed authentication */
 	SUBSCR_CONN_E_CN_CLOSE,
-	/* BSC erports confirmation of connection close */
+	/* BSC reports confirmation of connection close */
 	SUBSCR_CONN_E_CLOSE_CONF,
 };
 

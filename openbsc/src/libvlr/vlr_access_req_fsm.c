@@ -548,6 +548,8 @@ vlr_proc_acc_req(struct osmo_fsm_inst *parent,
 
 	osmo_fsm_inst_dispatch(fi, PR_ARQ_E_START, NULL);
 
+	if (fi->state == PR_ARQ_S_DONE)
+		return NULL;
 	return fi;
 }
 

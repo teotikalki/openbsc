@@ -849,16 +849,18 @@ int gsm48_rx_mm_serv_req(struct gsm_subscriber_connection *conn, struct msgb *ms
 		/* logging already happened in msc_create_conn_fsm() */
 		return rc;
 
+	/* increase use count for new PARQ FSM */
+	subscr_con_get(conn);
+
 	proc_arq_fsm = vlr_proc_acc_req(conn->master_fsm,
 					SUBSCR_CONN_E_PARQ_SUCCESS, SUBSCR_CONN_E_PARQ_FAILURE,
 					g_vlr, conn, VLR_PR_ARQ_T_CM_SERV_REQ,
 					mi-1, &lai,
 					conn->network->authentication_required);
-	if (!proc_arq_fsm)
-		return gsm48_tx_mm_serv_rej(conn,
-					    GSM48_REJECT_IMSI_UNKNOWN_IN_VLR);
-	/* increase use count for new PARQ FSM */
-	subscr_con_get(conn);
+	if (!proc_arq_fsm) {
+		subscr_con_put(conn);
+		return;
+	}
 
 	if (is_siemens_bts(conn->bts))
 		send_siemens_mrpci(msg->lchan, classmark2-1);

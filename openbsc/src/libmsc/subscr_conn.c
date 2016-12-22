@@ -76,12 +76,15 @@ void subscr_conn_fsm_new(struct osmo_fsm_inst *fi, uint32_t event, void *data)
 {
 	enum vlr_parq_type parq_type;
 	bool accept_conn = false;
+	struct gsm_subscriber_connection *conn = fi->priv;
 
 	switch (event) {
 
 	case SUBSCR_CONN_E_LU_SUCCESS:
 		osmo_fsm_inst_state_chg(fi, SUBSCR_CONN_S_ACCEPTED, 0, 0);
 		accept_conn = true;
+		/* the LU FSM is through, decrease ref count */
+		subscr_con_put(conn);
 		break;
 
 	case SUBSCR_CONN_E_PARQ_SUCCESS:

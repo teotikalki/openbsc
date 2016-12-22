@@ -92,7 +92,7 @@ void fake_rx_lu_req(struct gsm_subscriber_connection *conn,
 	       "050802008168000130089910070000006402");
 	msg->l3h = msg->l2h = msg->l1h = msg->data;
 	OSMO_ASSERT( mm_rx_loc_upd_req(conn, msg) == 0 );
-	OSMO_ASSERT(conn->master_fsm);
+	OSMO_ASSERT(conn->conn_fsm);
 	OSMO_ASSERT(conn->subscr);
 	OSMO_ASSERT(conn->subscr->vsub);
 	talloc_free(msg);
@@ -107,7 +107,7 @@ void fake_rx_cm_service_req(struct gsm_subscriber_connection *conn,
 			    "05247803305886089910070000006402");
 	msg->l3h = msg->l2h = msg->l1h = msg->data;
 	OSMO_ASSERT( gsm48_rx_mm_serv_req(conn, msg) == 0 );
-	OSMO_ASSERT(conn->master_fsm);
+	OSMO_ASSERT(conn->conn_fsm);
 	OSMO_ASSERT(conn->subscr);
 	OSMO_ASSERT(conn->subscr->vsub);
 	talloc_free(msg);
@@ -162,14 +162,14 @@ void test_early_stage()
 	conn->bts = the_bts;
 	EXPECT_ACCEPTED(false);
 
-	btw("no master_fsm present");
+	btw("no conn_fsm present");
 	subscr_con_get(conn);
 	EXPECT_ACCEPTED(false);
 
-	btw("master_fsm present, in new state");
+	btw("conn_fsm present, in new state");
 	OSMO_ASSERT(msc_create_conn_fsm(conn, "test") == 0);
-	OSMO_ASSERT(conn->master_fsm);
-	OSMO_ASSERT(conn->master_fsm->state == SUBSCR_CONN_S_NEW);
+	OSMO_ASSERT(conn->conn_fsm);
+	OSMO_ASSERT(conn->conn_fsm->state == SUBSCR_CONN_S_NEW);
 	EXPECT_ACCEPTED(false);
 
 	btw("requests shall be thwarted");
@@ -178,7 +178,7 @@ void test_early_stage()
 	btw("fake: acceptance");
 	conn->subscr = subscr_alloc();
 	OSMO_ASSERT(conn->subscr);
-	osmo_fsm_inst_state_chg(conn->master_fsm, SUBSCR_CONN_S_ACCEPTED, 0, 0);
+	osmo_fsm_inst_state_chg(conn->conn_fsm, SUBSCR_CONN_S_ACCEPTED, 0, 0);
 	EXPECT_ACCEPTED(true);
 
 	btw("subscr_con_put() implicitly deallocates conn and all FSMs");
@@ -190,11 +190,11 @@ void test_early_stage()
 	conn->subscr = subscr_alloc();
 	OSMO_ASSERT(conn->subscr);
 	OSMO_ASSERT(msc_create_conn_fsm(conn, "test") == 0);
-	osmo_fsm_inst_state_chg(conn->master_fsm, SUBSCR_CONN_S_ACCEPTED, 0, 0);
+	osmo_fsm_inst_state_chg(conn->conn_fsm, SUBSCR_CONN_S_ACCEPTED, 0, 0);
 	EXPECT_ACCEPTED(true);
 
 	btw("close event also implicitly deallocates conn");
-	osmo_fsm_inst_dispatch(conn->master_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
+	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
 	OSMO_ASSERT(llist_empty(&net->subscr_conns));
 
 	comment_end();

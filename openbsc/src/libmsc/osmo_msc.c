@@ -174,15 +174,15 @@ void msc_subscr_con_cleanup(struct gsm_subscriber_connection *conn)
 		DEBUGP(DRLL, "Freeing subscriber connection %p"
 		       " with NULL subscriber\n", conn);
 
-	if (!conn->master_fsm)
+	if (!conn->conn_fsm)
 		return;
 
-	osmo_fsm_inst_term(conn->master_fsm,
-			   (conn->master_fsm->state == SUBSCR_CONN_S_RELEASED)
+	osmo_fsm_inst_term(conn->conn_fsm,
+			   (conn->conn_fsm->state == SUBSCR_CONN_S_RELEASED)
 				? OSMO_FSM_TERM_REGULAR
 				: OSMO_FSM_TERM_ERROR,
 			   NULL);
-	conn->master_fsm = NULL;
+	conn->conn_fsm = NULL;
 }
 
 void msc_subscr_con_free(struct gsm_subscriber_connection *conn)
@@ -252,7 +252,7 @@ void msc_release_connection(struct gsm_subscriber_connection *conn)
 #endif
 
 	/* TODO: is there anything to wait for? */
-	osmo_fsm_inst_dispatch(conn->master_fsm, SUBSCR_CONN_E_CLOSE_CONF, NULL);
+	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CLOSE_CONF, NULL);
 }
 
 /* increment the ref-count. Needs to be called by every user */
@@ -288,6 +288,6 @@ void _subscr_con_put(struct gsm_subscriber_connection *conn,
 		"subscr %s: decreased subscr_conn use_count to %u\n",
 		subscr_name(conn->subscr), conn->use_count);
 
-	if (conn->use_count == 0 && conn->master_fsm)
-		osmo_fsm_inst_dispatch(conn->master_fsm, SUBSCR_CONN_E_MO_CLOSE, NULL);
+	if (conn->use_count == 0 && conn->conn_fsm)
+		osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_MO_CLOSE, NULL);
 }

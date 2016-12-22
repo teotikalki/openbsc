@@ -195,7 +195,7 @@ int msc_create_conn_fsm(struct gsm_subscriber_connection *conn, const char *id)
 	struct osmo_fsm_inst *fi;
 	OSMO_ASSERT(conn);
 
-	if (conn->master_fsm) {
+	if (conn->conn_fsm) {
 		LOGP(DMM, LOGL_ERROR,
 		     "%s: Error: connection already in use\n", id);
 		return -EINVAL;
@@ -208,7 +208,7 @@ int msc_create_conn_fsm(struct gsm_subscriber_connection *conn, const char *id)
 		     "%s: Failed to allocate subscr conn master FSM\n", id);
 		return -ENOMEM;
 	}
-	conn->master_fsm = fi;
+	conn->conn_fsm = fi;
 	return 0;
 }
 
@@ -218,9 +218,9 @@ bool msc_subscr_conn_is_accepted(struct gsm_subscriber_connection *conn)
 		return false;
 	if (!conn->subscr)
 		return false;
-	if (!conn->master_fsm)
+	if (!conn->conn_fsm)
 		return false;
-	if (conn->master_fsm->state != SUBSCR_CONN_S_ACCEPTED)
+	if (conn->conn_fsm->state != SUBSCR_CONN_S_ACCEPTED)
 		return false;
 	return true;
 }

@@ -507,7 +507,7 @@ int mm_rx_loc_upd_req(struct gsm_subscriber_connection *conn, struct msgb *msg)
 	new_lai.lac = conn->bts->location_area_code;
 	DEBUGPC(DMM, "LU/new-LAC: %u/%u ", old_lai.lac, new_lai.lac);
 
-	lu_fsm = vlr_loc_update(conn->master_fsm,
+	lu_fsm = vlr_loc_update(conn->conn_fsm,
 				SUBSCR_CONN_E_LU_SUCCESS,
 				SUBSCR_CONN_E_LU_FAILURE,
 				g_vlr, conn, vlr_lu_type, tmsi, imsi,
@@ -852,7 +852,7 @@ int gsm48_rx_mm_serv_req(struct gsm_subscriber_connection *conn, struct msgb *ms
 	/* increase use count for new PARQ FSM */
 	subscr_con_get(conn);
 
-	proc_arq_fsm = vlr_proc_acc_req(conn->master_fsm,
+	proc_arq_fsm = vlr_proc_acc_req(conn->conn_fsm,
 					SUBSCR_CONN_E_PARQ_SUCCESS, SUBSCR_CONN_E_PARQ_FAILURE,
 					g_vlr, conn, VLR_PR_ARQ_T_CM_SERV_REQ,
 					mi-1, &lai,
@@ -1061,7 +1061,7 @@ static int gsm48_rx_rr_pag_resp(struct gsm_subscriber_connection *conn, struct m
 		return -1;
 	}
 
-	proc_arq_fsm = vlr_proc_acc_req(conn->master_fsm,
+	proc_arq_fsm = vlr_proc_acc_req(conn->conn_fsm,
 					SUBSCR_CONN_E_PARQ_SUCCESS, SUBSCR_CONN_E_PARQ_FAILURE,
 					g_vlr, conn, VLR_PR_ARQ_T_PAGING_RESP,
 					mi_lv, &lai,

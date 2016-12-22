@@ -160,7 +160,9 @@ static void fsm_f_null(struct osmo_fsm_inst *fi, uint32_t event, void *data)
 			imsi = priv->imsi;
 		else
 			tmsi = priv->tmsi;
-		priv->lu_fsm = vlr_loc_update(fi, EVT_VLR_LU_ACK,
+		priv->lu_fsm = vlr_loc_update(fi,
+					      EVT_VLR_LU_ACK,
+					      EVT_VLR_LU_REJ,
 					      g_vlr, NULL,
 					      VLR_LU_TYPE_IMSI_ATTACH, tmsi,
 					      imsi, &priv->old_lai,

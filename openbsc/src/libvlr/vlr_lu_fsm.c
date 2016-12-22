@@ -544,6 +544,7 @@ struct lu_fsm_priv {
 	void *msc_conn_ref;
 	struct osmo_fsm_inst *upd_hlr_vlr_fsm;
 	struct osmo_fsm_inst *lu_compl_vlr_fsm;
+	uint32_t success_parent_term_event;
 
 	enum vlr_lu_type type;
 	bool lu_by_tmsi;
@@ -587,6 +588,13 @@ static void lu_fsm_term(struct osmo_fsm_inst *fi)
 	/* if the MSC is registered as parent, it will get notified via
 	 * the usual signalling */
 	osmo_fsm_inst_term(fi, OSMO_FSM_TERM_REGULAR, NULL);
+}
+
+static void lu_fsm_success(struct osmo_fsm_inst *fi)
+{
+	struct lu_fsm_priv *lfp = fi->priv;
+	fi->proc.parent_term_event = lfp->success_parent_term_event;
+	lu_fsm_term(fi);
 }
 
 /* 4.1.2.1 Node 4 */
@@ -973,7 +981,7 @@ static void lu_fsm_wait_lu_compl(struct osmo_fsm_inst *fi, uint32_t event,
 			/* TODO: Notify_gsmSCF 23.078 */
 			/* TODO: Authenticated Radio Contact Established -> ARC */
 		}
-		lu_fsm_term(fi);
+		lu_fsm_success(fi);
 		break;
 	default:
 		LOGPFSML(fi, LOGL_ERROR, "event without effect: %s\n",
@@ -996,7 +1004,7 @@ static void lu_fsm_wait_lu_compl_standalone(struct osmo_fsm_inst *fi,
 		break;
 	case VLR_ULA_E_LU_COMPL_TERM:
 		vsub->sub_dataconf_by_hlr_ind = false;
-		lu_fsm_term(fi);
+		lu_fsm_success(fi);
 		break;
 	default:
 		LOGPFSML(fi, LOGL_ERROR, "event without effect: %s\n",
@@ -1101,17 +1109,19 @@ static struct osmo_fsm vlr_lu_fsm = {
 };
 
 struct osmo_fsm_inst *
-vlr_loc_update(struct osmo_fsm_inst *parent, uint32_t parent_term,
-		struct vlr_instance *vlr, void *msc_conn_ref,
-		enum vlr_lu_type type, uint32_t tmsi, const char *imsi,
-		const struct osmo_location_area_id *old_lai,
-		const struct osmo_location_area_id *new_lai,
-		bool authentication_required)
+vlr_loc_update(struct osmo_fsm_inst *parent,
+	       uint32_t success_parent_term,
+	       uint32_t failure_parent_term,
+	       struct vlr_instance *vlr, void *msc_conn_ref,
+	       enum vlr_lu_type type, uint32_t tmsi, const char *imsi,
+	       const struct osmo_location_area_id *old_lai,
+	       const struct osmo_location_area_id *new_lai,
+	       bool authentication_required)
 {
 	struct osmo_fsm_inst *fi;
 	struct lu_fsm_priv *lfp;
 
-	fi = osmo_fsm_inst_alloc_child(&vlr_lu_fsm, parent, parent_term);
+	fi = osmo_fsm_inst_alloc_child(&vlr_lu_fsm, parent, failure_parent_term);
 	if (!fi)
 		return NULL;
 
@@ -1123,6 +1133,7 @@ vlr_loc_update(struct osmo_fsm_inst *parent, uint32_t parent_term,
 	lfp->old_lai = *old_lai;
 	lfp->new_lai = *new_lai;
 	lfp->lu_by_tmsi = true;
+	lfp->success_parent_term_event = success_parent_term;
 	lfp->authentication_required = authentication_required;
 	if (imsi) {
 		strncpy(lfp->imsi, imsi, sizeof(lfp->imsi)-1);

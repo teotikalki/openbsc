@@ -186,19 +186,16 @@ struct vlr_instance {
 	} cfg;
 };
 
+/* Location Updating request */
 struct osmo_fsm_inst *
-vlr_loc_update(struct osmo_fsm_inst *parent, uint32_t parent_term,
-		struct vlr_instance *vlr, void *msc_conn_ref,
-		enum vlr_lu_type type, uint32_t tmsi, const char *imsi,
-		const struct osmo_location_area_id *old_lai,
-		const struct osmo_location_area_id *new_lai,
-		bool authentication_required);
-
-/* Process_Access_Request (CM SERV REQ / PAGING RESP) */
-struct osmo_fsm_inst *
-vlr_process_access_req(struct osmo_fsm_inst *parent, uint32_t parent_term,
-			struct vlr_instance *vlr, void *msc_conn_ref, uint32_t tmsi,
-		const char *imsi, const struct osmo_location_area_id *lai);
+vlr_loc_update(struct osmo_fsm_inst *parent,
+	       uint32_t success_parent_term,
+	       uint32_t failure_parent_term,
+	       struct vlr_instance *vlr, void *msc_conn_ref,
+	       enum vlr_lu_type type, uint32_t tmsi, const char *imsi,
+	       const struct osmo_location_area_id *old_lai,
+	       const struct osmo_location_area_id *new_lai,
+	       bool authentication_required);
 
 /* tell the VLR that the subscriber connection is gone */
 int vlr_sub_disconnected(struct vlr_subscriber *vsub);
@@ -281,6 +278,7 @@ enum vlr_parq_type {
 	/* FIXME: differentiate between services of 24.008 10.5.3.3 */
 };
 
+/* Process Access Request (CM SERV REQ / PAGING RESP) */
 struct osmo_fsm_inst *
 vlr_proc_acc_req(struct osmo_fsm_inst *parent,
 		 uint32_t success_parent_term,

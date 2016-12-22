@@ -505,7 +505,9 @@ static int mm_rx_loc_upd_req(struct gsm_subscriber_connection *conn, struct msgb
 	new_lai.lac = conn->bts->location_area_code;
 	DEBUGPC(DMM, "LU/new-LAC: %u/%u ", old_lai.lac, new_lai.lac);
 
-	lu_fsm = vlr_loc_update(conn->master_fsm, SUB_CON_E_LU_RES,
+	lu_fsm = vlr_loc_update(conn->master_fsm,
+				SUBSCR_CONN_E_LU_SUCCESS,
+				SUBSCR_CONN_E_LU_FAILURE,
 				g_vlr, conn, vlr_lu_type, tmsi, imsi,
 				&old_lai, &new_lai,
 				conn->network->authentication_required);

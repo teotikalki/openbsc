@@ -256,7 +256,8 @@ void msc_release_connection(struct gsm_subscriber_connection *conn)
 }
 
 /* increment the ref-count. Needs to be called by every user */
-struct gsm_subscriber_connection *subscr_con_get(struct gsm_subscriber_connection *conn)
+struct gsm_subscriber_connection *_subscr_con_get(struct gsm_subscriber_connection *conn,
+						  const char *file, int line)
 {
 	OSMO_ASSERT(conn);
 
@@ -264,13 +265,16 @@ struct gsm_subscriber_connection *subscr_con_get(struct gsm_subscriber_connectio
 		return NULL;
 
 	conn->use_count++;
-	DEBUGP(DMSC, "increased subscr_con use_count to %u\n", conn->use_count);
+	LOGPSRC(DMSC, LOGL_DEBUG, file, line,
+		"subscr %s: increased subscr_con use_count to %u\n",
+		subscr_name(conn->subscr), conn->use_count);
 
 	return conn;
 }
 
 /* decrement the ref-count. Once it reaches zero, we release */
-void subscr_con_put(struct gsm_subscriber_connection *conn)
+void _subscr_con_put(struct gsm_subscriber_connection *conn,
+		    const char *file, int line)
 {
 	OSMO_ASSERT(conn);
 
@@ -280,8 +284,9 @@ void subscr_con_put(struct gsm_subscriber_connection *conn)
 	}
 
 	conn->use_count--;
-	DEBUGP(DMSC, "subscr %s: decreased subscr_conn use_count to %u\n",
-	       subscr_name(conn->subscr), conn->use_count);
+	LOGPSRC(DMSC, LOGL_DEBUG, file, line,
+		"subscr %s: decreased subscr_conn use_count to %u\n",
+		subscr_name(conn->subscr), conn->use_count);
 
 	if (conn->use_count == 0 && conn->master_fsm)
 		osmo_fsm_inst_dispatch(conn->master_fsm, SUBSCR_CONN_E_MO_CLOSE, NULL);

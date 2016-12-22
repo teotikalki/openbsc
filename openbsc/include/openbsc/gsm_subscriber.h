@@ -131,8 +131,10 @@ enum gsm_subscriber_update_reason {
 	GSM_SUBSCRIBER_UPDATE_EQUIPMENT,
 };
 
-struct gsm_subscriber *subscr_get(struct gsm_subscriber *subscr);
-struct gsm_subscriber *subscr_put(struct gsm_subscriber *subscr);
+#define subscr_get(subscr) _subscr_get(subscr, __BASE_FILE__, __LINE__)
+struct gsm_subscriber *_subscr_get(struct gsm_subscriber *subscr, const char *file, int line);
+#define subscr_put(subscr) _subscr_put(subscr, __BASE_FILE__, __LINE__)
+struct gsm_subscriber *_subscr_put(struct gsm_subscriber *subscr, const char *file, int line);
 struct gsm_subscriber *subscr_create_subscriber(struct gsm_subscriber_group *sgrp,
 						const char *imsi);
 struct gsm_subscriber *subscr_get_by_tmsi(struct gsm_subscriber_group *sgrp,

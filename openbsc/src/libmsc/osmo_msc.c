@@ -165,7 +165,7 @@ void msc_subscr_con_cleanup(struct gsm_subscriber_connection *conn)
 		return;
 
 	if (conn->subscr) {
-		DEBUGP(DRLL, "%s Freeing subscriber connection\n",
+		DEBUGP(DRLL, "subscr %s: Freeing subscriber connection\n",
 		       subscr_name(conn->subscr));
 		msc_subscr_cleanup(conn->subscr);
 		subscr_put(conn->subscr);
@@ -275,12 +275,13 @@ void subscr_con_put(struct gsm_subscriber_connection *conn)
 	OSMO_ASSERT(conn);
 
 	if (conn->use_count == 0) {
-		LOGP(DMSC, LOGL_ERROR, "tryin to decrement conn use count, but is alrady 0\n");
+		LOGP(DMSC, LOGL_ERROR, "trying to decrement conn use count, but is alrady 0\n");
 		return;
 	}
 
 	conn->use_count--;
-	DEBUGP(DMSC, "decreased subscr_con use_count to %u\n", conn->use_count);
+	DEBUGP(DMSC, "subscr %s: decreased subscr_conn use_count to %u\n",
+	       subscr_name(conn->subscr), conn->use_count);
 
 	if (conn->use_count == 0 && conn->master_fsm)
 		osmo_fsm_inst_dispatch(conn->master_fsm, SUBSCR_CONN_E_MO_CLOSE, NULL);

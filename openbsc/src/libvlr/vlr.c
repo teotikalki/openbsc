@@ -745,6 +745,16 @@ vlr_init(void *ctx, const struct vlr_ops *ops,
 {
 	struct vlr_instance *vlr = talloc_zero(ctx, struct vlr_instance);
 	OSMO_ASSERT(vlr);
+	OSMO_ASSERT(ops->tx_auth_req);
+	OSMO_ASSERT(ops->tx_auth_rej);
+	OSMO_ASSERT(ops->tx_id_req);
+	OSMO_ASSERT(ops->tx_lu_acc);
+	OSMO_ASSERT(ops->tx_lu_rej);
+	OSMO_ASSERT(ops->tx_cm_serv_acc);
+	OSMO_ASSERT(ops->tx_cm_serv_rej);
+	OSMO_ASSERT(ops->set_ciph_mode);
+	OSMO_ASSERT(ops->subscr_update);
+	OSMO_ASSERT(ops->subscr_assoc);
 
 	vlr->gsup_client = gsup_client_create(gsup_server_addr_str,
 					      gsup_server_port,

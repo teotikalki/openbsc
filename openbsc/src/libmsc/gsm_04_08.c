@@ -3658,7 +3658,7 @@ static int msc_vlr_tx_id_req(void *msc_conn_ref, uint8_t mi_type)
 }
 
 /* VLR asks us to transmit a Location Update Accept */
-static int msc_vlr_tx_lu_ack(void *msc_conn_ref)
+static int msc_vlr_tx_lu_acc(void *msc_conn_ref)
 {
 	struct gsm_subscriber_connection *conn = msc_conn_ref;
 	return gsm0408_loc_upd_acc(conn);
@@ -3669,6 +3669,20 @@ static int msc_vlr_tx_lu_rej(void *msc_conn_ref, uint8_t cause)
 {
 	struct gsm_subscriber_connection *conn = msc_conn_ref;
 	return gsm0408_loc_upd_rej(conn, cause);
+}
+
+/* VLR asks us to transmit a CM Service Accept */
+static int msc_vlr_tx_cm_serv_acc(void *msc_conn_ref)
+{
+	struct gsm_subscriber_connection *conn = msc_conn_ref;
+	return gsm48_tx_mm_serv_ack(conn);
+}
+
+/* VLR asks us to transmit a CM Service Reject */
+static int msc_vlr_tx_cm_serv_rej(void *msc_conn_ref, uint8_t cause)
+{
+	struct gsm_subscriber_connection *conn = msc_conn_ref;
+	return gsm48_tx_mm_serv_rej(conn, cause);
 }
 
 /* VLR asks us to start using ciphering */
@@ -3710,8 +3724,10 @@ static const struct vlr_ops msc_vlr_ops = {
 	.tx_auth_req = msc_vlr_tx_auth_req,
 	.tx_auth_rej = msc_vlr_tx_auth_rej,
 	.tx_id_req = msc_vlr_tx_id_req,
-	.tx_lu_ack = msc_vlr_tx_lu_ack,
+	.tx_lu_acc = msc_vlr_tx_lu_acc,
 	.tx_lu_rej = msc_vlr_tx_lu_rej,
+	.tx_cm_serv_acc = msc_vlr_tx_cm_serv_acc,
+	.tx_cm_serv_rej = msc_vlr_tx_cm_serv_rej,
 	.set_ciph_mode = msc_vlr_set_ciph_mode,
 	.subscr_update = msc_vlr_subscr_update,
 	.subscr_assoc = msc_vlr_subscr_assoc,

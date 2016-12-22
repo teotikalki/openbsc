@@ -362,8 +362,8 @@ static void lu_compl_vlr_wait_subscr_pres(struct osmo_fsm_inst *fi,
 			/* WAIT_FOR_TMSI_Cnf */
 			osmo_fsm_inst_state_chg(fi, LU_COMPL_VLR_S_WAIT_TMSI_CNF,
 						vlr_timer(vlr, 3250), 3250);
-			/* Update Location Area Ack */
-			vlr->ops.tx_lu_ack(lcvp->msc_conn_ref);
+			/* Location Updating Accept */
+			vlr->ops.tx_lu_acc(lcvp->msc_conn_ref);
 		}
 	} else {
 		if (vlr->cfg.check_imei_rqd) {
@@ -372,8 +372,8 @@ static void lu_compl_vlr_wait_subscr_pres(struct osmo_fsm_inst *fi,
 						vlr_timer(vlr, 3270), 3270);
 			vlr->ops.tx_id_req(lcvp->msc_conn_ref, GSM_MI_TYPE_IMEI);
 		} else {
-			/* Update Location Area Ack */
-			vsub->vlr->ops.tx_lu_ack(lcvp->msc_conn_ref);
+			/* Location Updating Accept */
+			vlr->ops.tx_lu_acc(lcvp->msc_conn_ref);
 			osmo_fsm_inst_state_chg(fi, LU_COMPL_VLR_S_DONE, 0, 0);
 			osmo_fsm_inst_term(fi, OSMO_FSM_TERM_REGULAR, NULL);
 		}
@@ -396,7 +396,7 @@ static void lu_compl_vlr_wait_imei(struct osmo_fsm_inst *fi, uint32_t event,
 			if (fi->state == LU_COMPL_VLR_S_WAIT_IMEI_TMSI) {
 				/* TMSI is to be allocated */
 				vlr_sub_alloc_tmsi(vsub);
-				vlr->ops.tx_lu_ack(lcvp->msc_conn_ref);
+				vlr->ops.tx_lu_acc(lcvp->msc_conn_ref);
 				osmo_fsm_inst_state_chg(fi, LU_COMPL_VLR_S_WAIT_TMSI_CNF,
 							vlr_timer(vlr, 3250), 3250);
 			} else {

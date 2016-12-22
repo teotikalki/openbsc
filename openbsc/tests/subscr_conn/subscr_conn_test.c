@@ -348,7 +348,7 @@ int __wrap_gsm0808_submit_dtap(struct gsm_subscriber_connection *conn,
 	return 0;
 }
 
-static int fake_vlr_tx_lu_ack(void *msc_conn_ref)
+static int fake_vlr_tx_lu_acc(void *msc_conn_ref)
 {
 	struct gsm_subscriber_connection *conn = msc_conn_ref;
 	fprintf(stderr, "LU Accept for %s\n", subscr_name(conn->subscr));
@@ -380,7 +380,7 @@ int main(void)
 	OSMO_ASSERT(g_vlr->gsup_client);
 	msc_subscr_conn_init();
 
-	g_vlr->ops.tx_lu_ack = fake_vlr_tx_lu_ack;
+	g_vlr->ops.tx_lu_acc = fake_vlr_tx_lu_acc;
 
 	test_early_stage();
 	test_no_authen();

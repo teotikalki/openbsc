@@ -150,8 +150,11 @@ struct vlr_ops {
 
 	/* encode + transmit an IDENTITY REQUEST towards the MS */
 	int (*tx_id_req)(void *msc_conn_ref, uint8_t mi_type);
-	int (*tx_lu_ack)(void *msc_conn_ref);
+
+	int (*tx_lu_acc)(void *msc_conn_ref);
 	int (*tx_lu_rej)(void *msc_conn_ref, uint8_t cause);
+	int (*tx_cm_serv_acc)(void *msc_conn_ref);
+	int (*tx_cm_serv_rej)(void *msc_conn_ref, uint8_t cause);
 
 	int (*set_ciph_mode)(void *msc_conn_ref);
 

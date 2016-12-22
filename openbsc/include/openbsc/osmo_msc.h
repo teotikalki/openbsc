@@ -14,17 +14,18 @@
 
 enum subscr_conn_fsm_event {
 	/* LU FSM has terminated */
-	SUB_CON_E_LU_RES,
+	SUBSCR_CONN_E_LU_SUCCESS,
+	SUBSCR_CONN_E_LU_FAILURE,
 	/* Process Access Request has terminated */
-	SUB_CON_E_PARQ_SUCCESS,
-	SUB_CON_E_PARQ_FAILURE,
+	SUBSCR_CONN_E_PARQ_SUCCESS,
+	SUBSCR_CONN_E_PARQ_FAILURE,
 	/* MS/BTS/BSC originated close request */
-	SUB_CON_E_MO_CLOSE,
+	SUBSCR_CONN_E_MO_CLOSE,
 	/* MSC originated close request, primarily originates from
 	 * subscr_con_put() in case reference coult reaches 0 */
-	SUB_CON_E_CN_CLOSE,
+	SUBSCR_CONN_E_CN_CLOSE,
 	/* BSC erports confirmation of connection close */
-	SUB_CON_E_CLOSE_CONF,
+	SUBSCR_CONN_E_CLOSE_CONF,
 };
 
 enum subscr_conn_fsm_state {

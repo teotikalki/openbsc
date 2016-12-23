@@ -56,7 +56,8 @@ void gsup_rx(const char *label, const char *rx_hex, const char *expect_tx_hex)
 	rc = vlr_gsupc_read_cb(g_vlr->gsup_client, msg);
 	fprintf(stderr, "<-- GSUP rx %s: vlr_gsupc_read_cb() returns %d\n",
 		label, rc);
-	OSMO_ASSERT(gsup_tx_confirmed);
+	if (expect_tx_hex)
+		OSMO_ASSERT(gsup_tx_confirmed);
 	talloc_free(msg);
 }
 
@@ -135,6 +136,29 @@ void fake_rx_cm_service_req(struct gsm_subscriber_connection *conn)
 	talloc_free(msg);
 }
 
+int fake_rx_msg(struct gsm_subscriber_connection *conn,
+		const char *hex)
+{
+	int rc;
+	struct msgb *msg;
+	struct gsm48_hdr *gh;
+
+	msg = msgb_from_hex("fake_rx_msg", 1024, hex);
+	msg->l1h = msg->l2h = msg->l3h = msg->data;
+	gh = (void*)msg->data;
+
+	btw("fake rx 04.08: pdisc=%u msg_type=%u",
+	    gsm48_hdr_pdisc(gh), gsm48_hdr_msg_type(gh));
+
+	rc = gsm0408_dispatch(conn, msg);
+
+	btw("fake rx 04.08: pdisc=%u msg_type=%u: rc=%d",
+	    gsm48_hdr_pdisc(gh), gsm48_hdr_msg_type(gh), rc);
+
+	talloc_free(msg);
+	return rc;
+}
+
 int fake_rx(struct gsm_subscriber_connection *conn,
 	    uint8_t pdisc, uint8_t msg_type)
 {
@@ -152,8 +176,9 @@ int fake_rx(struct gsm_subscriber_connection *conn,
 	gh->proto_discr = pdisc;
 	gh->msg_type = msg_type;
 
-	/* some data, whatever */
+	/* some amount of data, whatever */
 	msgb_put(msg, 123);
+
 	rc = gsm0408_dispatch(conn, msg);
 
 	btw("fake rx 04.08: rc=%d", rc);
@@ -164,6 +189,7 @@ int fake_rx(struct gsm_subscriber_connection *conn,
 
 void thwart_rx_non_initial_requests(struct gsm_subscriber_connection *conn)
 {
+	btw("requests shall be thwarted");
 	OSMO_ASSERT(fake_rx(conn, GSM48_PDISC_CC, GSM48_MT_CC_SETUP) == -EACCES);
 	OSMO_ASSERT(fake_rx(conn, GSM48_PDISC_MM, GSM48_MT_MM_TMSI_REALL_COMPL) == -EACCES);
 	OSMO_ASSERT(fake_rx(conn, GSM48_PDISC_RR, GSM48_MT_RR_PAG_RESP) == -EACCES);
@@ -190,7 +216,6 @@ void test_early_stage()
 	OSMO_ASSERT(conn->conn_fsm->state == SUBSCR_CONN_S_NEW);
 	EXPECT_ACCEPTED(false);
 
-	btw("requests shall be thwarted");
 	thwart_rx_non_initial_requests(conn);
 
 	btw("fake: acceptance");
@@ -239,6 +264,8 @@ void test_no_authen()
 {
 	comment_start();
 
+	net->authentication_required = false;
+
 	btw("new conn");
 	struct gsm_subscriber_connection *conn = conn_new();
 
@@ -248,14 +275,13 @@ void test_no_authen()
 	OSMO_ASSERT(gsup_tx_confirmed);
 
 	btw("HLR sends _INSERT_DATA_REQUEST, VLR responds with _INSERT_DATA_RESULT");
-	gsup_rx("_INSERT_DATA_RESULT",
+	gsup_rx("_INSERT_DATA_REQUEST",
 		"10010809710000004026f00804036470f1",
 		"12010809710000004026f0");
 
 	btw("having received subscriber data does not mean acceptance");
 	EXPECT_ACCEPTED(false);
 
-	btw("requests shall be thwarted");
 	thwart_rx_non_initial_requests(conn);
 
 	btw("HLR also sends GSUP _UPDATE_LOCATION_RESULT");
@@ -286,6 +312,105 @@ void test_no_authen()
 	comment_end();
 }
 
+void test_authen()
+{
+	comment_start();
+
+	net->authentication_required = true;
+
+	btw("new conn");
+	struct gsm_subscriber_connection *conn = conn_new();
+
+	btw("Location Update request causes a GSUP Send Auth Info request to HLR");
+	gsup_expect_tx("08010809710000004026f0");
+	fake_rx_lu_req(conn);
+	OSMO_ASSERT(gsup_tx_confirmed);
+
+	btw("from HLR, rx _SEND_AUTH_INFO_RESULT; VLR sends Auth Req to MS");
+	gsup_rx("OSMO_GSUP_MSGT_SEND_AUTH_INFO_RESULT",
+		"0a"
+		/* imsi */
+		"0108" "09710000004026f0"
+		/* 5 auth vectors... */
+		/* TL    TL     rand */
+		"0322"  "2010" "585df1ae287f6e273dce07090d61320b"
+		/*       TL     sres       TL     kc */
+			"2104" "2d8b2c3e" "2208" "61855fb81fc2a800"
+		"0322"  "2010" "12aca96fb4ffdea5c985cbafa9b6e18b"
+			"2104" "20bde240" "2208" "07fa7502e07e1c00"
+		"0322"  "2010" "e7c03ba7cf0e2fde82b2dc4d63077d42"
+			"2104" "a29514ae" "2208" "e2b234f807886400"
+		"0322"  "2010" "fa8f20b781b5881329d4fea26b1a3c51"
+			"2104" "5afc8d72" "2208" "2392f14f709ae000"
+		"0322"  "2010" "0fd4cc8dbe8715d1f439e304edfd68dc"
+			"2104" "bc8d1c5b" "2208" "da7cdd6bfe2d7000",
+		NULL);
+
+#if 0
+	handled in bsc_api.c and never reaches the MSC
+	btw("MS may send a Classmark Change");
+	fake_rx_msg(conn, "061603305886200b6014042f6513b8800d2100");
+#endif
+
+#if 0
+	//makes me think: should this ever reach the MSC?
+	//we're certainly not doing anything with it.
+	btw("MS may send a UTRAN Classmark Change");
+	fake_rx_msg(conn, "06604a40000350caab541a955aa22920c11200060005628425"
+		    "1cfba267aed97284a39f744cf5db2f509473ee899ebb65872d0101c4"
+		    "109c38f5d0d133d76cb4006407406f5293492d691006c6c0");
+#endif
+
+	btw("If the HLR were to send a GSUP _UPDATE_LOCATION_RESULT we'd still reject");
+	gsup_rx("_UPDATE_LOCATION_RESULT", "06010809710000004026f0", NULL);
+	EXPECT_ACCEPTED(false);
+
+	thwart_rx_non_initial_requests(conn);
+
+	btw("MS sends Authen Response, VLR accepts and sends GSUP LU Req to HLR");
+	gsup_expect_tx("04010809710000004026f0");
+	fake_rx_msg(conn, "05542d8b2c3e");
+
+	btw("HLR sends _INSERT_DATA_REQUEST, VLR responds with _INSERT_DATA_RESULT");
+	gsup_rx("_INSERT_DATA_REQUEST",
+		"10010809710000004026f00804036470f1",
+		"12010809710000004026f0");
+
+	btw("HLR also sends GSUP _UPDATE_LOCATION_RESULT");
+	gsup_rx("_UPDATE_LOCATION_RESULT", "06010809710000004026f0", NULL);
+
+	btw("now the conn is accepted");
+	EXPECT_ACCEPTED(true);
+
+	btw("the conn is discarded");
+	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
+	EXPECT_CONN_COUNT(0);
+
+	btw("after a while, a new conn...");
+	conn = conn_new();
+	EXPECT_ACCEPTED(false);
+
+	btw("...sends a CM Service Request. VLR responds with Auth Req, 2nd auth vector");
+	fake_rx_cm_service_req(conn);
+	OSMO_ASSERT(conn->conn_fsm);
+	OSMO_ASSERT(conn->subscr);
+	OSMO_ASSERT(conn->subscr->vsub);
+
+	btw("needs auth, not yet accepted");
+	EXPECT_ACCEPTED(false);
+	thwart_rx_non_initial_requests(conn);
+
+	btw("MS sends Authen Response, VLR accepts");
+	gsup_expect_tx(NULL);
+	fake_rx_msg(conn, "0554a29514ae");
+
+	btw("conn is released");
+	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
+	EXPECT_CONN_COUNT(0);
+
+	comment_end();
+}
+
 static struct log_info_cat test_categories[] = {
 	[DMSC] = {
 		.name = "DMSC",
@@ -300,6 +425,11 @@ static struct log_info_cat test_categories[] = {
 	[DMM] = {
 		.name = "DMM",
 		.description = "Layer3 Mobility Management (MM)",
+		.enabled = 1, .loglevel = LOGL_DEBUG,
+	},
+	[DRR] = {
+		.name = "DRR",
+		.description = "Layer3 Radio Resource (RR)",
 		.enabled = 1, .loglevel = LOGL_DEBUG,
 	},
 	[DCC] = {
@@ -388,21 +518,21 @@ int __wrap_gsm0808_submit_dtap(struct gsm_subscriber_connection *conn,
 static int fake_vlr_tx_lu_acc(void *msc_conn_ref)
 {
 	struct gsm_subscriber_connection *conn = msc_conn_ref;
-	btw("LU Accept for %s", subscr_name(conn->subscr));
+	btw("sending LU Accept for %s", subscr_name(conn->subscr));
 	return 0;
 }
 
 static int fake_vlr_tx_lu_rej(void *msc_conn_ref, uint8_t cause)
 {
 	struct gsm_subscriber_connection *conn = msc_conn_ref;
-	btw("LU Reject for %s, cause %u", subscr_name(conn->subscr), cause);
+	btw("sending LU Reject for %s, cause %u", subscr_name(conn->subscr), cause);
 	return 0;
 }
 
 static int fake_vlr_tx_cm_serv_acc(void *msc_conn_ref)
 {
 	struct gsm_subscriber_connection *conn = msc_conn_ref;
-	btw("CM Service Accept for %s", subscr_name(conn->subscr));
+	btw("sending CM Service Accept for %s", subscr_name(conn->subscr));
 	return 0;
 }
 
@@ -410,9 +540,31 @@ static int fake_vlr_tx_cm_serv_rej(void *msc_conn_ref,
 				   enum vlr_proc_arq_result result)
 {
 	struct gsm_subscriber_connection *conn = msc_conn_ref;
-	btw("CM Service Reject for %s, result %s",
+	btw("sending CM Service Reject for %s, result %s",
 	    subscr_name(conn->subscr),
 	    vlr_proc_arq_result_name(result));
+	return 0;
+}
+
+static int fake_vlr_tx_auth_req(void *msc_conn_ref, struct gsm_auth_tuple *at)
+{
+	struct gsm_subscriber_connection *conn = msc_conn_ref;
+	btw("sending Auth Request for %s: tuple use_count=%d key_seq=%d auth_types=0x%x and...",
+	    subscr_name(conn->subscr),
+	    at->use_count, at->key_seq, at->vec.auth_types);
+	btw("...rand=%s",
+	    osmo_hexdump_nospc((void*)&at->vec.rand, sizeof(at->vec.rand)));
+	btw("...kc=%s",
+	    osmo_hexdump_nospc((void*)&at->vec.kc, sizeof(at->vec.ck)));
+	btw("...expecting sres=%s",
+	    osmo_hexdump_nospc((void*)&at->vec.sres, sizeof(at->vec.sres)));
+	return 0;
+}
+
+static int fake_vlr_tx_auth_rej(void *msc_conn_ref)
+{
+	struct gsm_subscriber_connection *conn = msc_conn_ref;
+	btw("sending Auth Reject for %s", subscr_name(conn->subscr));
 	return 0;
 }
 
@@ -443,10 +595,13 @@ int main(int argc, const char **argv)
 	g_vlr->ops.tx_lu_rej = fake_vlr_tx_lu_rej;
 	g_vlr->ops.tx_cm_serv_acc = fake_vlr_tx_cm_serv_acc;
 	g_vlr->ops.tx_cm_serv_rej = fake_vlr_tx_cm_serv_rej;
+	g_vlr->ops.tx_auth_req = fake_vlr_tx_auth_req;
+	g_vlr->ops.tx_auth_rej = fake_vlr_tx_auth_rej;
 
 	test_early_stage();
 	test_cm_service_without_lu();
 	test_no_authen();
+	test_authen();
 
 	printf("Done\n");
 

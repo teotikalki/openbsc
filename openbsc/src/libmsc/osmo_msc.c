@@ -170,8 +170,8 @@ void msc_subscr_con_cleanup(struct gsm_subscriber_connection *conn)
 		subscr_put(conn->subscr);
 		conn->subscr = NULL;
 	} else
-		DEBUGP(DRLL, "Freeing subscriber connection %p"
-		       " with NULL subscriber\n", conn);
+		DEBUGP(DRLL, "Freeing subscriber connection"
+		       " with NULL subscriber\n");
 
 	if (!conn->conn_fsm)
 		return;

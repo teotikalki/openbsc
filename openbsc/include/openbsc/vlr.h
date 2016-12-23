@@ -51,7 +51,8 @@ enum vlr_lu_event {
 	VLR_ULA_E_ID_IMEISV,	/* IMEISV received from MS */
 	VLR_ULA_E_HLR_LU_RES,	/* HLR UpdateLocation result */
 	VLR_ULA_E_UPD_HLR_COMPL,/* UpdatE_HLR_VLR result */
-	VLR_ULA_E_LU_COMPL_TERM,/* Location_Update_Completion_VLR result */
+	VLR_ULA_E_LU_COMPL_SUCCESS,/* Location_Update_Completion_VLR result */
+	VLR_ULA_E_LU_COMPL_FAILURE,/* Location_Update_Completion_VLR result */
 	VLR_ULA_E_NEW_TMSI_ACK,	/* TMSI Reallocation Complete */
 };
 
@@ -231,7 +232,8 @@ struct osmo_fsm_inst *
 lu_compl_vlr_proc_start(struct osmo_fsm_inst *parent,
 			struct vlr_subscriber *vsub,
 			void *msc_conn_ref,
-			uint32_t term_event);
+			uint32_t parent_event_success,
+			uint32_t parent_event_failure);
 
 
 const char *vlr_sub_name(struct vlr_subscriber *vsub);

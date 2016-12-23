@@ -31,6 +31,13 @@
 
 #define LU_TIMEOUT_LONG		30
 
+enum vlr_fsm_result {
+	VLR_FSM_RESULT_NONE,
+	VLR_FSM_RESULT_SUCCESS,
+	VLR_FSM_RESULT_FAILURE,
+};
+
+
 /***********************************************************************
  * Update_HLR_VLR, TS 23.012 Chapter 4.1.2.4
  ***********************************************************************/
@@ -295,7 +302,48 @@ struct lu_compl_vlr_priv {
 	struct vlr_subscriber *vsub;
 	void *msc_conn_ref;
 	struct osmo_fsm_inst *sub_pres_vlr_fsm;
+	uint32_t parent_event_success;
+	uint32_t parent_event_failure;
+	enum vlr_fsm_result result;
+	uint8_t cause;
 };
+
+static void _vlr_lu_compl_fsm_done(struct osmo_fsm_inst *fi,
+				   enum vlr_fsm_result result,
+				   uint8_t cause)
+{
+	struct lu_compl_vlr_priv *lcvp = fi->priv;
+	lcvp->result = result;
+	lcvp->cause = cause;
+	osmo_fsm_inst_state_chg(fi, LU_COMPL_VLR_S_DONE, 0, 0);
+}
+
+static void vlr_lu_compl_fsm_success(struct osmo_fsm_inst *fi)
+{
+	_vlr_lu_compl_fsm_done(fi, VLR_FSM_RESULT_SUCCESS, 0);
+}
+
+static void vlr_lu_compl_fsm_failure(struct osmo_fsm_inst *fi, uint8_t cause)
+{
+	struct lu_compl_vlr_priv *lcvp = fi->priv;
+	lcvp->vsub->vlr->ops.tx_lu_rej(lcvp->msc_conn_ref, cause);
+	_vlr_lu_compl_fsm_done(fi, VLR_FSM_RESULT_FAILURE, cause);
+}
+
+static void vlr_lu_compl_fsm_dispatch_result(struct osmo_fsm_inst *fi,
+					     uint32_t prev_state)
+{
+	struct lu_compl_vlr_priv *lcvp = fi->priv;
+	if (!fi->proc.parent) {
+		LOGPFSML(fi, LOGL_ERROR, "No parent FSM\n");
+		return;
+	}
+	osmo_fsm_inst_dispatch(fi->proc.parent,
+			       (lcvp->result == VLR_FSM_RESULT_SUCCESS)
+			       ? lcvp->parent_event_success
+			       : lcvp->parent_event_failure,
+			       &lcvp->cause);
+}
 
 static void lu_compl_vlr_init(struct osmo_fsm_inst *fi, uint32_t event,
 			      void *data)
@@ -374,8 +422,7 @@ static void lu_compl_vlr_wait_subscr_pres(struct osmo_fsm_inst *fi,
 		} else {
 			/* Location Updating Accept */
 			vlr->ops.tx_lu_acc(lcvp->msc_conn_ref);
-			osmo_fsm_inst_state_chg(fi, LU_COMPL_VLR_S_DONE, 0, 0);
-			osmo_fsm_inst_term(fi, OSMO_FSM_TERM_REGULAR, NULL);
+			vlr_lu_compl_fsm_success(fi);
 		}
 	}
 }
@@ -400,8 +447,7 @@ static void lu_compl_vlr_wait_imei(struct osmo_fsm_inst *fi, uint32_t event,
 				osmo_fsm_inst_state_chg(fi, LU_COMPL_VLR_S_WAIT_TMSI_CNF,
 							vlr_timer(vlr, 3250), 3250);
 			} else {
-				osmo_fsm_inst_state_chg(fi, LU_COMPL_VLR_S_DONE, 0, 0);
-				osmo_fsm_inst_term(fi, OSMO_FSM_TERM_REGULAR, NULL);
+				vlr_lu_compl_fsm_success(fi);
 			}
 			return;
 		} else {
@@ -409,14 +455,10 @@ static void lu_compl_vlr_wait_imei(struct osmo_fsm_inst *fi, uint32_t event,
 		}
 		break;
 	case LU_COMPL_VLR_E_IMEI_CHECK_NACK:
-		/* Fail */
+		vlr_lu_compl_fsm_failure(fi, GSM48_REJECT_ILLEGAL_ME);
 		/* FIXME: IMEI Check Fail to VLR Application (Detach IMSI VLR) */
-		/* LU REJECT ILLEGAL ME */
-		vsub->vlr->ops.tx_lu_rej(vsub, GMM_CAUSE_ILLEGAL_ME);
 		break;
 	}
-	osmo_fsm_inst_state_chg(fi, LU_COMPL_VLR_S_DONE, 0, 0);
-	osmo_fsm_inst_term(fi, OSMO_FSM_TERM_REGULAR, NULL);
 }
 
 /* Waiting for TMSI confirmation */
@@ -424,8 +466,7 @@ static void lu_compl_vlr_wait_tmsi(struct osmo_fsm_inst *fi, uint32_t event,
 				   void *data)
 {
 	OSMO_ASSERT(event == LU_COMPL_VLR_E_NEW_TMSI_ACK);
-	osmo_fsm_inst_state_chg(fi, LU_COMPL_VLR_S_DONE, 0, 0);
-	osmo_fsm_inst_term(fi, OSMO_FSM_TERM_REGULAR, NULL);
+	vlr_lu_compl_fsm_success(fi);
 }
 
 static const struct osmo_fsm_state lu_compl_vlr_states[] = {
@@ -469,6 +510,7 @@ static const struct osmo_fsm_state lu_compl_vlr_states[] = {
 	},
 	[LU_COMPL_VLR_S_DONE] = {
 		.name = OSMO_STRINGIFY(LU_COMPL_VLR_S_DONE),
+		.onenter = vlr_lu_compl_fsm_dispatch_result,
 	},
 };
 
@@ -483,25 +525,26 @@ static struct osmo_fsm lu_compl_vlr_fsm = {
 };
 
 struct osmo_fsm_inst *
-lu_compl_vlr_proc_start(struct osmo_fsm_inst *parent,
+lu_compl_vlr_proc_alloc(struct osmo_fsm_inst *parent,
 			struct vlr_subscriber *vsub,
 			void *msc_conn_ref,
-			uint32_t term_event)
+			uint32_t parent_event_success,
+			uint32_t parent_event_failure)
 {
 	struct osmo_fsm_inst *fi;
 	struct lu_compl_vlr_priv *lcvp;
 
 	fi = osmo_fsm_inst_alloc_child(&lu_compl_vlr_fsm, parent,
-					term_event);
+				       parent_event_failure);
 	if (!fi)
 		return NULL;
 
 	lcvp = talloc_zero(fi, struct lu_compl_vlr_priv);
 	lcvp->vsub = vsub;
 	lcvp->msc_conn_ref = msc_conn_ref;
+	lcvp->parent_event_success = parent_event_success;
+	lcvp->parent_event_failure = parent_event_failure;
 	fi->priv = lcvp;
-
-	osmo_fsm_inst_dispatch(fi, LU_COMPL_VLR_E_START, NULL);
 
 	return fi;
 }
@@ -533,7 +576,8 @@ static const struct value_string fsm_lu_event_names[] = {
 	OSMO_VALUE_STRING(VLR_ULA_E_ID_IMEISV),
 	OSMO_VALUE_STRING(VLR_ULA_E_HLR_LU_RES),
 	OSMO_VALUE_STRING(VLR_ULA_E_UPD_HLR_COMPL),
-	OSMO_VALUE_STRING(VLR_ULA_E_LU_COMPL_TERM),
+	OSMO_VALUE_STRING(VLR_ULA_E_LU_COMPL_SUCCESS),
+	OSMO_VALUE_STRING(VLR_ULA_E_LU_COMPL_FAILURE),
 	OSMO_VALUE_STRING(VLR_ULA_E_NEW_TMSI_ACK),
 	{ 0, NULL }
 };
@@ -544,7 +588,10 @@ struct lu_fsm_priv {
 	void *msc_conn_ref;
 	struct osmo_fsm_inst *upd_hlr_vlr_fsm;
 	struct osmo_fsm_inst *lu_compl_vlr_fsm;
-	uint32_t success_parent_term_event;
+	uint32_t parent_event_success;
+	uint32_t parent_event_failure;
+	enum vlr_fsm_result result;
+	uint8_t rej_cause;
 
 	enum vlr_lu_type type;
 	bool lu_by_tmsi;
@@ -581,20 +628,59 @@ static bool hlr_update_needed(struct vlr_subscriber *vsub)
 	return true;
 }
 
-/* Terminate a Location Update FSM Instance */
-static void lu_fsm_term(struct osmo_fsm_inst *fi)
+static void lu_fsm_dispatch_result(struct osmo_fsm_inst *fi,
+				   uint32_t prev_state)
 {
+	struct lu_fsm_priv *lfp = fi->priv;
+	if (!fi->proc.parent) {
+		LOGPFSML(fi, LOGL_ERROR, "No parent FSM\n");
+		return;
+	}
+	osmo_fsm_inst_dispatch(fi->proc.parent,
+			       (lfp->result == VLR_FSM_RESULT_SUCCESS)
+			       ? lfp->parent_event_success
+			       : lfp->parent_event_failure,
+			       NULL);
+}
+
+static void _lu_fsm_done(struct osmo_fsm_inst *fi,
+			 enum vlr_fsm_result result)
+{
+	struct lu_fsm_priv *lfp = fi->priv;
+	lfp->result = result;
 	osmo_fsm_inst_state_chg(fi, VLR_ULA_S_DONE, 0, 0);
-	/* if the MSC is registered as parent, it will get notified via
-	 * the usual signalling */
-	osmo_fsm_inst_term(fi, OSMO_FSM_TERM_REGULAR, NULL);
 }
 
 static void lu_fsm_success(struct osmo_fsm_inst *fi)
 {
+	_lu_fsm_done(fi, VLR_FSM_RESULT_SUCCESS);
+}
+
+static void lu_fsm_failure(struct osmo_fsm_inst *fi, uint8_t rej_cause)
+{
 	struct lu_fsm_priv *lfp = fi->priv;
-	fi->proc.parent_term_event = lfp->success_parent_term_event;
-	lu_fsm_term(fi);
+	if (rej_cause)
+		lfp->vlr->ops.tx_lu_rej(lfp->msc_conn_ref, rej_cause);
+	_lu_fsm_done(fi, VLR_FSM_RESULT_FAILURE);
+}
+
+static void vlr_loc_upd_start_lu_compl_fsm(struct osmo_fsm_inst *fi)
+{
+	struct lu_fsm_priv *lfp = fi->priv;
+	lfp->lu_compl_vlr_fsm =
+		lu_compl_vlr_proc_alloc(fi, lfp->vsub, lfp->msc_conn_ref,
+					VLR_ULA_E_LU_COMPL_SUCCESS,
+					VLR_ULA_E_LU_COMPL_FAILURE);
+
+	osmo_fsm_inst_dispatch(lfp->lu_compl_vlr_fsm, LU_COMPL_VLR_E_START, NULL);
+}
+
+static void lu_fsm_discard_lu_compl_fsm(struct osmo_fsm_inst *fi)
+{
+	struct lu_fsm_priv *lfp = fi->priv;
+	if (!lfp->lu_compl_vlr_fsm)
+		return;
+	osmo_fsm_inst_term(lfp->lu_compl_vlr_fsm, OSMO_FSM_TERM_PARENT, NULL);
 }
 
 /* 4.1.2.1 Node 4 */
@@ -602,7 +688,6 @@ static void vlr_loc_upd_node_4(struct osmo_fsm_inst *fi)
 {
 	struct lu_fsm_priv *lfp = fi->priv;
 	struct vlr_subscriber *vsub = lfp->vsub;
-	struct vlr_instance *vlr = lfp->vlr;
 	bool hlr_unknown = false;
 
 	LOGPFSM(fi, "vlr_loc_upd_node4()\n");
@@ -610,8 +695,7 @@ static void vlr_loc_upd_node_4(struct osmo_fsm_inst *fi)
 	if (hlr_unknown) {
 		/* FIXME: Delete subscriber record */
 		/* LU REJ: Roaming not allowed */
-		vlr->ops.tx_lu_rej(lfp->msc_conn_ref, GSM48_REJECT_ROAMING_NOT_ALLOWED);
-		lu_fsm_term(fi);
+		lu_fsm_failure(fi, GSM48_REJECT_ROAMING_NOT_ALLOWED);
 	} else {
 		/* Update_HLR_VLR */
 		osmo_fsm_inst_state_chg(fi, VLR_ULA_S_WAIT_HLR_UPD,
@@ -624,8 +708,6 @@ static void vlr_loc_upd_node_4(struct osmo_fsm_inst *fi)
 /* 4.1.2.1 Node B */
 static void vlr_loc_upd_node_b(struct osmo_fsm_inst *fi)
 {
-	struct lu_fsm_priv *lfp = fi->priv;
-
 	LOGPFSM(fi, "vlr_loc_upd_node_b()\n");
 
 	/* FIXME */
@@ -635,10 +717,7 @@ static void vlr_loc_upd_node_b(struct osmo_fsm_inst *fi)
 		/* Location_Update_Completion */
 		osmo_fsm_inst_state_chg(fi, VLR_ULA_S_WAIT_LU_COMPL,
 					LU_TIMEOUT_LONG, 0);
-		lfp->lu_compl_vlr_fsm =
-			lu_compl_vlr_proc_start(fi, lfp->vsub,
-					lfp->msc_conn_ref,
-					VLR_ULA_E_LU_COMPL_TERM);
+		vlr_loc_upd_start_lu_compl_fsm(fi);
 	}
 }
 
@@ -847,7 +926,6 @@ static void lu_fsm_wait_auth(struct osmo_fsm_inst *fi, uint32_t event,
 			     void *data)
 {
 	struct lu_fsm_priv *lfp = fi->priv;
-	struct vlr_instance *vlr = lfp->vlr;
 	enum vlr_auth_fsm_result *res = data;
 	uint8_t rej_cause = 0;
 
@@ -885,9 +963,7 @@ static void lu_fsm_wait_auth(struct osmo_fsm_inst *fi, uint32_t event,
 	} else
 		rej_cause = GSM48_REJECT_NETWORK_FAILURE;
 
-	if (rej_cause)
-		vlr->ops.tx_lu_rej(lfp->msc_conn_ref, rej_cause);
-	lu_fsm_term(fi);
+	lu_fsm_failure(fi, rej_cause);
 }
 
 static void lu_fsm_wait_imsi(struct osmo_fsm_inst *fi, uint32_t event,
@@ -915,8 +991,6 @@ static void lu_fsm_wait_hlr_ul_res(struct osmo_fsm_inst *fi, uint32_t event,
 				   void *data)
 {
 	struct lu_fsm_priv *lfp = fi->priv;
-	struct vlr_subscriber *vsub = lfp->vsub;
-	struct vlr_instance *vlr = lfp->vlr;
 
 	switch (event) {
 	case VLR_ULA_E_HLR_LU_RES:
@@ -931,9 +1005,7 @@ static void lu_fsm_wait_hlr_ul_res(struct osmo_fsm_inst *fi, uint32_t event,
 			/* successful case */
 			osmo_fsm_inst_state_chg(fi, VLR_ULA_S_WAIT_LU_COMPL,
 						LU_TIMEOUT_LONG, 0);
-			lfp->lu_compl_vlr_fsm =
-				lu_compl_vlr_proc_start(fi, vsub, lfp->msc_conn_ref,
-						VLR_ULA_E_LU_COMPL_TERM);
+			vlr_loc_upd_start_lu_compl_fsm(fi);
 			/* continue in MSC ?!? */
 		} else {
 			/* unsuccessful case */
@@ -943,14 +1015,9 @@ static void lu_fsm_wait_hlr_ul_res(struct osmo_fsm_inst *fi, uint32_t event,
 				osmo_fsm_inst_state_chg(fi,
 						VLR_ULA_S_WAIT_LU_COMPL_STANDALONE,
 						LU_TIMEOUT_LONG, 0);
-				lfp->lu_compl_vlr_fsm =
-					lu_compl_vlr_proc_start(fi, vsub,
-							lfp->msc_conn_ref,
-							VLR_ULA_E_LU_COMPL_TERM);
+				vlr_loc_upd_start_lu_compl_fsm(fi);
 			} else {
-				vlr->ops.tx_lu_rej(vsub, cause);
-				lu_fsm_term(fi);
-				/* continue in MSC ?!? */
+				lu_fsm_failure(fi, cause);
 			}
 		}
 		break;
@@ -963,25 +1030,31 @@ static void lu_fsm_wait_hlr_ul_res(struct osmo_fsm_inst *fi, uint32_t event,
 
 /* Wait for end of Location_Update_Completion_VLR */
 static void lu_fsm_wait_lu_compl(struct osmo_fsm_inst *fi, uint32_t event,
-				   void *data)
+				 void *data)
 {
 	struct lu_fsm_priv *lfp = fi->priv;
+	uint8_t cause;
 
 	switch (event) {
 	case VLR_ULA_E_NEW_TMSI_ACK:
 		osmo_fsm_inst_dispatch(lfp->lu_compl_vlr_fsm,
 					LU_COMPL_VLR_E_NEW_TMSI_ACK, NULL);
 		break;
-	case VLR_ULA_E_LU_COMPL_TERM:
-		lfp->lu_compl_vlr_fsm = NULL;
+	case VLR_ULA_E_LU_COMPL_SUCCESS:
+		lu_fsm_discard_lu_compl_fsm(fi);
 
-		if (1 /* pass */) {
-			/* Update Register */
-			/* TODO: Set_Notification_Type 23.078 */
-			/* TODO: Notify_gsmSCF 23.078 */
-			/* TODO: Authenticated Radio Contact Established -> ARC */
-		}
+		/* Update Register */
+		/* TODO: Set_Notification_Type 23.078 */
+		/* TODO: Notify_gsmSCF 23.078 */
+		/* TODO: Authenticated Radio Contact Established -> ARC */
 		lu_fsm_success(fi);
+		break;
+	case VLR_ULA_E_LU_COMPL_FAILURE:
+		cause = GSM48_REJECT_NETWORK_FAILURE;
+		if (data)
+			cause = *(uint8_t*)data;
+		lu_fsm_discard_lu_compl_fsm(fi);
+		lu_fsm_failure(fi, cause);
 		break;
 	default:
 		LOGPFSML(fi, LOGL_ERROR, "event without effect: %s\n",
@@ -996,15 +1069,25 @@ static void lu_fsm_wait_lu_compl_standalone(struct osmo_fsm_inst *fi,
 {
 	struct lu_fsm_priv *lfp = fi->priv;
 	struct vlr_subscriber *vsub = lfp->vsub;
+	uint8_t cause;
 
 	switch (event) {
 	case VLR_ULA_E_NEW_TMSI_ACK:
 		osmo_fsm_inst_dispatch(lfp->lu_compl_vlr_fsm,
 					LU_COMPL_VLR_E_NEW_TMSI_ACK, NULL);
 		break;
-	case VLR_ULA_E_LU_COMPL_TERM:
+	case VLR_ULA_E_LU_COMPL_SUCCESS:
+		lu_fsm_discard_lu_compl_fsm(fi);
 		vsub->sub_dataconf_by_hlr_ind = false;
 		lu_fsm_success(fi);
+		break;
+	case VLR_ULA_E_LU_COMPL_FAILURE:
+		vsub->sub_dataconf_by_hlr_ind = false;
+		cause = GSM48_REJECT_NETWORK_FAILURE;
+		if (data)
+			cause = *(uint8_t*)data;
+		lu_fsm_discard_lu_compl_fsm(fi);
+		lu_fsm_failure(fi, cause);
 		break;
 	default:
 		LOGPFSML(fi, LOGL_ERROR, "event without effect: %s\n",
@@ -1068,14 +1151,16 @@ static const struct osmo_fsm_state vlr_lu_fsm_states[] = {
 		.action = lu_fsm_wait_hlr_ul_res,
 	},
 	[VLR_ULA_S_WAIT_LU_COMPL] = {
-		.in_event_mask = S(VLR_ULA_E_LU_COMPL_TERM) |
+		.in_event_mask = S(VLR_ULA_E_LU_COMPL_SUCCESS) |
+				 S(VLR_ULA_E_LU_COMPL_FAILURE) |
 				 S(VLR_ULA_E_NEW_TMSI_ACK),
 		.out_state_mask = S(VLR_ULA_S_DONE),
 		.name = OSMO_STRINGIFY(VLR_ULA_S_WAIT_LU_COMPL),
 		.action = lu_fsm_wait_lu_compl,
 	},
 	[VLR_ULA_S_WAIT_LU_COMPL_STANDALONE] = {
-		.in_event_mask = S(VLR_ULA_E_LU_COMPL_TERM) |
+		.in_event_mask = S(VLR_ULA_E_LU_COMPL_SUCCESS) |
+                                 S(VLR_ULA_E_LU_COMPL_FAILURE) |
 				 S(VLR_ULA_E_NEW_TMSI_ACK),
 		.out_state_mask = S(VLR_ULA_S_DONE),
 		.name = OSMO_STRINGIFY(VLR_ULA_S_WAIT_LU_COMPL_STANDALONE),
@@ -1083,6 +1168,7 @@ static const struct osmo_fsm_state vlr_lu_fsm_states[] = {
 	},
 	[VLR_ULA_S_DONE] = {
 		.name = OSMO_STRINGIFY(VLR_ULA_S_DONE),
+		.onenter = lu_fsm_dispatch_result,
 	},
 };
 
@@ -1110,8 +1196,8 @@ static struct osmo_fsm vlr_lu_fsm = {
 
 struct osmo_fsm_inst *
 vlr_loc_update(struct osmo_fsm_inst *parent,
-	       uint32_t success_parent_term,
-	       uint32_t failure_parent_term,
+	       uint32_t parent_event_success,
+	       uint32_t parent_event_failure,
 	       struct vlr_instance *vlr, void *msc_conn_ref,
 	       enum vlr_lu_type type, uint32_t tmsi, const char *imsi,
 	       const struct osmo_location_area_id *old_lai,
@@ -1121,7 +1207,7 @@ vlr_loc_update(struct osmo_fsm_inst *parent,
 	struct osmo_fsm_inst *fi;
 	struct lu_fsm_priv *lfp;
 
-	fi = osmo_fsm_inst_alloc_child(&vlr_lu_fsm, parent, failure_parent_term);
+	fi = osmo_fsm_inst_alloc_child(&vlr_lu_fsm, parent, parent_event_failure);
 	if (!fi)
 		return NULL;
 
@@ -1133,7 +1219,8 @@ vlr_loc_update(struct osmo_fsm_inst *parent,
 	lfp->old_lai = *old_lai;
 	lfp->new_lai = *new_lai;
 	lfp->lu_by_tmsi = true;
-	lfp->success_parent_term_event = success_parent_term;
+	lfp->parent_event_success = parent_event_success;
+	lfp->parent_event_failure = parent_event_failure;
 	lfp->authentication_required = authentication_required;
 	if (imsi) {
 		strncpy(lfp->imsi, imsi, sizeof(lfp->imsi)-1);

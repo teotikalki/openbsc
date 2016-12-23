@@ -95,15 +95,6 @@ return_success:
 	DEBUGP(DVLR, "%s: got auth tuple: use_count=%d key_seq=%d vec:\n",
 	       vlr_sub_name(vsub),
 	       at->use_count, at->key_seq);
-	DEBUGPC(DVLR, "rand=%s\n", osmo_hexdump((void*)&at->vec.rand, sizeof(at->vec.rand)));
-	DEBUGPC(DVLR, "autn=%s\n", osmo_hexdump((void*)&at->vec.autn, sizeof(at->vec.autn)));
-	DEBUGPC(DVLR, "ck=%s\n", osmo_hexdump((void*)&at->vec.ck, sizeof(at->vec.ck)));
-	DEBUGPC(DVLR, "ik=%s\n", osmo_hexdump((void*)&at->vec.ik, sizeof(at->vec.ik)));
-	DEBUGPC(DVLR, "res=%s\n", osmo_hexdump((void*)&at->vec.res, sizeof(at->vec.res)));
-	DEBUGPC(DVLR, "res_len=%u\n", at->vec.res_len);
-	DEBUGPC(DVLR, "kc=%s\n", osmo_hexdump((void*)&at->vec.kc, sizeof(at->vec.kc)));
-	DEBUGPC(DVLR, "sres=%s\n", osmo_hexdump((void*)&at->vec.sres, sizeof(at->vec.sres)));
-	DEBUGPC(DVLR, "auth_types=0x%x\n", at->vec.auth_types);
 
 	return at;
 }

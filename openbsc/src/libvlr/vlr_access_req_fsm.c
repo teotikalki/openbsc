@@ -116,8 +116,8 @@ static void _proc_arq_fsm_done(struct osmo_fsm_inst *fi,
 	osmo_fsm_inst_state_chg(fi, PR_ARQ_S_DONE, 0, 0);
 }
 
-static void proc_arq_vlr_signal_result(struct osmo_fsm_inst *fi,
-				       uint32_t prev_state)
+static void proc_arq_vlr_dispatch_result(struct osmo_fsm_inst *fi,
+					 uint32_t prev_state)
 {
 	struct proc_arq_priv *par = fi->priv;
 	bool success;
@@ -531,7 +531,7 @@ static const struct osmo_fsm_state proc_arq_vlr_states[] = {
 	},
 	[PR_ARQ_S_DONE] = {
 		.name = "DONE",
-		.onenter = proc_arq_vlr_signal_result,
+		.onenter = proc_arq_vlr_dispatch_result,
 	},
 };
 

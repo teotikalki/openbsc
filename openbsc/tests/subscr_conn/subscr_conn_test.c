@@ -110,8 +110,7 @@ static int llist_len(struct llist_head *head)
 int mm_rx_loc_upd_req(struct gsm_subscriber_connection *conn, struct msgb *msg);
 int gsm48_rx_mm_serv_req(struct gsm_subscriber_connection *conn, struct msgb *msg);
 
-void fake_rx_lu_req(struct gsm_subscriber_connection *conn,
-		    bool authentication_required)
+void fake_rx_lu_req(struct gsm_subscriber_connection *conn)
 {
 	struct msgb *msg;
 
@@ -125,8 +124,7 @@ void fake_rx_lu_req(struct gsm_subscriber_connection *conn,
 	talloc_free(msg);
 }
 
-void fake_rx_cm_service_req(struct gsm_subscriber_connection *conn,
-			    bool authentication_required)
+void fake_rx_cm_service_req(struct gsm_subscriber_connection *conn)
 {
 	struct msgb *msg;
 
@@ -229,7 +227,7 @@ void test_cm_service_without_lu()
 	struct gsm_subscriber_connection *conn = conn_new();
 
 	btw("CM Service Request without a prior Location Updating");
-	fake_rx_cm_service_req(conn, false);
+	fake_rx_cm_service_req(conn);
 
 	btw("conn was released");
 	EXPECT_CONN_COUNT(0);
@@ -246,7 +244,7 @@ void test_no_authen()
 
 	btw("Location Update request causes a GSUP LU request to HLR");
 	gsup_expect_tx("04010809710000004026f0");
-	fake_rx_lu_req(conn, false);
+	fake_rx_lu_req(conn);
 	OSMO_ASSERT(gsup_tx_confirmed);
 
 	btw("HLR sends _INSERT_DATA_REQUEST, VLR responds with _INSERT_DATA_RESULT");
@@ -275,7 +273,7 @@ void test_no_authen()
 	EXPECT_ACCEPTED(false);
 
 	btw("...sends a CM Service Request");
-	fake_rx_cm_service_req(conn, false);
+	fake_rx_cm_service_req(conn);
 	OSMO_ASSERT(conn->conn_fsm);
 	OSMO_ASSERT(conn->subscr);
 	OSMO_ASSERT(conn->subscr->vsub);

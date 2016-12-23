@@ -487,11 +487,6 @@ static int bootstrap_bts(struct gsm_bts *bts)
 
 int bsc_network_alloc(mncc_recv_cb_t mncc_recv)
 {
-	struct gsm_bts *bts;
-	int rc;
-	char pcu_sock_path[PATH_MAX];
-	char pcu_sock_path_ending[PATH_MAX];
-
 	/* initialize our data structures */
 	bsc_gsmnet = gsm_network_init(tall_bsc_ctx, 1, 1, mncc_recv);
 	if (!bsc_gsmnet)
@@ -506,6 +501,8 @@ int bsc_network_alloc(mncc_recv_cb_t mncc_recv)
 int bsc_network_configure(const char *config_file)
 {
 	struct gsm_bts *bts;
+	char pcu_sock_path[PATH_MAX];
+	char pcu_sock_path_ending[PATH_MAX];
 	int rc;
 
 	rc = vty_read_config_file(config_file, NULL);

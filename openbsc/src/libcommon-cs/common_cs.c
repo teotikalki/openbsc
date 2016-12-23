@@ -28,7 +28,9 @@
 #include <openbsc/gsm_data.h>
 #include <openbsc/gsm_subscriber.h>
 #include <openbsc/gsm_data.h>
+#include <openbsc/osmo_msc_data.h>
 #include <openbsc/gsm_04_11.h>
+#include <osmocom/core/talloc.h>
 
 /* Warning: if bsc_network_init() is not called, some of the members of
  * gsm_network are not initialized properly and must not be used! (In
@@ -66,6 +68,7 @@ struct gsm_network *gsm_network_init(void *ctx,
 	net->country_code = country_code;
 	net->network_code = network_code;
 
+	INIT_LLIST_HEAD(&net->bts_list);
 	INIT_LLIST_HEAD(&net->trans_list);
 	INIT_LLIST_HEAD(&net->upqueue);
 	INIT_LLIST_HEAD(&net->subscr_conns);
@@ -79,6 +82,8 @@ struct gsm_network *gsm_network_init(void *ctx,
 	net->ext_max = GSM_MAX_EXTEN;
 
 	net->dyn_ts_allow_tch_f = true;
+
+	net->bsc_data = talloc_zero(ctx, struct osmo_bsc_data);
 
 	return net;
 }

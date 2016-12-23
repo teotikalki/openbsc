@@ -402,7 +402,7 @@ void test_authen()
 
 	btw("MS sends Authen Response, VLR accepts");
 	gsup_expect_tx(NULL);
-	fake_rx_msg(conn, "0554a29514ae");
+	fake_rx_msg(conn, "0554" "20bde240" /* 2nd vector's sres, s.a. */);
 
 	btw("conn is released");
 	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
@@ -602,6 +602,7 @@ int main(int argc, const char **argv)
 	test_cm_service_without_lu();
 	test_no_authen();
 	test_authen();
+	test_ciph();
 
 	printf("Done\n");
 

@@ -3527,8 +3527,11 @@ int gsm0408_new_conn(struct gsm_subscriber_connection *conn)
 	return 0;
 }
 
-static bool msg_is_initially_permitted(uint8_t pdisc, uint8_t msg_type)
+static bool msg_is_initially_permitted(const struct gsm48_hdr *hdr)
 {
+	uint8_t pdisc = gsm48_hdr_pdisc(hdr);
+	uint8_t msg_type = gsm48_hdr_msg_type(hdr);
+
 	switch (pdisc) {
 	case GSM48_PDISC_MM:
 		switch (msg_type) {
@@ -3569,10 +3572,10 @@ int gsm0408_dispatch(struct gsm_subscriber_connection *conn, struct msgb *msg)
 	LOGP(DRLL, LOGL_DEBUG, "Dispatching 04.08 message, pdisc=%d\n", pdisc);
 
 	if (!msc_subscr_conn_is_accepted(conn)
-	    && !msg_is_initially_permitted(pdisc, gh->msg_type)) {
+	    && !msg_is_initially_permitted(gh)) {
 		LOGP(DRLL, LOGL_ERROR,
 		     "subscr %s: Message not permitted for initial conn:"
-		     " pdisc=%u msg_type=%u\n",
+		     " pdisc=0x%02x msg_type=0x%02x\n",
 		     subscr_name(conn->subscr), gh->proto_discr, gh->msg_type);
 		return -EACCES;
 	}

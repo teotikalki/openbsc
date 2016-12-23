@@ -151,12 +151,11 @@ struct gsm_subscriber_connection *msc_subscr_con_allocate(struct gsm_network *ne
 
 void msc_subscr_cleanup(struct gsm_subscriber *subscr)
 {
-	if (subscr->vsub && subscr->vsub->lu_fsm) {
-		osmo_fsm_inst_term(subscr->vsub->lu_fsm, OSMO_FSM_TERM_ERROR,
-				   NULL);
-		subscr->vsub->lu_fsm = NULL;
-		subscr->vsub = NULL;
-	}
+	if (!subscr)
+		return;
+	if (!subscr->vsub)
+		return;
+	subscr->vsub->lu_fsm = NULL;
 }
 
 void msc_subscr_con_cleanup(struct gsm_subscriber_connection *conn)

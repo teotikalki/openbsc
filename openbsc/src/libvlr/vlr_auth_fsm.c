@@ -117,7 +117,7 @@ static bool check_auth_resp(struct vlr_subscriber *vsub, bool is_r99,
 	OSMO_ASSERT(at);
 
 	LOGVSUBP(LOGL_DEBUG, vsub, "expected res: %s\n",
-		 osmo_hexdump(vec->res, vec->res_len));
+		 osmo_hexdump(vec->sres, sizeof(vec->sres)));
 	LOGVSUBP(LOGL_DEBUG, vsub, "received res: %s\n",
 		 osmo_hexdump(res, res_len));
 

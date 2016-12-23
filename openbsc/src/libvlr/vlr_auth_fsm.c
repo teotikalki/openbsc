@@ -62,14 +62,18 @@ struct auth_fsm_priv {
  ***********************************************************************/
 
 static struct gsm_auth_tuple *
-vlr_sub_get_auth_tuple(struct vlr_subscriber *vsub, unsigned int key_seq)
+_vlr_sub_next_auth_tuple(struct vlr_subscriber *vsub)
 {
 	unsigned int count;
 	unsigned int idx;
 	struct gsm_auth_tuple *at = NULL;
+	unsigned int key_seq = GSM_KEY_SEQ_INVAL;
 
 	if (!vsub)
 		return NULL;
+
+	if (vsub->last_tuple)
+		key_seq = vsub->last_tuple->key_seq;
 
 	if (key_seq == GSM_KEY_SEQ_INVAL)
 		/* Start with 0 after increment modulo array size */
@@ -85,18 +89,31 @@ vlr_sub_get_auth_tuple(struct vlr_subscriber *vsub, unsigned int key_seq)
 
 		if (vsub->auth_tuples[idx].use_count == 0) {
 			at = &vsub->auth_tuples[idx];
-			at->use_count++;
 			goto return_success;
 		}
 	}
 	return NULL;
 
 return_success:
-	DEBUGP(DVLR, "%s: got auth tuple: use_count=%d key_seq=%d vec:\n",
-	       vlr_sub_name(vsub),
-	       at->use_count, at->key_seq);
+	DEBUGP(DVLR, "%s: got auth tuple: use_count=%d key_seq=%d\n",
+	       vlr_sub_name(vsub), at->use_count, at->key_seq);
 
 	return at;
+}
+
+static struct gsm_auth_tuple *
+vlr_sub_get_auth_tuple(struct vlr_subscriber *vsub)
+{
+	struct gsm_auth_tuple *at = _vlr_sub_next_auth_tuple(vsub);
+	if (!at)
+		return NULL;
+	at->use_count++;
+	return at;
+}
+
+bool vlr_sub_has_auth_tuple(struct vlr_subscriber *vsub)
+{
+	return _vlr_sub_next_auth_tuple(vsub) != NULL;
 }
 
 static bool check_auth_resp(struct vlr_subscriber *vsub, bool is_r99,
@@ -163,13 +180,9 @@ static void auth_fsm_onenter_failed(struct osmo_fsm_inst *fi, uint32_t prev_stat
 static int _vlr_sub_authenticate(struct vlr_subscriber *vsub)
 {
 	struct gsm_auth_tuple *at;
-	unsigned int last_keyseq = GSM_KEY_SEQ_INVAL;
-
-	if (vsub->last_tuple)
-		last_keyseq = vsub->last_tuple->key_seq;
 
 	/* Caller ensures we have vectors available */
-	at = vlr_sub_get_auth_tuple(vsub, last_keyseq);
+	at = vlr_sub_get_auth_tuple(vsub);
 	OSMO_ASSERT(at);
 
 	/* Transmit auth req to subscriber */
@@ -208,17 +221,11 @@ static void auth_fsm_needs_auth(struct osmo_fsm_inst *fi, uint32_t event, void *
 {
 	struct auth_fsm_priv *afp = fi->priv;
 	struct vlr_subscriber *vsub = afp->vsub;
-	unsigned int last_keyseq = GSM_KEY_SEQ_INVAL;
-	struct gsm_auth_tuple *at;
 
 	OSMO_ASSERT(event == VLR_AUTH_E_START);
 
-	if (vsub->last_tuple)
-		last_keyseq = vsub->last_tuple->key_seq;
-
 	/* Check if we have vectors available */
-	at = vlr_sub_get_auth_tuple(vsub, last_keyseq);
-	if (!at) {
+	if (!vlr_sub_has_auth_tuple(vsub)) {
 		/* Obtain_Authentication_Sets_VLR */
 		vlr_sub_req_sai(vsub, NULL, NULL);
 		osmo_fsm_inst_state_chg(fi, VLR_SUB_AS_NEEDS_AUTH_WAIT_AI,
@@ -240,8 +247,7 @@ static void auth_fsm_wait_ai(struct osmo_fsm_inst *fi, uint32_t event,
 	struct osmo_gsup_message *gsup = data;
 	bool auth_sets_available_in_vlr;
 
-	if (vlr_sub_get_auth_tuple(vsub, 0))
-		auth_sets_available_in_vlr = true;
+	auth_sets_available_in_vlr = vlr_sub_has_auth_tuple(vsub);
 
 	/* We are in what corresponds to the
 	 * Wait_For_Authentication_Sets state of TS 23.018 OAS_VLR */

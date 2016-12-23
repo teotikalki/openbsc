@@ -459,8 +459,9 @@ int mm_rx_loc_upd_req(struct gsm_subscriber_connection *conn, struct msgb *msg)
 		/* logging already happened in msc_create_conn_fsm() */
 		return rc;
 
-	DEBUGPC(DMM, "MI(%s)=%s type=%s ", gsm48_mi_type_name(mi_type),
-		mi_string, get_value_string(lupd_names, lu->type));
+	DEBUGP(DMM, "LOCATION UPDATING REQUEST: MI(%s)=%s type=%s\n",
+	       gsm48_mi_type_name(mi_type), mi_string,
+	       get_value_string(lupd_names, lu->type));
 
 	osmo_signal_dispatch(SS_SUBSCR, S_SUBSCR_IDENTITY, &lu->mi_len);
 
@@ -505,7 +506,7 @@ int mm_rx_loc_upd_req(struct gsm_subscriber_connection *conn, struct msgb *msg)
 	new_lai.plmn.mcc = conn->network->country_code;
 	new_lai.plmn.mnc = conn->network->network_code;
 	new_lai.lac = conn->bts->location_area_code;
-	DEBUGPC(DMM, "LU/new-LAC: %u/%u ", old_lai.lac, new_lai.lac);
+	DEBUGP(DMM, "LU/new-LAC: %u/%u\n", old_lai.lac, new_lai.lac);
 
 	lu_fsm = vlr_loc_update(conn->conn_fsm,
 				SUBSCR_CONN_E_ACCEPTED,
@@ -514,7 +515,7 @@ int mm_rx_loc_upd_req(struct gsm_subscriber_connection *conn, struct msgb *msg)
 				&old_lai, &new_lai,
 				conn->network->authentication_required);
 	if (!lu_fsm) {
-		DEBUGPC(DRR, "%s: Can't start LU FSM\n", mi_string);
+		DEBUGP(DRR, "%s: Can't start LU FSM\n", mi_string);
 		return 0;
 	}
 
@@ -979,7 +980,6 @@ static int gsm0408_rcv_mm(struct gsm_subscriber_connection *conn, struct msgb *m
 
 	switch (gsm48_hdr_msg_type(gh)) {
 	case GSM48_MT_MM_LOC_UPD_REQUEST:
-		DEBUGP(DMM, "LOCATION UPDATING REQUEST: ");
 		rc = mm_rx_loc_upd_req(conn, msg);
 		break;
 	case GSM48_MT_MM_ID_RESP:

@@ -418,61 +418,61 @@ static void auth_fsm_wait_imsi(struct osmo_fsm_inst *fi, uint32_t event,
 
 static const struct osmo_fsm_state auth_fsm_states[] = {
 	[VLR_SUB_AS_NEEDS_AUTH] = {
+		.name = OSMO_STRINGIFY(VLR_SUB_AS_NEEDS_AUTH),
 		.in_event_mask = S(VLR_AUTH_E_START),
 		.out_state_mask = S(VLR_SUB_AS_NEEDS_AUTH_WAIT_AI) |
 				  S(VLR_SUB_AS_WAIT_RESP),
-		.name = "NEEDS-AUTH",
 		.action = auth_fsm_needs_auth,
 	},
 	[VLR_SUB_AS_NEEDS_AUTH_WAIT_AI] = {
+		.name = OSMO_STRINGIFY(VLR_SUB_AS_NEEDS_AUTH_WAIT_AI),
 		.in_event_mask = S(VLR_AUTH_E_HLR_SAI_ACK) |
 				 S(VLR_AUTH_E_HLR_SAI_NACK),
 		.out_state_mask = S(VLR_SUB_AS_AUTH_FAILED) |
 				  S(VLR_SUB_AS_WAIT_RESP),
-		.name = "NEEDS-AUTH(WAIT-AI-HLR)",
 		.action = auth_fsm_wait_ai,
 	},
 	[VLR_SUB_AS_WAIT_RESP] = {
+		.name = OSMO_STRINGIFY(VLR_SUB_AS_WAIT_RESP),
 		.in_event_mask = S(VLR_AUTH_E_MS_AUTH_RESP) |
 				 S(VLR_AUTH_E_MS_AUTH_FAIL),
 		.out_state_mask = S(VLR_SUB_AS_WAIT_ID_IMSI) |
 				  S(VLR_SUB_AS_AUTH_FAILED) |
 				  S(VLR_SUB_AS_AUTHENTICATED) |
 				  S(VLR_SUB_AS_NEEDS_AUTH_WAIT_SAI_RESYNC),
-		.name = "WAIT-AUTH-RESP",
 		.action = auth_fsm_wait_auth_resp,
 	},
 	[VLR_SUB_AS_NEEDS_AUTH_WAIT_SAI_RESYNC] = {
+		.name = OSMO_STRINGIFY(VLR_SUB_AS_NEEDS_AUTH_WAIT_SAI_RESYNC),
 		.in_event_mask = S(VLR_AUTH_E_HLR_SAI_ACK) |
 				 S(VLR_AUTH_E_HLR_SAI_NACK),
 		.out_state_mask = S(VLR_SUB_AS_AUTH_FAILED) |
 				  S(VLR_SUB_AS_WAIT_RESP_RESYNC),
-		.name = "NEEDS-AUTH(WAIT-AI-HKR-RESYNC)",
 		.action = auth_fsm_wait_ai_resync,
 	},
 	[VLR_SUB_AS_WAIT_RESP_RESYNC] = {
+		.name = OSMO_STRINGIFY(VLR_SUB_AS_WAIT_RESP_RESYNC),
 		.in_event_mask = S(VLR_AUTH_E_MS_AUTH_RESP) |
 				 S(VLR_AUTH_E_MS_AUTH_FAIL),
 		.out_state_mask = S(VLR_SUB_AS_AUTH_FAILED) |
 				  S(VLR_SUB_AS_AUTHENTICATED),
-		.name = "NEEDS-AUTH(WAIT-AUTH-RESP-RESYNC)",
 		.action = auth_fsm_wait_auth_resp_resync,
 	},
 	[VLR_SUB_AS_WAIT_ID_IMSI] = {
+		.name = OSMO_STRINGIFY(VLR_SUB_AS_WAIT_ID_IMSI),
 		.in_event_mask = S(VLR_AUTH_E_MS_ID_IMSI),
 		.out_state_mask = S(VLR_SUB_AS_NEEDS_AUTH),
-		.name = "WAIT-IMSI",
 		.action = auth_fsm_wait_imsi,
 	},
 	[VLR_SUB_AS_AUTHENTICATED] = {
+		.name = OSMO_STRINGIFY(VLR_SUB_AS_AUTHENTICATED),
 		.in_event_mask = 0,
 		.out_state_mask = 0,
-		.name = "AUTHENTICATED",
 	},
 	[VLR_SUB_AS_AUTH_FAILED] = {
+		.name = OSMO_STRINGIFY(VLR_SUB_AS_AUTH_FAILED),
 		.in_event_mask = 0,
 		.out_state_mask = 0,
-		.name = "AUTH-FAILED",
 		.onenter = auth_fsm_onenter_failed,
 	},
 };

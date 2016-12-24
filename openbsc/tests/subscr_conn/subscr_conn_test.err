@@ -55,21 +55,21 @@ nr of conns == 0
 - CM Service Request without a prior Location Updating
 DMM <- CM SERVICE REQUEST serv_type=0x08 MI(IMSI)=901700000004620
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: Allocated
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: Allocated
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: is child of Subscr_Conn(901700000004620)
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: Received Event PR_ARQ_E_START
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: proc_arq_fsm_done(VLR_PR_ARQ_RES_UNIDENT_SUBSCR)
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: state_chg to DONE
-DVLR Process_Access_Request_VLR(901700000004620){DONE}: Process Access Request result: VLR_PR_ARQ_RES_UNIDENT_SUBSCR
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: Allocated
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: is child of Subscr_Conn(901700000004620)
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: Received Event PR_ARQ_E_START
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: proc_arq_fsm_done(VLR_PR_ARQ_RES_UNIDENT_SUBSCR)
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: state_chg to PR_ARQ_S_DONE
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Process Access Request result: VLR_PR_ARQ_RES_UNIDENT_SUBSCR
 - sending CM Service Reject for unknown, result VLR_PR_ARQ_RES_UNIDENT_SUBSCR
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: Received Event SUBSCR_CONN_E_CN_CLOSE
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: state_chg to SUBSCR_CONN_S_RELEASED
 DRLL Freeing subscriber connection with NULL subscriber
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_RELEASED}: Terminating (cause = OSMO_FSM_TERM_REGULAR)
-DVLR Process_Access_Request_VLR(901700000004620){DONE}: Terminating (cause = OSMO_FSM_TERM_PARENT)
-DVLR Process_Access_Request_VLR(901700000004620){DONE}: Removing from parent Subscr_Conn(901700000004620)
-DVLR Process_Access_Request_VLR(901700000004620){DONE}: Freeing instance
-DVLR Process_Access_Request_VLR(901700000004620){DONE}: Deallocated
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Terminating (cause = OSMO_FSM_TERM_PARENT)
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Removing from parent Subscr_Conn(901700000004620)
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Freeing instance
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Deallocated
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_RELEASED}: Freeing instance
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_RELEASED}: Deallocated
 - conn was released
@@ -178,17 +178,18 @@ msc_subscr_conn_is_accepted() == false
 - ...sends a CM Service Request
 DMM <- CM SERVICE REQUEST serv_type=0x08 MI(IMSI)=901700000004620
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: Allocated
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: Allocated
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: is child of Subscr_Conn(901700000004620)
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: Received Event PR_ARQ_E_START
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: _proc_arq_vlr_node2()
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: _proc_arq_vlr_node2_post_vlr()
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: _proc_arq_vlr_post_pres()
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: _proc_arq_vlr_post_trace()
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: _proc_arq_vlr_post_imei()
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: proc_arq_fsm_done(VLR_PR_ARQ_RES_PASSED)
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: state_chg to DONE
-DVLR Process_Access_Request_VLR(901700000004620){DONE}: Process Access Request result: VLR_PR_ARQ_RES_PASSED
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: Allocated
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: is child of Subscr_Conn(901700000004620)
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: Received Event PR_ARQ_E_START
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: _proc_arq_vlr_node2()
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: _proc_arq_vlr_node2_post_vlr()
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: _proc_arq_vlr_post_pres()
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: _proc_arq_vlr_post_trace()
+- sending Ciphering Mode Command for 901700000004620
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: _proc_arq_vlr_post_imei()
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: proc_arq_fsm_done(VLR_PR_ARQ_RES_PASSED)
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: state_chg to PR_ARQ_S_DONE
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Process Access Request result: VLR_PR_ARQ_RES_PASSED
 - sending CM Service Accept for 901700000004620
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: Received Event SUBSCR_CONN_E_ACCEPTED
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: state_chg to SUBSCR_CONN_S_ACCEPTED
@@ -199,10 +200,10 @@ DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_ACCEPTED}: state_chg to SUBSCR_C
 DRLL subscr 901700000004620: Freeing subscriber connection
 DREF subscr 46071 usage decreases to: 0
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_RELEASED}: Terminating (cause = OSMO_FSM_TERM_REGULAR)
-DVLR Process_Access_Request_VLR(901700000004620){DONE}: Terminating (cause = OSMO_FSM_TERM_PARENT)
-DVLR Process_Access_Request_VLR(901700000004620){DONE}: Removing from parent Subscr_Conn(901700000004620)
-DVLR Process_Access_Request_VLR(901700000004620){DONE}: Freeing instance
-DVLR Process_Access_Request_VLR(901700000004620){DONE}: Deallocated
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Terminating (cause = OSMO_FSM_TERM_PARENT)
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Removing from parent Subscr_Conn(901700000004620)
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Freeing instance
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Deallocated
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_RELEASED}: Freeing instance
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_RELEASED}: Deallocated
 nr of conns == 0
@@ -349,10 +350,10 @@ msc_subscr_conn_is_accepted() == false
 - ...sends a CM Service Request. VLR responds with Auth Req, 2nd auth vector
 DMM <- CM SERVICE REQUEST serv_type=0x08 MI(IMSI)=901700000004620
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: Allocated
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: Allocated
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: is child of Subscr_Conn(901700000004620)
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: Received Event PR_ARQ_E_START
-DVLR Process_Access_Request_VLR(901700000004620){INIT}: state_chg to WAIT-AUTH
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: Allocated
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: is child of Subscr_Conn(901700000004620)
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: Received Event PR_ARQ_E_START
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_INIT}: state_chg to PR_ARQ_S_WAIT_AUTH
 DVLR VLR_Authenticate(901700000004620){VLR_SUB_AS_NEEDS_AUTH}: Allocated
 DVLR VLR_Authenticate(901700000004620){VLR_SUB_AS_NEEDS_AUTH}: is child of Process_Access_Request_VLR(901700000004620)
 DVLR VLR_Authenticate(901700000004620){VLR_SUB_AS_NEEDS_AUTH}: Received Event VLR_AUTH_E_START
@@ -395,16 +396,17 @@ DVLR VLR_Authenticate(901700000004620){VLR_SUB_AS_AUTHENTICATED}: Terminating (c
 DVLR VLR_Authenticate(901700000004620){VLR_SUB_AS_AUTHENTICATED}: Removing from parent Process_Access_Request_VLR(901700000004620)
 DVLR VLR_Authenticate(901700000004620){VLR_SUB_AS_AUTHENTICATED}: Freeing instance
 DVLR VLR_Authenticate(901700000004620){VLR_SUB_AS_AUTHENTICATED}: Deallocated
-DVLR Process_Access_Request_VLR(901700000004620){WAIT-AUTH}: Received Event PR_ARQ_E_AUTH_RES
-DVLR Process_Access_Request_VLR(901700000004620){WAIT-AUTH}: got VLR_AUTH_RES_PASSED
-DVLR Process_Access_Request_VLR(901700000004620){WAIT-AUTH}: _proc_arq_vlr_node2()
-DVLR Process_Access_Request_VLR(901700000004620){WAIT-AUTH}: _proc_arq_vlr_node2_post_vlr()
-DVLR Process_Access_Request_VLR(901700000004620){WAIT-AUTH}: _proc_arq_vlr_post_pres()
-DVLR Process_Access_Request_VLR(901700000004620){WAIT-AUTH}: _proc_arq_vlr_post_trace()
-DVLR Process_Access_Request_VLR(901700000004620){WAIT-AUTH}: _proc_arq_vlr_post_imei()
-DVLR Process_Access_Request_VLR(901700000004620){WAIT-AUTH}: proc_arq_fsm_done(VLR_PR_ARQ_RES_PASSED)
-DVLR Process_Access_Request_VLR(901700000004620){WAIT-AUTH}: state_chg to DONE
-DVLR Process_Access_Request_VLR(901700000004620){DONE}: Process Access Request result: VLR_PR_ARQ_RES_PASSED
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_WAIT_AUTH}: Received Event PR_ARQ_E_AUTH_RES
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_WAIT_AUTH}: got VLR_AUTH_RES_PASSED
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_WAIT_AUTH}: _proc_arq_vlr_node2()
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_WAIT_AUTH}: _proc_arq_vlr_node2_post_vlr()
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_WAIT_AUTH}: _proc_arq_vlr_post_pres()
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_WAIT_AUTH}: _proc_arq_vlr_post_trace()
+- sending Ciphering Mode Command for 901700000004620
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_WAIT_AUTH}: _proc_arq_vlr_post_imei()
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_WAIT_AUTH}: proc_arq_fsm_done(VLR_PR_ARQ_RES_PASSED)
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_WAIT_AUTH}: state_chg to PR_ARQ_S_DONE
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Process Access Request result: VLR_PR_ARQ_RES_PASSED
 - sending CM Service Accept for 901700000004620
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: Received Event SUBSCR_CONN_E_ACCEPTED
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: state_chg to SUBSCR_CONN_S_ACCEPTED
@@ -415,10 +417,10 @@ DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_ACCEPTED}: state_chg to SUBSCR_C
 DRLL subscr 901700000004620: Freeing subscriber connection
 DREF subscr 46071 usage decreases to: 0
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_RELEASED}: Terminating (cause = OSMO_FSM_TERM_REGULAR)
-DVLR Process_Access_Request_VLR(901700000004620){DONE}: Terminating (cause = OSMO_FSM_TERM_PARENT)
-DVLR Process_Access_Request_VLR(901700000004620){DONE}: Removing from parent Subscr_Conn(901700000004620)
-DVLR Process_Access_Request_VLR(901700000004620){DONE}: Freeing instance
-DVLR Process_Access_Request_VLR(901700000004620){DONE}: Deallocated
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Terminating (cause = OSMO_FSM_TERM_PARENT)
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Removing from parent Subscr_Conn(901700000004620)
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Freeing instance
+DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Deallocated
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_RELEASED}: Freeing instance
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_RELEASED}: Deallocated
 nr of conns == 0

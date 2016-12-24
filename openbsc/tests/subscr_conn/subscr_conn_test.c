@@ -411,6 +411,16 @@ void test_authen()
 	comment_end();
 }
 
+void test_ciph()
+{
+	comment_start();
+
+	net->authentication_required = true;
+
+
+	comment_end();
+}
+
 static struct log_info_cat test_categories[] = {
 	[DMSC] = {
 		.name = "DMSC",
@@ -568,6 +578,13 @@ static int fake_vlr_tx_auth_rej(void *msc_conn_ref)
 	return 0;
 }
 
+static int fake_vlr_tx_ciph_mode_cmd(void *msc_conn_ref)
+{
+	struct gsm_subscriber_connection *conn = msc_conn_ref;
+	btw("sending Ciphering Mode Command for %s", subscr_name(conn->subscr));
+	return 0;
+}
+
 int main(int argc, const char **argv)
 {
 	void *msgb_ctx;
@@ -597,6 +614,7 @@ int main(int argc, const char **argv)
 	g_vlr->ops.tx_cm_serv_rej = fake_vlr_tx_cm_serv_rej;
 	g_vlr->ops.tx_auth_req = fake_vlr_tx_auth_req;
 	g_vlr->ops.tx_auth_rej = fake_vlr_tx_auth_rej;
+	g_vlr->ops.set_ciph_mode = fake_vlr_tx_ciph_mode_cmd;
 
 	test_early_stage();
 	test_cm_service_without_lu();

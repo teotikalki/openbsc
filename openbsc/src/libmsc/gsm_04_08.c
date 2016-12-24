@@ -730,58 +730,6 @@ int gsm48_tx_mm_auth_rej(struct gsm_subscriber_connection *conn)
 }
 
 /*
- * At the 30C3 phones miss their periodic update
- * interval a lot and then remain unreachable. In case
- * we still know the TMSI we can just attach it again.
- */
-static void implit_attach(struct gsm_subscriber_connection *conn)
-{
-	if (conn->subscr->lac != GSM_LAC_RESERVED_DETACHED)
-		return;
-
-#if BEFORE_VLR
-	subscr_update(conn->subscr, conn->bts,
-		      GSM_SUBSCRIBER_UPDATE_ATTACHED);
-#endif
-}
-
-
-static int _gsm48_rx_mm_serv_req_sec_cb(
-	unsigned int hooknum, unsigned int event,
-	struct msgb *msg, void *data, void *param)
-{
-	struct gsm_subscriber_connection *conn = data;
-	int rc = 0;
-
-	/* auth failed or succeeded, the timer was stopped */
-	conn->expire_timer_stopped = 1;
-
-	switch (event) {
-		case GSM_SECURITY_AUTH_FAILED:
-			/* Nothing to do */
-			break;
-
-		case GSM_SECURITY_NOAVAIL:
-		case GSM_SECURITY_ALREADY:
-			DEBUGP(DMM, "_gsm48_rx_mm_serv_req_sec_cb() sending CM Service Accept\n");
-			rc = gsm48_tx_mm_serv_ack(conn);
-			implit_attach(conn);
-			break;
-
-		case GSM_SECURITY_SUCCEEDED:
-			/* nothing to do. CIPHER MODE COMMAND is
-			 * implicit CM SERV ACK */
-			implit_attach(conn);
-			break;
-
-		default:
-			rc = -EINVAL;
-	};
-
-	return rc;
-}
-
-/*
  * Handle CM Service Requests
  * a) Verify that the packet is long enough to contain the information
  *    we require otherwsie reject with INCORRECT_MESSAGE

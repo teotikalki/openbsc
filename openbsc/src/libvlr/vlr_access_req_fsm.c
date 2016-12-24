@@ -454,6 +454,7 @@ static void proc_arq_vlr_fn_w_tmsi(struct osmo_fsm_inst *fi,
 
 static const struct osmo_fsm_state proc_arq_vlr_states[] = {
 	[PR_ARQ_S_INIT] = {
+		.name = OSMO_STRINGIFY(PR_ARQ_S_INIT),
 		.in_event_mask = S(PR_ARQ_E_START),
 		.out_state_mask = S(PR_ARQ_S_DONE) |
 				  S(PR_ARQ_S_WAIT_OBTAIN_IMSI) |
@@ -463,10 +464,10 @@ static const struct osmo_fsm_state proc_arq_vlr_states[] = {
 				  S(PR_ARQ_S_WAIT_TRACE_SUB) |
 				  S(PR_ARQ_S_WAIT_CHECK_IMEI) |
 				  S(PR_ARQ_S_WAIT_TMSI_ACK),
-		.name = "INIT",
 		.action = proc_arq_vlr_fn_init,
 	},
 	[PR_ARQ_S_WAIT_OBTAIN_IMSI] = {
+		.name = OSMO_STRINGIFY(PR_ARQ_S_WAIT_OBTAIN_IMSI),
 		.in_event_mask = S(PR_ARQ_E_ID_IMSI),
 		.out_state_mask = S(PR_ARQ_S_DONE) |
 				  S(PR_ARQ_S_WAIT_AUTH) |
@@ -475,10 +476,10 @@ static const struct osmo_fsm_state proc_arq_vlr_states[] = {
 				  S(PR_ARQ_S_WAIT_TRACE_SUB) |
 				  S(PR_ARQ_S_WAIT_CHECK_IMEI) |
 				  S(PR_ARQ_S_WAIT_TMSI_ACK),
-		.name = "WAIT-IMSI",
 		.action = proc_arq_vlr_fn_w_obt_imsi,
 	},
 	[PR_ARQ_S_WAIT_AUTH] = {
+		.name = OSMO_STRINGIFY(PR_ARQ_S_WAIT_AUTH),
 		.in_event_mask = S(PR_ARQ_E_AUTH_RES),
 		.out_state_mask = S(PR_ARQ_S_DONE) |
 				  S(PR_ARQ_S_WAIT_UPD_LOC_CHILD) |
@@ -486,51 +487,50 @@ static const struct osmo_fsm_state proc_arq_vlr_states[] = {
 				  S(PR_ARQ_S_WAIT_TRACE_SUB) |
 				  S(PR_ARQ_S_WAIT_CHECK_IMEI) |
 				  S(PR_ARQ_S_WAIT_TMSI_ACK),
-		.name = "WAIT-AUTH",
 		.action = proc_arq_vlr_fn_w_auth,
 	},
 	[PR_ARQ_S_WAIT_UPD_LOC_CHILD] = {
+		.name = OSMO_STRINGIFY(PR_ARQ_S_WAIT_UPD_LOC_CHILD),
 		.in_event_mask = S(PR_ARQ_E_UPD_LOC_RES),
 		.out_state_mask = S(PR_ARQ_S_DONE) |
 				  S(PR_ARQ_S_WAIT_SUB_PRES) |
 				  S(PR_ARQ_S_WAIT_TRACE_SUB) |
 				  S(PR_ARQ_S_WAIT_CHECK_IMEI) |
 				  S(PR_ARQ_S_WAIT_TMSI_ACK),
-		.name = "WAIT-UPD-LOC-CHILD",
 		.action = proc_arq_vlr_fn_w_upd_loc,
 	},
 	[PR_ARQ_S_WAIT_SUB_PRES] = {
+		.name = OSMO_STRINGIFY(PR_ARQ_S_WAIT_SUB_PRES),
 		.in_event_mask = S(PR_ARQ_E_PRES_RES),
 		.out_state_mask = S(PR_ARQ_S_DONE) |
 				  S(PR_ARQ_S_WAIT_TRACE_SUB) |
 				  S(PR_ARQ_S_WAIT_CHECK_IMEI) |
 				  S(PR_ARQ_S_WAIT_TMSI_ACK),
-		.name = "WAIT-SUBSCR-PRES",
 		.action = proc_arq_vlr_fn_w_pres,
 	},
 	[PR_ARQ_S_WAIT_TRACE_SUB] = {
+		.name = OSMO_STRINGIFY(PR_ARQ_S_WAIT_TRACE_SUB),
 		.in_event_mask = S(PR_ARQ_E_TRACE_RES),
 		.out_state_mask = S(PR_ARQ_S_DONE) |
 				  S(PR_ARQ_S_WAIT_CHECK_IMEI) |
 				  S(PR_ARQ_S_WAIT_TMSI_ACK),
-		.name = "WAIT-TRACE",
 		.action = proc_arq_vlr_fn_w_trace,
 	},
 	[PR_ARQ_S_WAIT_CHECK_IMEI] = {
+		.name = OSMO_STRINGIFY(PR_ARQ_S_WAIT_CHECK_IMEI),
 		.in_event_mask = S(PR_ARQ_E_IMEI_RES),
 		.out_state_mask = S(PR_ARQ_S_DONE) |
 				  S(PR_ARQ_S_WAIT_TMSI_ACK),
-		.name = "WAIT-CHECK-IMEI",
 		.action = proc_arq_vlr_fn_w_imei,
 	},
 	[PR_ARQ_S_WAIT_TMSI_ACK] = {
+		.name = OSMO_STRINGIFY(PR_ARQ_S_WAIT_TMSI_ACK),
 		.in_event_mask = S(PR_ARQ_E_TMSI_ACK),
 		.out_state_mask = S(PR_ARQ_S_DONE),
-		.name = "WAIT-TMSI-ACK",
 		.action = proc_arq_vlr_fn_w_tmsi,
 	},
 	[PR_ARQ_S_DONE] = {
-		.name = "DONE",
+		.name = OSMO_STRINGIFY(PR_ARQ_S_DONE),
 		.onenter = proc_arq_vlr_dispatch_result,
 	},
 };

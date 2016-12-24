@@ -47,6 +47,14 @@
  * Convenience functions
  ***********************************************************************/
 
+const struct value_string vlr_ciph_names[] = {
+	OSMO_VALUE_STRING(VLR_CIPH_NONE),
+	OSMO_VALUE_STRING(VLR_CIPH_A5_1),
+	OSMO_VALUE_STRING(VLR_CIPH_A5_2),
+	OSMO_VALUE_STRING(VLR_CIPH_A5_3),
+	{ 0, NULL }
+};
+
 uint32_t vlr_timer(struct vlr_instance *vlr, uint32_t timer)
 {
 	uint32_t tidx = 0xffffffff;

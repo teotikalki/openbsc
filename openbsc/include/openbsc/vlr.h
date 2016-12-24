@@ -192,6 +192,19 @@ struct vlr_instance {
 	} cfg;
 };
 
+enum vlr_ciph {
+	VLR_CIPH_NONE, /*< A5/0, no encryption */
+	VLR_CIPH_A5_1, /*< A5/1, encryption */
+	VLR_CIPH_A5_2, /*< A5/2, deprecated export-grade encryption */
+	VLR_CIPH_A5_3, /*< A5/3, 'new secure' encryption */
+};
+
+extern const struct value_string vlr_ciph_names[];
+static inline const char *vlr_ciph_name(enum vlr_ciph val)
+{
+	return get_value_string(vlr_ciph_names, val);
+}
+
 /* Location Updating request */
 struct osmo_fsm_inst *
 vlr_loc_update(struct osmo_fsm_inst *parent,

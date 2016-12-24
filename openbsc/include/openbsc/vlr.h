@@ -195,8 +195,8 @@ struct vlr_instance {
 /* Location Updating request */
 struct osmo_fsm_inst *
 vlr_loc_update(struct osmo_fsm_inst *parent,
-	       uint32_t success_parent_term,
-	       uint32_t failure_parent_term,
+	       uint32_t parent_event_success,
+	       uint32_t parent_event_failure,
 	       struct vlr_instance *vlr, void *msc_conn_ref,
 	       enum vlr_lu_type type, uint32_t tmsi, const char *imsi,
 	       const struct osmo_location_area_id *old_lai,

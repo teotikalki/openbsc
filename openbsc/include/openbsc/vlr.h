@@ -214,7 +214,8 @@ vlr_loc_update(struct osmo_fsm_inst *parent,
 	       enum vlr_lu_type type, uint32_t tmsi, const char *imsi,
 	       const struct osmo_location_area_id *old_lai,
 	       const struct osmo_location_area_id *new_lai,
-	       bool authentication_required);
+	       bool authentication_required,
+	       enum vlr_ciph ciphering_required);
 
 /* tell the VLR that the subscriber connection is gone */
 int vlr_sub_disconnected(struct vlr_subscriber *vsub);
@@ -311,3 +312,8 @@ vlr_proc_acc_req(struct osmo_fsm_inst *parent,
 		 bool authentication_required);
 
 void vlr_parq_fsm_init(void);
+
+int vlr_set_ciph_mode(struct vlr_instance *vlr,
+		      struct osmo_fsm_inst *fi,
+		      void *msc_conn_ref,
+		      enum vlr_ciph ciph_mode);

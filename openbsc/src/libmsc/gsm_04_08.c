@@ -513,7 +513,8 @@ int mm_rx_loc_upd_req(struct gsm_subscriber_connection *conn, struct msgb *msg)
 				SUBSCR_CONN_E_CN_CLOSE,
 				g_vlr, conn, vlr_lu_type, tmsi, imsi,
 				&old_lai, &new_lai,
-				conn->network->authentication_required);
+				conn->network->authentication_required,
+				conn->network->a5_encryption);
 	if (!lu_fsm) {
 		DEBUGP(DRR, "%s: Can't start LU FSM\n", mi_string);
 		return 0;

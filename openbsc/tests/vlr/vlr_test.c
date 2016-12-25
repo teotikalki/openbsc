@@ -167,6 +167,7 @@ static void fsm_f_null(struct osmo_fsm_inst *fi, uint32_t event, void *data)
 					      VLR_LU_TYPE_IMSI_ATTACH, tmsi,
 					      imsi, &priv->old_lai,
 					      &priv->new_lai,
+					      true,
 					      true);
 		OSMO_ASSERT(priv->subscr);
 		osmo_fsm_inst_state_chg(fi, ST_LU_SENT, 0, 0);

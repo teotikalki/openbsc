@@ -89,6 +89,7 @@ struct proc_arq_priv {
 	uint32_t tmsi;
 	struct osmo_location_area_id lai;
 	bool authentication_required;
+	enum vlr_ciph ciphering_required;
 };
 
 static void assoc_par_with_subscr(struct osmo_fsm_inst *fi, struct vlr_subscriber *vsub)
@@ -172,24 +173,15 @@ static void _proc_arq_vlr_post_imei(struct osmo_fsm_inst *fi)
 	LOGPFSM(fi, "_proc_arq_vlr_post_imei()\n");
 
 	/* TODO: Identity := IMSI */
+	if (0 /* TODO: TMSI reallocation at access: vlr->cfg.alloc_tmsi_arq */) {
+		vlr_sub_alloc_tmsi(vsub);
+		/* TODO: forward TMSI to MS, wait for TMSI
+		 * REALLOC COMPLETE */
+		/* TODO: Freeze old TMSI */
+		osmo_fsm_inst_state_chg(fi, PR_ARQ_S_WAIT_TMSI_ACK, 0, 0);
+		return;
+	}
 
-	if (1 /* ciphering required */) {
-		if (0 /* TODO: TMSI reallocation at access: vlr->cfg.alloc_tmsi_arq */) {
-			vlr_sub_alloc_tmsi(vsub);
-			/* TODO: forward TMSI to MS, wait for TMSI
-			 * REALLOC COMPLETE */
-			/* TODO: Freeze old TMSI */
-			osmo_fsm_inst_state_chg(fi, PR_ARQ_S_WAIT_TMSI_ACK, 0, 0);
-			return;
-		} else
-			goto done_success;
-	} else
-		goto done_success;
-
-	LOGPFSML(fi, LOGL_ERROR, "fail\n");
-	return;
-
-done_success:
 	proc_arq_fsm_done(fi, VLR_PR_ARQ_RES_PASSED);
 }
 
@@ -201,25 +193,23 @@ static void _proc_arq_vlr_post_trace(struct osmo_fsm_inst *fi)
 
 	LOGPFSM(fi, "_proc_arq_vlr_post_trace()\n");
 
-	if (1 /* ciphering required */) {
-		vlr->ops.set_ciph_mode(par->msc_conn_ref);
-		/* Node 3 */
-		if (0 /* IMEI check required */) {
-			/* Chck_IMEI_VLR */
-			vlr->ops.tx_id_req(par->msc_conn_ref, GSM_MI_TYPE_IMEI);
-			osmo_fsm_inst_state_chg(fi, PR_ARQ_S_WAIT_CHECK_IMEI,
-						vlr_timer(vlr, 3270), 3270);
-		} else
-			_proc_arq_vlr_post_imei(fi);
-	} else {
-		/* Node 4 */
-		if (0 /* IMEI check required */) {
-			vlr->ops.tx_id_req(par->msc_conn_ref, GSM_MI_TYPE_IMEI);
-			osmo_fsm_inst_state_chg(fi, PR_ARQ_S_WAIT_CHECK_IMEI,
-						vlr_timer(vlr, 3270), 3270);
-		} else
-			_proc_arq_vlr_post_imei(fi);
+	/* Tell the MSC to send a Ciphering Mode Command, which the VLR
+	 * actually simply dispatches to the MSC without waiting for a result.
+	 * Let's still abort if sending the message failed. */
+	if (vlr_set_ciph_mode(vlr, fi, par->msc_conn_ref,
+			      par->ciphering_required)) {
+		proc_arq_fsm_done(fi, VLR_PR_ARQ_RES_UNKNOWN_ERROR);
+		return;
 	}
+
+	/* Node 3 */
+	if (0 /* IMEI check required */) {
+		/* Chck_IMEI_VLR */
+		vlr->ops.tx_id_req(par->msc_conn_ref, GSM_MI_TYPE_IMEI);
+		osmo_fsm_inst_state_chg(fi, PR_ARQ_S_WAIT_CHECK_IMEI,
+					vlr_timer(vlr, 3270), 3270);
+	} else
+		_proc_arq_vlr_post_imei(fi);
 }
 
 /* After Subscriber_Present_VLR */
@@ -268,6 +258,8 @@ static void _proc_arq_vlr_node2(struct osmo_fsm_inst *fi)
 	struct vlr_subscriber *vsub = par->vsub;
 
 	LOGPFSM(fi, "_proc_arq_vlr_node2()\n");
+	
+	/* TODO: why not ciphering already now? see _post_trace */
 
 	vsub->conf_by_radio_contact_ind = true;
 	if (vsub->loc_conf_in_hlr_ind == false) {

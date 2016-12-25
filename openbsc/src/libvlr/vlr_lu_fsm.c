@@ -398,8 +398,6 @@ static void lu_compl_vlr_wait_subscr_pres(struct osmo_fsm_inst *fi,
 	if (vlr->cfg.alloc_tmsi) {
 		/* actually allocate a new TMSI */
 		vlr_sub_alloc_tmsi(vsub);
-		/* Set Ciphering Mode */
-		vlr->ops.set_ciph_mode(lcvp->msc_conn_ref);
 		if (vlr->cfg.check_imei_rqd) {
 			/* Check IMEI VLR */
 			osmo_fsm_inst_state_chg(fi, LU_COMPL_VLR_S_WAIT_IMEI_TMSI,
@@ -600,6 +598,7 @@ struct lu_fsm_priv {
 	struct osmo_location_area_id old_lai;
 	struct osmo_location_area_id new_lai;
 	bool authentication_required;
+	enum vlr_ciph ciphering_required;
 };
 
 
@@ -617,7 +616,8 @@ static bool is_auth_required(struct lu_fsm_priv *lfp)
 	/* The cases where the authentication procedure should be used
 	 * are defined in 3GPP TS 33.102 */
 	/* For now we use a default value passed in to vlr_lu_fsm(). */
-	return lfp->authentication_required;
+	return lfp->authentication_required
+	       || (lfp->ciphering_required != VLR_CIPH_NONE);
 }
 
 /* Determine if a HLR Update is required */
@@ -730,6 +730,17 @@ static void vlr_loc_upd_post_auth(struct osmo_fsm_inst *fi)
 	LOGPFSM(fi, "vlr_loc_upd_post_auth()\n");
 
 	OSMO_ASSERT(vsub);
+
+	/* Tell the MSC to send a Ciphering Mode Command, which the VLR
+	 * actually simply dispatches to the MSC without waiting for a result.
+	 * Let's still abort if sending the message failed. */
+	if (vlr_set_ciph_mode(vsub->vlr, fi, lfp->msc_conn_ref,
+			      lfp->ciphering_required)) {
+		LOGPFSML(fi, LOGL_ERROR,
+			 "Failed to send Ciphering Mode Command\n");
+		vlr_lu_compl_fsm_failure(fi, GSM48_REJECT_NETWORK_FAILURE);
+		return;
+	}
 
 	vsub->conf_by_radio_contact_ind = true;
 	/* Update LAI */
@@ -1202,7 +1213,8 @@ vlr_loc_update(struct osmo_fsm_inst *parent,
 	       enum vlr_lu_type type, uint32_t tmsi, const char *imsi,
 	       const struct osmo_location_area_id *old_lai,
 	       const struct osmo_location_area_id *new_lai,
-	       bool authentication_required)
+	       bool authentication_required,
+	       enum vlr_ciph ciphering_required)
 {
 	struct osmo_fsm_inst *fi;
 	struct lu_fsm_priv *lfp;
@@ -1222,6 +1234,7 @@ vlr_loc_update(struct osmo_fsm_inst *parent,
 	lfp->parent_event_success = parent_event_success;
 	lfp->parent_event_failure = parent_event_failure;
 	lfp->authentication_required = authentication_required;
+	lfp->ciphering_required = ciphering_required;
 	if (imsi) {
 		strncpy(lfp->imsi, imsi, sizeof(lfp->imsi)-1);
 		lfp->imsi[sizeof(lfp->imsi)-1] = '\0';

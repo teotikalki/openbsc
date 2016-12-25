@@ -825,3 +825,37 @@ int vlr_sub_rx_auth_resp(struct vlr_subscriber *vsub, bool is_r99,
 
 	return 0;
 }
+
+/* Internal evaluation of requested ciphering mode.
+ * Send set_ciph_mode() to MSC depending on the ciph_mode argument.
+ * \param[in] vlr  VLR instance.
+ * \param[in] fi  Calling FSM instance, for logging.
+ * \param[in] msc_conn_ref  MSC conn to send to.
+ * \param[in] ciph_mode  Ciphering config, to decide whether to do ciphering.
+ * \returns 0 if no ciphering is needed or message was sent successfully,
+ *          or a negative value if ciph_mode is invalid or sending failed.
+ */
+int vlr_set_ciph_mode(struct vlr_instance *vlr,
+		      struct osmo_fsm_inst *fi,
+		      void *msc_conn_ref,
+		      enum vlr_ciph ciph_mode)
+{
+	switch (ciph_mode) {
+	case VLR_CIPH_NONE:
+		return 0;
+
+	case VLR_CIPH_A5_1:
+	case VLR_CIPH_A5_3:
+		return vlr->ops.set_ciph_mode(msc_conn_ref);
+
+	case VLR_CIPH_A5_2:
+		/* TODO policy by user config? */
+		LOGPFSML(fi, LOGL_ERROR, "A5/2 ciphering is not allowed\n");
+		return -EINVAL;
+
+	default:
+		LOGPFSML(fi, LOGL_ERROR, "unknown ciphering value: %d\n",
+			 ciph_mode);
+		return -EINVAL;
+	}
+}

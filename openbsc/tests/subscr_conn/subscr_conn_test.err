@@ -193,6 +193,13 @@ DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Process Access 
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: Received Event SUBSCR_CONN_E_ACCEPTED
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: state_chg to SUBSCR_CONN_S_ACCEPTED
 msc_subscr_conn_is_accepted() == true
+- a USSD request is serviced
+- fake rx 04.08: pdisc=11 msg_type=59
+DRLL Dispatching 04.08 message, pdisc=11
+DMM USSD: Own number requested
+DMM 901700000004620: MSISDN = 46071
+- tx DTAP to MS: 8b2a1c27a225020100302002013b301b04010f0416d9775d0e2ae3e965f73cfd7683d27310cd06bbc51a0d
+- fake rx 04.08: pdisc=11 msg_type=59: rc=0
 - conn is released
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_ACCEPTED}: Received Event SUBSCR_CONN_E_CN_CLOSE
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_ACCEPTED}: state_chg to SUBSCR_CONN_S_RELEASED

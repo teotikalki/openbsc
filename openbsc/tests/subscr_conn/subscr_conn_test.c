@@ -316,6 +316,9 @@ void test_no_authen()
 	OSMO_ASSERT(conn->subscr->vsub);
 	EXPECT_ACCEPTED(true);
 
+	btw("a USSD request is serviced");
+	fake_rx_msg(conn, "0b3b1c15a11302010002013b300b04010f0406aa510c061b017f0100");
+
 	btw("conn is released");
 	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
 	EXPECT_CONN_COUNT(0);

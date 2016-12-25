@@ -202,6 +202,14 @@ void vlr_sub_cancel(struct vlr_subscriber *vsub)
 	vlr_sub_cleanup(vsub);
 }
 
+/* Call vlr_sub_cancel(), then completely drop the entry from the VLR */
+void vlr_sub_free(struct vlr_subscriber *vsub)
+{
+	vlr_sub_cancel(vsub);
+	llist_del(&vsub->list);
+	talloc_free(vsub);
+}
+
 int vlr_sub_alloc_tmsi(struct vlr_subscriber *vsub)
 {
 	struct vlr_instance *vlr = vsub->vlr;

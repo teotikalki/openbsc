@@ -258,6 +258,7 @@ vlr_subscr_find_by_tmsi(struct vlr_instance *vlr, uint32_t tmsi);
 struct vlr_subscriber *vlr_sub_alloc(struct vlr_instance *vlr);
 void vlr_sub_cleanup(struct vlr_subscriber *vsub);
 void vlr_sub_cancel(struct vlr_subscriber *vsub);
+void vlr_sub_free(struct vlr_subscriber *vsub);
 int vlr_sub_alloc_tmsi(struct vlr_subscriber *vsub);
 
 uint32_t vlr_timer(struct vlr_instance *vlr, uint32_t timer);

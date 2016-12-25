@@ -33,8 +33,7 @@ struct msgb *msgb_from_hex(const char *label, uint16_t size, const char *hex)
 
 void gsup_expect_tx(const char *hex)
 {
-	talloc_free(gsup_tx_expected);
-	gsup_tx_expected = NULL;
+	OSMO_ASSERT(!gsup_tx_expected);
 	if (!hex)
 		return;
 	gsup_tx_expected = msgb_from_hex("gsup_tx_expected", 1024, hex);
@@ -196,9 +195,18 @@ void thwart_rx_non_initial_requests(struct gsm_subscriber_connection *conn)
 	OSMO_ASSERT(fake_rx(conn, GSM48_PDISC_SMS, GSM411_MT_CP_DATA) == -EACCES);
 }
 
+void clear_vlr()
+{
+	struct vlr_subscriber *vsub, *n;
+	llist_for_each_entry_safe(vsub, n, &g_vlr->subscribers, list) {
+		vlr_sub_free(vsub);
+	}
+}
+
 void test_early_stage()
 {
 	comment_start();
+	clear_vlr();
 
 	struct gsm_subscriber_connection *conn = NULL;
 	
@@ -247,6 +255,7 @@ void test_early_stage()
 void test_cm_service_without_lu()
 {
 	comment_start();
+	clear_vlr();
 
 	btw("new conn");
 	struct gsm_subscriber_connection *conn = conn_new();
@@ -263,8 +272,10 @@ void test_cm_service_without_lu()
 void test_no_authen()
 {
 	comment_start();
+	clear_vlr();
 
 	net->authentication_required = false;
+	net->a5_encryption = VLR_CIPH_NONE;
 
 	btw("new conn");
 	struct gsm_subscriber_connection *conn = conn_new();
@@ -315,8 +326,10 @@ void test_no_authen()
 void test_authen()
 {
 	comment_start();
+	clear_vlr();
 
 	net->authentication_required = true;
+	net->a5_encryption = VLR_CIPH_NONE;
 
 	btw("new conn");
 	struct gsm_subscriber_connection *conn = conn_new();
@@ -327,6 +340,7 @@ void test_authen()
 	OSMO_ASSERT(gsup_tx_confirmed);
 
 	btw("from HLR, rx _SEND_AUTH_INFO_RESULT; VLR sends Auth Req to MS");
+	/* Based on a Ki of 000102030405060708090a0b0c0d0e0f */
 	gsup_rx("OSMO_GSUP_MSGT_SEND_AUTH_INFO_RESULT",
 		"0a"
 		/* imsi */
@@ -414,9 +428,55 @@ void test_authen()
 void test_ciph()
 {
 	comment_start();
+	clear_vlr();
 
 	net->authentication_required = true;
+	net->a5_encryption = VLR_CIPH_A5_1;
 
+	btw("new conn");
+	struct gsm_subscriber_connection *conn = conn_new();
+
+	btw("Location Update request causes a GSUP Send Auth Info request to HLR");
+	gsup_expect_tx("08010809710000004026f0");
+	fake_rx_lu_req(conn);
+	OSMO_ASSERT(gsup_tx_confirmed);
+
+	btw("from HLR, rx _SEND_AUTH_INFO_RESULT; VLR sends Auth Req to MS");
+	/* Based on a Ki of 000102030405060708090a0b0c0d0e0f */
+	gsup_rx("OSMO_GSUP_MSGT_SEND_AUTH_INFO_RESULT",
+		"0a"
+		/* imsi */
+		"0108" "09710000004026f0"
+		/* 5 auth vectors... */
+		/* TL    TL     rand */
+		"0322"  "2010" "585df1ae287f6e273dce07090d61320b"
+		/*       TL     sres       TL     kc */
+			"2104" "2d8b2c3e" "2208" "61855fb81fc2a800"
+		"0322"  "2010" "12aca96fb4ffdea5c985cbafa9b6e18b"
+			"2104" "20bde240" "2208" "07fa7502e07e1c00"
+		"0322"  "2010" "e7c03ba7cf0e2fde82b2dc4d63077d42"
+			"2104" "a29514ae" "2208" "e2b234f807886400"
+		"0322"  "2010" "fa8f20b781b5881329d4fea26b1a3c51"
+			"2104" "5afc8d72" "2208" "2392f14f709ae000"
+		"0322"  "2010" "0fd4cc8dbe8715d1f439e304edfd68dc"
+			"2104" "bc8d1c5b" "2208" "da7cdd6bfe2d7000",
+		NULL);
+
+	btw("MS sends Authen Response, VLR accepts and sends GSUP LU Req to HLR, also Ciphering Mode Command to MS");
+	gsup_expect_tx("04010809710000004026f0");
+	fake_rx_msg(conn, "05542d8b2c3e");
+
+	btw("HLR sends _INSERT_DATA_REQUEST, VLR responds with _INSERT_DATA_RESULT");
+	gsup_rx("_INSERT_DATA_REQUEST",
+		"10010809710000004026f00804036470f1",
+		"12010809710000004026f0");
+
+	btw("HLR also sends GSUP _UPDATE_LOCATION_RESULT");
+	gsup_rx("_UPDATE_LOCATION_RESULT", "06010809710000004026f0", NULL);
+
+	btw("conn is released");
+	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
+	EXPECT_CONN_COUNT(0);
 
 	comment_end();
 }
@@ -511,6 +571,8 @@ int __wrap_gsup_client_send(struct gsup_client *gsupc, struct msgb *msg)
 
 	talloc_free(msg);
 	gsup_tx_confirmed = true;
+	talloc_free(gsup_tx_expected);
+	gsup_tx_expected = NULL;
 	return 0;
 }
 

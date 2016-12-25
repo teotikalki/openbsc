@@ -193,7 +193,6 @@ done_success:
 	proc_arq_fsm_done(fi, VLR_PR_ARQ_RES_PASSED);
 }
 
-/* After Subscriber_Present_VLR */
 static void _proc_arq_vlr_post_trace(struct osmo_fsm_inst *fi)
 {
 	struct proc_arq_priv *par = fi->priv;

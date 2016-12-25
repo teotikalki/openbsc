@@ -10,19 +10,19 @@ msc_subscr_conn_is_accepted() == false
 - fake rx 04.08: pdisc=3 msg_type=5
 DRLL Dispatching 04.08 message, pdisc=3
 DRLL subscr unknown: Message not permitted for initial conn: pdisc=0x03 msg_type=0x05
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - fake rx 04.08: pdisc=5 msg_type=27
 DRLL Dispatching 04.08 message, pdisc=5
 DRLL subscr unknown: Message not permitted for initial conn: pdisc=0x05 msg_type=0x1b
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - fake rx 04.08: pdisc=6 msg_type=39
 DRLL Dispatching 04.08 message, pdisc=6
 DRLL subscr unknown: Message not permitted for initial conn: pdisc=0x06 msg_type=0x27
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - fake rx 04.08: pdisc=9 msg_type=1
 DRLL Dispatching 04.08 message, pdisc=9
 DRLL subscr unknown: Message not permitted for initial conn: pdisc=0x09 msg_type=0x01
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - fake: acceptance
 DVLR Subscr_Conn(test){SUBSCR_CONN_S_NEW}: state_chg to SUBSCR_CONN_S_ACCEPTED
 msc_subscr_conn_is_accepted() == true
@@ -108,19 +108,19 @@ msc_subscr_conn_is_accepted() == false
 - fake rx 04.08: pdisc=3 msg_type=5
 DRLL Dispatching 04.08 message, pdisc=3
 DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=0x03 msg_type=0x05
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - fake rx 04.08: pdisc=5 msg_type=27
 DRLL Dispatching 04.08 message, pdisc=5
 DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=0x05 msg_type=0x1b
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - fake rx 04.08: pdisc=6 msg_type=39
 DRLL Dispatching 04.08 message, pdisc=6
 DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=0x06 msg_type=0x27
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - fake rx 04.08: pdisc=9 msg_type=1
 DRLL Dispatching 04.08 message, pdisc=9
 DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=0x09 msg_type=0x01
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - HLR also sends GSUP _UPDATE_LOCATION_RESULT
 <-- GSUP rx _UPDATE_LOCATION_RESULT: 06010809710000004026f0
 DVLR GSUP rx 11: 06010809710000004026f0
@@ -199,7 +199,7 @@ DRLL Dispatching 04.08 message, pdisc=11
 DMM USSD: Own number requested
 DMM 901700000004620: MSISDN = 46071
 - tx DTAP to MS: 8b2a1c27a225020100302002013b301b04010f0416d9775d0e2ae3e965f73cfd7683d27310cd06bbc51a0d
-- fake rx 04.08: pdisc=11 msg_type=59: rc=0
+- ...result of fake rx 04.08: pdisc=11 msg_type=59: rc=0
 - conn is released
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_ACCEPTED}: Received Event SUBSCR_CONN_E_CN_CLOSE
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_ACCEPTED}: state_chg to SUBSCR_CONN_S_RELEASED
@@ -255,19 +255,19 @@ msc_subscr_conn_is_accepted() == false
 - fake rx 04.08: pdisc=3 msg_type=5
 DRLL Dispatching 04.08 message, pdisc=3
 DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=0x03 msg_type=0x05
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - fake rx 04.08: pdisc=5 msg_type=27
 DRLL Dispatching 04.08 message, pdisc=5
 DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=0x05 msg_type=0x1b
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - fake rx 04.08: pdisc=6 msg_type=39
 DRLL Dispatching 04.08 message, pdisc=6
 DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=0x06 msg_type=0x27
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - fake rx 04.08: pdisc=9 msg_type=1
 DRLL Dispatching 04.08 message, pdisc=9
 DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=0x09 msg_type=0x01
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - MS sends Authen Response, VLR accepts and sends GSUP LU Req to HLR
 - fake rx 04.08: pdisc=5 msg_type=20
 DRLL Dispatching 04.08 message, pdisc=5
@@ -291,7 +291,7 @@ DVLR upd_hlr_vlr_fsm(901700000004620){UPD_HLR_VLR_S_INIT}: Received Event UPD_HL
 DVLR GSUP tx: 04010809710000004026f0
 --> GSUP tx: 04010809710000004026f0
 DVLR upd_hlr_vlr_fsm(901700000004620){UPD_HLR_VLR_S_INIT}: state_chg to UPD_HLR_VLR_S_WAIT_FOR_DATA
-- fake rx 04.08: pdisc=5 msg_type=20: rc=0
+- ...result of fake rx 04.08: pdisc=5 msg_type=20: rc=0
 - HLR sends _INSERT_DATA_REQUEST, VLR responds with _INSERT_DATA_RESULT
 <-- GSUP rx _INSERT_DATA_REQUEST: 10010809710000004026f00804036470f1
 DVLR GSUP rx 17: 10010809710000004026f00804036470f1
@@ -376,19 +376,19 @@ msc_subscr_conn_is_accepted() == false
 - fake rx 04.08: pdisc=3 msg_type=5
 DRLL Dispatching 04.08 message, pdisc=3
 DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=0x03 msg_type=0x05
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - fake rx 04.08: pdisc=5 msg_type=27
 DRLL Dispatching 04.08 message, pdisc=5
 DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=0x05 msg_type=0x1b
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - fake rx 04.08: pdisc=6 msg_type=39
 DRLL Dispatching 04.08 message, pdisc=6
 DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=0x06 msg_type=0x27
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - fake rx 04.08: pdisc=9 msg_type=1
 DRLL Dispatching 04.08 message, pdisc=9
 DRLL subscr 901700000004620: Message not permitted for initial conn: pdisc=0x09 msg_type=0x01
-- fake rx 04.08: rc=-13
+- ...result of fake rx 04.08: rc=-13
 - MS sends Authen Response, VLR accepts
 - fake rx 04.08: pdisc=5 msg_type=20
 DRLL Dispatching 04.08 message, pdisc=5
@@ -415,7 +415,7 @@ DVLR Process_Access_Request_VLR(901700000004620){PR_ARQ_S_DONE}: Process Access 
 - sending CM Service Accept for 901700000004620
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: Received Event SUBSCR_CONN_E_ACCEPTED
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_NEW}: state_chg to SUBSCR_CONN_S_ACCEPTED
-- fake rx 04.08: pdisc=5 msg_type=20: rc=0
+- ...result of fake rx 04.08: pdisc=5 msg_type=20: rc=0
 - conn is released
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_ACCEPTED}: Received Event SUBSCR_CONN_E_CN_CLOSE
 DVLR Subscr_Conn(901700000004620){SUBSCR_CONN_S_ACCEPTED}: state_chg to SUBSCR_CONN_S_RELEASED
@@ -484,7 +484,7 @@ DVLR upd_hlr_vlr_fsm(901700000004620){UPD_HLR_VLR_S_INIT}: Received Event UPD_HL
 DVLR GSUP tx: 04010809710000004026f0
 --> GSUP tx: 04010809710000004026f0
 DVLR upd_hlr_vlr_fsm(901700000004620){UPD_HLR_VLR_S_INIT}: state_chg to UPD_HLR_VLR_S_WAIT_FOR_DATA
-- fake rx 04.08: pdisc=5 msg_type=20: rc=0
+- ...result of fake rx 04.08: pdisc=5 msg_type=20: rc=0
 - HLR sends _INSERT_DATA_REQUEST, VLR responds with _INSERT_DATA_RESULT
 <-- GSUP rx _INSERT_DATA_REQUEST: 10010809710000004026f00804036470f1
 DVLR GSUP rx 17: 10010809710000004026f00804036470f1

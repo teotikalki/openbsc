@@ -151,7 +151,7 @@ int fake_rx_msg(struct gsm_subscriber_connection *conn,
 
 	rc = gsm0408_dispatch(conn, msg);
 
-	btw("fake rx 04.08: pdisc=%u msg_type=%u: rc=%d",
+	btw("...result of fake rx 04.08: pdisc=%u msg_type=%u: rc=%d",
 	    gsm48_hdr_pdisc(gh), gsm48_hdr_msg_type(gh), rc);
 
 	talloc_free(msg);
@@ -180,7 +180,7 @@ int fake_rx(struct gsm_subscriber_connection *conn,
 
 	rc = gsm0408_dispatch(conn, msg);
 
-	btw("fake rx 04.08: rc=%d", rc);
+	btw("...result of fake rx 04.08: rc=%d", rc);
 
 	talloc_free(msg);
 	return rc;

@@ -21,6 +21,9 @@ struct gsm_bts *the_bts;
 struct msgb *gsup_tx_expected = NULL;
 bool gsup_tx_confirmed;
 
+struct msgb *dtap_tx_expected = NULL;
+bool dtap_tx_confirmed;
+
 struct msgb *msgb_from_hex(const char *label, uint16_t size, const char *hex)
 {
 	struct msgb *msg = msgb_alloc(size, label);
@@ -38,6 +41,15 @@ void gsup_expect_tx(const char *hex)
 		return;
 	gsup_tx_expected = msgb_from_hex("gsup_tx_expected", 1024, hex);
 	gsup_tx_confirmed = false;
+}
+
+void dtap_expect_tx(const char *hex)
+{
+	OSMO_ASSERT(!dtap_tx_expected);
+	if (!hex)
+		return;
+	dtap_tx_expected = msgb_from_hex("dtap_tx_expected", 1024, hex);
+	dtap_tx_confirmed = false;
 }
 
 int vlr_gsupc_read_cb(struct gsup_client *gsupc, struct msgb *msg);
@@ -317,6 +329,8 @@ void test_no_authen()
 	EXPECT_ACCEPTED(true);
 
 	btw("a USSD request is serviced");
+	dtap_expect_tx("8b2a1c27a225020100302002013b301b04010f0416d9775d0e2ae3"
+		       "e965f73cfd7683d27310cd06bbc51a0d");
 	fake_rx_msg(conn, "0b3b1c15a11302010002013b300b04010f0406aa510c061b017f0100");
 
 	btw("conn is released");
@@ -417,9 +431,14 @@ void test_authen()
 	EXPECT_ACCEPTED(false);
 	thwart_rx_non_initial_requests(conn);
 
-	btw("MS sends Authen Response, VLR accepts");
+	btw("MS sends Authen Response, VLR accepts with a CM Service Accept");
 	gsup_expect_tx(NULL);
 	fake_rx_msg(conn, "0554" "20bde240" /* 2nd vector's sres, s.a. */);
+
+	btw("a USSD request is serviced");
+	dtap_expect_tx("8b2a1c27a225020100302002013b301b04010f0416d9775d0e2ae3"
+		       "e965f73cfd7683d27310cd06bbc51a0d");
+	fake_rx_msg(conn, "0b3b1c15a11302010002013b300b04010f0406aa510c061b017f0100");
 
 	btw("conn is released");
 	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
@@ -560,7 +579,7 @@ __wrap_gsup_client_create(const char *ip_addr, unsigned int tcp_port,
 int __real_gsup_client_send(struct gsup_client *gsupc, struct msgb *msg);
 int __wrap_gsup_client_send(struct gsup_client *gsupc, struct msgb *msg)
 {
-	fprintf(stderr, "--> GSUP tx: %s\n",
+	fprintf(stderr, "GSUP --> HLR: %s\n",
 	       osmo_hexdump_nospc(msg->data, msg->len));
 
 	OSMO_ASSERT(gsup_tx_expected);
@@ -585,8 +604,23 @@ int __real_gsm0808_submit_dtap(struct gsm_subscriber_connection *conn,
 int __wrap_gsm0808_submit_dtap(struct gsm_subscriber_connection *conn,
 			       struct msgb *msg, int link_id, int allow_sacch)
 {
-	btw("tx DTAP to MS: %s", osmo_hexdump_nospc(msg->data, msg->len));
+	btw("DTAP --> MS: %s", osmo_hexdump_nospc(msg->data, msg->len));
+
+	OSMO_ASSERT(dtap_tx_expected);
+	if (msg->len != dtap_tx_expected->len
+	    || memcmp(msg->data, dtap_tx_expected->data, msg->len)) {
+		fprintf(stderr, "Mismatch! Expected:\n%s\n",
+		       osmo_hexdump_nospc(dtap_tx_expected->data,
+					  dtap_tx_expected->len));
+		abort();
+	}
+
+	btw("DTAP matches expected message");
+
 	talloc_free(msg);
+	dtap_tx_confirmed = true;
+	talloc_free(dtap_tx_expected);
+	dtap_tx_expected = NULL;
 	return 0;
 }
 

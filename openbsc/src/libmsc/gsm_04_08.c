@@ -3488,6 +3488,7 @@ static bool msg_is_initially_permitted(const struct gsm48_hdr *hdr)
 		case GSM48_MT_MM_CM_SERV_REQ:
 		case GSM48_MT_MM_AUTH_RESP:
 		case GSM48_MT_MM_ID_RESP:
+		case GSM48_MT_MM_IMSI_DETACH_IND:
 			return true;
 		default:
 			break;

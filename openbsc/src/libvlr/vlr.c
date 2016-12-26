@@ -755,6 +755,13 @@ int vlr_sub_rx_tmsi_reall_compl(struct vlr_subscriber *vsub)
 	}
 }
 
+int vlr_sub_rx_imsi_detach(struct vlr_subscriber *vsub)
+{
+	vlr_sub_cancel(vsub);
+	vsub->imsi_detached_flag = true;
+	return 0;
+}
+
 struct vlr_instance *
 vlr_init(void *ctx, const struct vlr_ops *ops,
 	 const char *gsup_server_addr_str, uint16_t gsup_server_port)

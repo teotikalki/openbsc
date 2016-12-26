@@ -44,7 +44,7 @@ void _subscr_con_put(struct gsm_subscriber_connection *conn, const char *file,
 
 int msc_create_conn_fsm(struct gsm_subscriber_connection *conn, const char *id);
 
-int msc_vlr_init(void *ctx,
+int msc_vlr_init(struct gsm_network *net,
 		 const char *gsup_server_addr_str,
 		 uint16_t gsup_server_port);
 

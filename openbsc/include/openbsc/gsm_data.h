@@ -23,6 +23,7 @@
 
 struct mncc_sock_state;
 struct gsm_subscriber_group;
+struct vlr_instance;
 
 #define OBSC_LINKID_CB(__msgb)	(__msgb)->cb[3]
 
@@ -381,6 +382,8 @@ struct gsm_network {
 	/* MSC: GSUP server address of the HLR */
 	const char *gsup_server_addr_str;
 	uint16_t gsup_server_port;
+
+	struct vlr_instance *vlr;
 };
 
 struct osmo_esme;

@@ -73,9 +73,6 @@
 void *tall_locop_ctx;
 void *tall_authciphop_ctx;
 
-/* Keep the global VLR instance non-static for direct access by unit tests. */
-struct vlr_instance *g_vlr;
-
 static int tch_rtp_signal(struct gsm_lchan *lchan, int signal);
 
 static int gsm0408_loc_upd_acc(struct gsm_subscriber_connection *conn);
@@ -436,6 +433,7 @@ static const struct value_string lupd_names[] = {
  * Keep this function non-static for direct invocation by unit tests. */
 int mm_rx_loc_upd_req(struct gsm_subscriber_connection *conn, struct msgb *msg)
 {
+	struct gsm_network *net = conn->network;
 	struct gsm48_hdr *gh = msgb_l3(msg);
 	struct gsm48_loc_upd_req *lu;
 	uint8_t mi_type;
@@ -511,7 +509,7 @@ int mm_rx_loc_upd_req(struct gsm_subscriber_connection *conn, struct msgb *msg)
 	lu_fsm = vlr_loc_update(conn->conn_fsm,
 				SUBSCR_CONN_E_ACCEPTED,
 				SUBSCR_CONN_E_CN_CLOSE,
-				g_vlr, conn, vlr_lu_type, tmsi, imsi,
+				net->vlr, conn, vlr_lu_type, tmsi, imsi,
 				&old_lai, &new_lai,
 				conn->network->authentication_required,
 				conn->network->a5_encryption);
@@ -742,6 +740,7 @@ int gsm48_tx_mm_auth_rej(struct gsm_subscriber_connection *conn)
  */
 int gsm48_rx_mm_serv_req(struct gsm_subscriber_connection *conn, struct msgb *msg)
 {
+	struct gsm_network *net = conn->network;
 	uint8_t mi_type;
 	char mi_string[GSM48_MI_SIZE];
 
@@ -801,7 +800,7 @@ int gsm48_rx_mm_serv_req(struct gsm_subscriber_connection *conn, struct msgb *ms
 		send_siemens_mrpci(msg->lchan, classmark2-1);
 
 	vlr_proc_acc_req(conn->conn_fsm, SUBSCR_CONN_E_ACCEPTED,
-			 SUBSCR_CONN_E_CN_CLOSE, g_vlr, conn,
+			 SUBSCR_CONN_E_CN_CLOSE, net->vlr, conn,
 			 VLR_PR_ARQ_T_CM_SERV_REQ, mi-1, &lai,
 			 conn->network->authentication_required);
 
@@ -974,6 +973,7 @@ static uint8_t *gsm48_cm2_get_mi(uint8_t *classmark2_lv, unsigned int tot_len)
 /* Receive a PAGING RESPONSE message from the MS */
 static int gsm48_rx_rr_pag_resp(struct gsm_subscriber_connection *conn, struct msgb *msg)
 {
+	struct gsm_network *net = conn->network;
 	struct gsm48_hdr *gh = msgb_l3(msg);
 	struct gsm48_pag_resp *resp;
 	uint8_t *classmark2_lv = gh->data + 1;
@@ -1000,7 +1000,7 @@ static int gsm48_rx_rr_pag_resp(struct gsm_subscriber_connection *conn, struct m
 	}
 
 	vlr_proc_acc_req(conn->conn_fsm, SUBSCR_CONN_E_ACCEPTED,
-			 SUBSCR_CONN_E_CN_CLOSE, g_vlr, conn,
+			 SUBSCR_CONN_E_CN_CLOSE, net->vlr, conn,
 			 VLR_PR_ARQ_T_PAGING_RESP, mi_lv, &lai,
 			 conn->network->authentication_required);
 
@@ -3691,13 +3691,13 @@ static const struct vlr_ops msc_vlr_ops = {
 	.subscr_assoc = msc_vlr_subscr_assoc,
 };
 
-int msc_vlr_init(void *ctx,
+int msc_vlr_init(struct gsm_network *net,
 		 const char *gsup_server_addr_str,
 		 uint16_t gsup_server_port)
 {
-	g_vlr = vlr_init(ctx, &msc_vlr_ops, gsup_server_addr_str,
-			 gsup_server_port);
-	return g_vlr? 0 : -ENOMEM;
+	net->vlr = vlr_init(net, &msc_vlr_ops, gsup_server_addr_str,
+			    gsup_server_port);
+	return net->vlr? 0 : -ENOMEM;
 }
 
 /*

@@ -99,6 +99,18 @@ vlr_subscr_find_by_tmsi(struct vlr_instance *vlr, uint32_t tmsi)
 	return NULL;
 }
 
+struct vlr_subscriber *
+vlr_subscr_find_by_msisdn(struct vlr_instance *vlr, const char *msisdn)
+{
+	struct vlr_subscriber *vsub;
+
+	llist_for_each_entry(vsub, &vlr->subscribers, list) {
+		if (!strcmp(vsub->msisdn, msisdn))
+			return vsub;
+	}
+	return NULL;
+}
+
 /* Transmit GSUP message to HLR */
 static int vlr_tx_gsup_message(struct vlr_instance *vlr,
 			       struct osmo_gsup_message *gsup_msg)

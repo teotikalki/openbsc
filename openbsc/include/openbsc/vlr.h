@@ -256,6 +256,8 @@ struct vlr_subscriber *
 vlr_subscr_find_by_imsi(struct vlr_instance *vlr, const char *imsi);
 struct vlr_subscriber *
 vlr_subscr_find_by_tmsi(struct vlr_instance *vlr, uint32_t tmsi);
+struct vlr_subscriber *
+vlr_subscr_find_by_msisdn(struct vlr_instance *vlr, const char *msisdn);
 struct vlr_subscriber *vlr_sub_alloc(struct vlr_instance *vlr);
 void vlr_sub_cleanup(struct vlr_subscriber *vsub);
 void vlr_sub_cancel(struct vlr_subscriber *vsub);

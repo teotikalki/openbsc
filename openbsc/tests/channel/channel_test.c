@@ -138,6 +138,10 @@ void gsm_net_update_ctype(struct gsm_network *network) {}
 void gsm48_secure_channel() {}
 void paging_request_stop() {}
 void vty_out() {}
+void vlr_subscr_find_by_tmsi() {}
+void vlr_subscr_find_by_imsi() {}
+void vlr_subscr_find_by_msisdn() {}
+void vlr_sub_rx_imsi_detach() {}
 
 struct tlv_definition nm_att_tlvdef;
 

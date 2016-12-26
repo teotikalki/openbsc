@@ -39,6 +39,7 @@
 #include <openbsc/signal.h>
 #include <openbsc/db.h>
 #include <openbsc/chan_alloc.h>
+#include <openbsc/vlr.h>
 
 void *tall_sub_req_ctx;
 
@@ -61,15 +62,6 @@ struct subscr_request {
 	gsm_cbfn *cbfn;
 	void *param;
 };
-
-static struct gsm_subscriber *get_subscriber(struct gsm_subscriber_group *sgrp,
-						int type, const char *ident)
-{
-	struct gsm_subscriber *subscr = db_get_subscriber(type, ident);
-	if (subscr)
-		subscr->group = sgrp;
-	return subscr;
-}
 
 /*
  * We got the channel assigned and can now hand this channel
@@ -206,70 +198,87 @@ void subscr_remove_request(struct subscr_request *request)
 struct gsm_subscriber *subscr_create_subscriber(struct gsm_subscriber_group *sgrp,
 						const char *imsi)
 {
-	struct gsm_subscriber *subscr = db_create_subscriber(imsi,
-							     sgrp->net->ext_min,
-							     sgrp->net->ext_max,
-							     sgrp->net->auto_assign_exten);
-	if (subscr)
-		subscr->group = sgrp;
+	OSMO_ASSERT(false);
+	return NULL;
+}
+
+static struct gsm_subscriber *subscr_have(struct vlr_subscriber *vsub)
+{
+	struct gsm_subscriber *subscr;
+
+	/* temporary hack: have a subscr as well */
+	llist_for_each_entry(subscr, subscr_bsc_active_subscribers(), entry) {
+		if (subscr->vsub == vsub)
+			return subscr_get(subscr);
+	}
+
+	subscr = subscr_alloc();
+	subscr->vsub = vsub;
+
 	return subscr;
 }
 
 struct gsm_subscriber *subscr_get_by_tmsi(struct gsm_subscriber_group *sgrp,
 					  uint32_t tmsi)
 {
-	char tmsi_string[14];
-	struct gsm_subscriber *subscr;
+	struct vlr_subscriber *vsub;
 
-	/* we might have a record in memory already */
-	llist_for_each_entry(subscr, subscr_bsc_active_subscribers(), entry) {
-		if (tmsi == subscr->tmsi)
-			return subscr_get(subscr);
+	vsub = vlr_subscr_find_by_tmsi(sgrp->net->vlr, tmsi);
+	if (!vsub) {
+		LOGP(DVLR, LOGL_ERROR,
+		     "TMSI not in VLR yet, HLR lookup not implemented 0x%08x\n",
+		     tmsi);
+		return NULL;
 	}
 
-	sprintf(tmsi_string, "%u", tmsi);
-	return get_subscriber(sgrp, GSM_SUBSCRIBER_TMSI, tmsi_string);
+	return subscr_have(vsub);
 }
 
 struct gsm_subscriber *subscr_get_by_imsi(struct gsm_subscriber_group *sgrp,
 					  const char *imsi)
 {
-	struct gsm_subscriber *subscr;
+	struct vlr_subscriber *vsub;
 
-	llist_for_each_entry(subscr, subscr_bsc_active_subscribers(), entry) {
-		if (strcmp(subscr->imsi, imsi) == 0)
-			return subscr_get(subscr);
+	vsub = vlr_subscr_find_by_imsi(sgrp->net->vlr, imsi);
+	if (!vsub) {
+		LOGP(DVLR, LOGL_ERROR,
+		     "IMSI not in VLR yet, HLR lookup not implemented %s\n",
+		     imsi);
+		return NULL;
 	}
 
-	return get_subscriber(sgrp, GSM_SUBSCRIBER_IMSI, imsi);
+	return subscr_have(vsub);
 }
 
 struct gsm_subscriber *subscr_get_by_extension(struct gsm_subscriber_group *sgrp,
 					       const char *ext)
 {
-	struct gsm_subscriber *subscr;
+	struct vlr_subscriber *vsub;
 
-	llist_for_each_entry(subscr, subscr_bsc_active_subscribers(), entry) {
-		if (strcmp(subscr->extension, ext) == 0)
-			return subscr_get(subscr);
+	vsub = vlr_subscr_find_by_msisdn(sgrp->net->vlr, ext);
+	if (!vsub) {
+		LOGP(DVLR, LOGL_ERROR,
+		     "MSISDN not in VLR yet, HLR lookup not implemented %s\n",
+		     ext);
+		return NULL;
 	}
 
-	return get_subscriber(sgrp, GSM_SUBSCRIBER_EXTENSION, ext);
+	return subscr_have(vsub);
 }
 
 struct gsm_subscriber *subscr_get_by_id(struct gsm_subscriber_group *sgrp,
 					unsigned long long id)
 {
 	struct gsm_subscriber *subscr;
-	char buf[32];
-	sprintf(buf, "%llu", id);
 
 	llist_for_each_entry(subscr, subscr_bsc_active_subscribers(), entry) {
 		if (subscr->id == id)
 			return subscr_get(subscr);
 	}
 
-	return get_subscriber(sgrp, GSM_SUBSCRIBER_ID, buf);
+	LOGP(DVLR, LOGL_ERROR, "ID not in VLR yet, HLR lookup not implemented %llu\n",
+	     id);
+	return NULL;
 }
 
 int subscr_update_expire_lu(struct gsm_subscriber *s, struct gsm_bts *bts)
@@ -316,12 +325,12 @@ int subscr_update(struct gsm_subscriber *s, struct gsm_bts *bts, int reason)
 		osmo_signal_dispatch(SS_SUBSCR, S_SUBSCR_ATTACHED, s);
 		break;
 	case GSM_SUBSCRIBER_UPDATE_DETACHED:
-		/* Only detach if we are currently in this area */
-		if (bts->location_area_code == s->lac)
-			s->lac = GSM_LAC_RESERVED_DETACHED;
 		LOGP(DMM, LOGL_INFO, "Subscriber %s DETACHED\n", subscr_name(s));
-		rc = db_sync_subscriber(s);
-		db_subscriber_update(s);
+		OSMO_ASSERT(s->vsub);
+		rc = vlr_sub_rx_imsi_detach(s->vsub);
+		if (rc)
+			LOGP(DMM, LOGL_ERROR,
+			     "IMSI detach failed: %d\n", rc);
 		osmo_signal_dispatch(SS_SUBSCR, S_SUBSCR_DETACHED, s);
 		break;
 	default:

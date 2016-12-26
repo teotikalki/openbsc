@@ -862,10 +862,8 @@ static int gsm48_rx_mm_imsi_detach_ind(struct gsm_subscriber_connection *conn, s
 	if (subscr) {
 		subscr_update(subscr, conn->bts,
 			      GSM_SUBSCRIBER_UPDATE_DETACHED);
-		DEBUGP(DMM, "Subscriber: %s\n", subscr_name(subscr));
-
+		/* TODO: what about this: */
 		subscr->equipment.classmark1 = idi->classmark1;
-		db_sync_equipment(&subscr->equipment);
 
 		subscr_put(subscr);
 	} else

@@ -1,6 +1,5 @@
 SUBDIRS = \
 	gsm0408 \
-	db \
 	channel \
 	mgcp \
 	gprs \

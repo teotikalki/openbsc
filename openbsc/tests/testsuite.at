@@ -13,14 +13,6 @@ cat $abs_srcdir/subscr/subscr_test.ok > expout
 AT_CHECK([$abs_top_builddir/tests/subscr/subscr_test], [], [expout], [ignore])
 AT_CLEANUP
 
-AT_SETUP([db])
-AT_KEYWORDS([db])
-cat $abs_srcdir/db/db_test.ok > expout
-cat $abs_srcdir/db/db_test.err > experr
-cat $abs_srcdir/db/hlr.sqlite3 > hlr.sqlite3
-AT_CHECK([$abs_top_builddir/tests/db/db_test], [], [expout], [experr])
-AT_CLEANUP
-
 AT_SETUP([channel])
 AT_KEYWORDS([channel])
 cat $abs_srcdir/channel/channel_test.ok > expout

@@ -871,6 +871,7 @@ static void _start_lu_main(struct osmo_fsm_inst *fi)
 			OSMO_ASSERT(vsub);
 			strncpy(vsub->imsi, lfp->imsi, sizeof(vsub->imsi));
 			vsub->imsi[sizeof(vsub->imsi)-1] = '\0';
+			LOGPFSM(fi, "new subscr %s\n", vsub->imsi);
 		}
 		vsub->sub_dataconf_by_hlr_ind = false;
 		if (assoc_lfp_with_sub(fi, vsub))

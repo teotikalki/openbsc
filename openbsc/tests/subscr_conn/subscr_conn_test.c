@@ -9,12 +9,17 @@
 #include <openbsc/gsup_client.h>
 #include <openbsc/debug.h>
 
+#if 1
+/* show lines in test comments? Helpful for debugging. */
+#define btw(fmt, args...) fprintf(stderr, "- %3d: " fmt "\n", __LINE__, ## args )
+#else
 #define btw(fmt, args...) fprintf(stderr, "- " fmt "\n", ## args )
+#endif
+
 #define comment_start() fprintf(stderr, "===== %s\n", __func__);
 #define comment_end() fprintf(stderr, "===== %s: SUCCESS\n\n", __func__);
 
 struct gsm_network *net = NULL;
-extern struct vlr_instance *g_vlr;
 
 struct gsm_bts *the_bts;
 
@@ -64,7 +69,7 @@ void gsup_rx(const char *label, const char *rx_hex, const char *expect_tx_hex)
 	msg = msgb_from_hex(label, 1024, rx_hex);
 	fprintf(stderr, "<-- GSUP rx %s: %s\n", label,
 		osmo_hexdump_nospc(msgb_l2(msg), msgb_l2len(msg)));
-	rc = vlr_gsupc_read_cb(g_vlr->gsup_client, msg);
+	rc = vlr_gsupc_read_cb(net->vlr->gsup_client, msg);
 	fprintf(stderr, "<-- GSUP rx %s: vlr_gsupc_read_cb() returns %d\n",
 		label, rc);
 	if (expect_tx_hex)
@@ -83,11 +88,11 @@ bool conn_exists(struct gsm_subscriber_connection *conn)
 }
 
 #define EXPECT_ACCEPTED(expect_accepted) do { \
-		if (conn) { \
-			OSMO_ASSERT(conn); \
-			OSMO_ASSERT(conn_exists(conn)); \
+		if (g_conn) { \
+			OSMO_ASSERT(g_conn); \
+			OSMO_ASSERT(conn_exists(g_conn)); \
 		} \
-		bool accepted = msc_subscr_conn_is_accepted(conn); \
+		bool accepted = msc_subscr_conn_is_accepted(g_conn); \
 		fprintf(stderr, "msc_subscr_conn_is_accepted() == %s\n", \
 			accepted ? "true" : "false"); \
 		OSMO_ASSERT(accepted == expect_accepted); \
@@ -119,100 +124,106 @@ static int llist_len(struct llist_head *head)
 		OSMO_ASSERT(l == (N)); \
 	} while (false)
 
-int mm_rx_loc_upd_req(struct gsm_subscriber_connection *conn, struct msgb *msg);
-int gsm48_rx_mm_serv_req(struct gsm_subscriber_connection *conn, struct msgb *msg);
+struct gsm_subscriber_connection *g_conn = NULL;
 
-void fake_rx_lu_req(struct gsm_subscriber_connection *conn)
+void rx_from_ms(struct msgb *msg)
+{
+	int rc;
+
+	struct gsm48_hdr *gh = msgb_l3(msg);
+	btw("rx from MS: pdisc=0x%02x msg_type=0x%02x",
+	    gh->proto_discr, gh->msg_type);
+
+	if (!g_conn) {
+		g_conn = conn_new();
+		rc = net->bsc_api->compl_l3(g_conn, msg, 23);
+		if (rc == BSC_API_CONN_POL_REJECT) {
+			msc_subscr_con_free(g_conn);
+			g_conn = NULL;
+		}
+	} else
+		net->bsc_api->dtap(g_conn, 23, msg);
+
+	if (g_conn && !conn_exists(g_conn))
+		g_conn = NULL;
+}
+
+void ms_sends_lu_req()
 {
 	struct msgb *msg;
 
 	msg = msgb_from_hex("LU Req", 1024,
 	       "050802008168000130089910070000006402");
 	msg->l3h = msg->l2h = msg->l1h = msg->data;
-	OSMO_ASSERT( mm_rx_loc_upd_req(conn, msg) == 0 );
-	OSMO_ASSERT(conn->conn_fsm);
-	OSMO_ASSERT(conn->subscr);
-	OSMO_ASSERT(conn->subscr->vsub);
+	rx_from_ms(msg);
 	talloc_free(msg);
 }
 
-void fake_rx_cm_service_req(struct gsm_subscriber_connection *conn)
+void ms_sends_cm_service_req()
 {
 	struct msgb *msg;
 
 	msg = msgb_from_hex("CM Service Req", 1024,
 			    "05247803305886089910070000006402");
 	msg->l3h = msg->l2h = msg->l1h = msg->data;
-	OSMO_ASSERT( gsm48_rx_mm_serv_req(conn, msg) == 0 );
+	rx_from_ms(msg);
 	talloc_free(msg);
 }
 
-int fake_rx_msg(struct gsm_subscriber_connection *conn,
-		const char *hex)
+void ms_sends_msg(const char *hex)
 {
-	int rc;
 	struct msgb *msg;
-	struct gsm48_hdr *gh;
 
-	msg = msgb_from_hex("fake_rx_msg", 1024, hex);
+	msg = msgb_from_hex("ms_sends_msg", 1024, hex);
 	msg->l1h = msg->l2h = msg->l3h = msg->data;
-	gh = (void*)msg->data;
-
-	btw("fake rx 04.08: pdisc=%u msg_type=%u",
-	    gsm48_hdr_pdisc(gh), gsm48_hdr_msg_type(gh));
-
-	rc = gsm0408_dispatch(conn, msg);
-
-	btw("...result of fake rx 04.08: pdisc=%u msg_type=%u: rc=%d",
-	    gsm48_hdr_pdisc(gh), gsm48_hdr_msg_type(gh), rc);
-
+	rx_from_ms(msg);
 	talloc_free(msg);
-	return rc;
 }
 
-int fake_rx(struct gsm_subscriber_connection *conn,
-	    uint8_t pdisc, uint8_t msg_type)
+int ms_sends_msg_fake(uint8_t pdisc, uint8_t msg_type)
 {
 	int rc;
 	struct msgb *msg;
 	struct gsm48_hdr *gh;
 
-	btw("fake rx 04.08: pdisc=%u msg_type=%u", pdisc, msg_type);
-
-	msg = msgb_alloc(1024, "fake_rx");
+	msg = msgb_alloc(1024, "ms_sends_msg_fake");
 	msg->l1h = msg->l2h = msg->l3h = msg->data;
 
 	gh = (struct gsm48_hdr*)msgb_put(msg, sizeof(*gh));
-
 	gh->proto_discr = pdisc;
 	gh->msg_type = msg_type;
-
 	/* some amount of data, whatever */
 	msgb_put(msg, 123);
 
-	rc = gsm0408_dispatch(conn, msg);
-
-	btw("...result of fake rx 04.08: rc=%d", rc);
+	rc = gsm0408_dispatch(g_conn, msg);
 
 	talloc_free(msg);
 	return rc;
 }
 
-void thwart_rx_non_initial_requests(struct gsm_subscriber_connection *conn)
+void thwart_rx_non_initial_requests()
 {
 	btw("requests shall be thwarted");
-	OSMO_ASSERT(fake_rx(conn, GSM48_PDISC_CC, GSM48_MT_CC_SETUP) == -EACCES);
-	OSMO_ASSERT(fake_rx(conn, GSM48_PDISC_MM, GSM48_MT_MM_TMSI_REALL_COMPL) == -EACCES);
-	OSMO_ASSERT(fake_rx(conn, GSM48_PDISC_RR, GSM48_MT_RR_PAG_RESP) == -EACCES);
-	OSMO_ASSERT(fake_rx(conn, GSM48_PDISC_SMS, GSM411_MT_CP_DATA) == -EACCES);
+	OSMO_ASSERT(ms_sends_msg_fake(GSM48_PDISC_CC, GSM48_MT_CC_SETUP) == -EACCES);
+	OSMO_ASSERT(ms_sends_msg_fake(GSM48_PDISC_MM, GSM48_MT_MM_TMSI_REALL_COMPL) == -EACCES);
+	OSMO_ASSERT(ms_sends_msg_fake(GSM48_PDISC_RR, GSM48_MT_RR_PAG_RESP) == -EACCES);
+	OSMO_ASSERT(ms_sends_msg_fake(GSM48_PDISC_SMS, GSM411_MT_CP_DATA) == -EACCES);
 }
 
 void clear_vlr()
 {
 	struct vlr_subscriber *vsub, *n;
-	llist_for_each_entry_safe(vsub, n, &g_vlr->subscribers, list) {
+	llist_for_each_entry_safe(vsub, n, &net->vlr->subscribers, list) {
 		vlr_sub_free(vsub);
 	}
+	
+	EXPECT_CONN_COUNT(0);
+
+	net->authentication_required = false;
+	net->a5_encryption = VLR_CIPH_NONE;
+	net->vlr->cfg.check_imei_rqd = false;
+	net->vlr->cfg.alloc_tmsi = false;
+
 }
 
 void test_early_stage()
@@ -220,46 +231,39 @@ void test_early_stage()
 	comment_start();
 	clear_vlr();
 
-	struct gsm_subscriber_connection *conn = NULL;
-	
 	btw("NULL conn");
 	EXPECT_ACCEPTED(false);
 
 	btw("freshly allocated conn");
-	conn = msc_subscr_con_allocate(net);
-	conn->bts = the_bts;
+	g_conn = msc_subscr_con_allocate(net);
+	g_conn->bts = the_bts;
 	EXPECT_ACCEPTED(false);
 
 	btw("conn_fsm present, in state NEW");
-	OSMO_ASSERT(msc_create_conn_fsm(conn, "test") == 0);
-	OSMO_ASSERT(conn->conn_fsm);
-	OSMO_ASSERT(conn->conn_fsm->state == SUBSCR_CONN_S_NEW);
+	OSMO_ASSERT(msc_create_conn_fsm(g_conn, "test") == 0);
+	OSMO_ASSERT(g_conn->conn_fsm);
+	OSMO_ASSERT(g_conn->conn_fsm->state == SUBSCR_CONN_S_NEW);
 	EXPECT_ACCEPTED(false);
 
-	thwart_rx_non_initial_requests(conn);
+	thwart_rx_non_initial_requests();
 
 	btw("fake: acceptance");
-	conn->subscr = subscr_alloc();
-	OSMO_ASSERT(conn->subscr);
-	osmo_fsm_inst_state_chg(conn->conn_fsm, SUBSCR_CONN_S_ACCEPTED, 0, 0);
+	g_conn->subscr = subscr_alloc();
+	OSMO_ASSERT(g_conn->subscr);
+	/* mark as silent call so it sticks around */
+	g_conn->silent_call = 1;
+	osmo_fsm_inst_state_chg(g_conn->conn_fsm, SUBSCR_CONN_S_ACCEPTED, 0, 0);
 	EXPECT_ACCEPTED(true);
+	g_conn->silent_call = 0;
 
-	btw("CLOSE event implicitly deallocates conn and all FSMs");
-	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
+	btw("CLOSE event marks conn_fsm as released");
+	osmo_fsm_inst_dispatch(g_conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
+	OSMO_ASSERT(g_conn->conn_fsm->state == SUBSCR_CONN_S_RELEASED);
+
+	btw("messaging dispatch would now remove the conn");
+	msc_subscr_con_free(g_conn);
 	EXPECT_CONN_COUNT(0);
-	conn = NULL;
-
-	btw("new conn, accepted");
-	conn = conn_new();
-	conn->subscr = subscr_alloc();
-	OSMO_ASSERT(conn->subscr);
-	OSMO_ASSERT(msc_create_conn_fsm(conn, "test") == 0);
-	osmo_fsm_inst_state_chg(conn->conn_fsm, SUBSCR_CONN_S_ACCEPTED, 0, 0);
-	EXPECT_ACCEPTED(true);
-
-	btw("close event also implicitly deallocates conn");
-	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
-	EXPECT_CONN_COUNT(0);
+	g_conn = NULL;
 
 	comment_end();
 }
@@ -269,11 +273,8 @@ void test_cm_service_without_lu()
 	comment_start();
 	clear_vlr();
 
-	btw("new conn");
-	struct gsm_subscriber_connection *conn = conn_new();
-
 	btw("CM Service Request without a prior Location Updating");
-	fake_rx_cm_service_req(conn);
+	ms_sends_cm_service_req();
 
 	btw("conn was released");
 	EXPECT_CONN_COUNT(0);
@@ -288,13 +289,12 @@ void test_no_authen()
 
 	net->authentication_required = false;
 	net->a5_encryption = VLR_CIPH_NONE;
-
-	btw("new conn");
-	struct gsm_subscriber_connection *conn = conn_new();
+	net->vlr->cfg.check_imei_rqd = false;
+	net->vlr->cfg.alloc_tmsi = false;
 
 	btw("Location Update request causes a GSUP LU request to HLR");
 	gsup_expect_tx("04010809710000004026f0");
-	fake_rx_lu_req(conn);
+	ms_sends_lu_req();
 	OSMO_ASSERT(gsup_tx_confirmed);
 
 	btw("HLR sends _INSERT_DATA_REQUEST, VLR responds with _INSERT_DATA_RESULT");
@@ -305,38 +305,38 @@ void test_no_authen()
 	btw("having received subscriber data does not mean acceptance");
 	EXPECT_ACCEPTED(false);
 
-	thwart_rx_non_initial_requests(conn);
+	thwart_rx_non_initial_requests();
 
 	btw("HLR also sends GSUP _UPDATE_LOCATION_RESULT");
 	gsup_rx("_UPDATE_LOCATION_RESULT", "06010809710000004026f0", NULL);
 
-	btw("now the conn is accepted");
-	EXPECT_ACCEPTED(true);
+	/* HACK */
+	osmo_fsm_inst_dispatch(g_conn->conn_fsm, SUBSCR_CONN_E_BUMP, NULL);
 
-	btw("the conn is discarded");
-	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
+	btw("a LU Accept was sent, and the conn was discarded");
 	EXPECT_CONN_COUNT(0);
 
-	btw("after a while, a new conn...");
-	conn = conn_new();
-	EXPECT_ACCEPTED(false);
-
-	btw("...sends a CM Service Request");
-	fake_rx_cm_service_req(conn);
-	OSMO_ASSERT(conn->conn_fsm);
-	OSMO_ASSERT(conn->subscr);
-	OSMO_ASSERT(conn->subscr->vsub);
+	btw("after a while, a new conn sends a CM Service Request");
+	ms_sends_cm_service_req();
+	OSMO_ASSERT(g_conn->conn_fsm);
+	OSMO_ASSERT(g_conn->subscr);
+	OSMO_ASSERT(g_conn->subscr->vsub);
 	EXPECT_ACCEPTED(true);
 
 	btw("a USSD request is serviced");
 	dtap_expect_tx("8b2a1c27a225020100302002013b301b04010f0416d9775d0e2ae3"
 		       "e965f73cfd7683d27310cd06bbc51a0d");
-	fake_rx_msg(conn, "0b3b1c15a11302010002013b300b04010f0406aa510c061b017f0100");
+	ms_sends_msg("0b3b1c15a11302010002013b300b04010f0406aa510c061b017f0100");
 
 	btw("conn is released");
-	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
+	// FIXME: should happen implicitly
+	osmo_fsm_inst_dispatch(g_conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
 	EXPECT_CONN_COUNT(0);
 
+	btw("subscriber detaches");
+	ms_sends_msg("050130089910070000006402");
+
+	EXPECT_CONN_COUNT(0);
 	comment_end();
 }
 
@@ -346,14 +346,13 @@ void test_authen()
 	clear_vlr();
 
 	net->authentication_required = true;
-	net->a5_encryption = VLR_CIPH_NONE;
 
 	btw("new conn");
 	struct gsm_subscriber_connection *conn = conn_new();
 
 	btw("Location Update request causes a GSUP Send Auth Info request to HLR");
 	gsup_expect_tx("08010809710000004026f0");
-	fake_rx_lu_req(conn);
+	ms_sends_lu_req();
 	OSMO_ASSERT(gsup_tx_confirmed);
 
 	btw("from HLR, rx _SEND_AUTH_INFO_RESULT; VLR sends Auth Req to MS");
@@ -380,14 +379,14 @@ void test_authen()
 #if 0
 	handled in bsc_api.c and never reaches the MSC
 	btw("MS may send a Classmark Change");
-	fake_rx_msg(conn, "061603305886200b6014042f6513b8800d2100");
+	ms_sends_msg("061603305886200b6014042f6513b8800d2100");
 #endif
 
 #if 0
 	//makes me think: should this ever reach the MSC?
 	//we're certainly not doing anything with it.
 	btw("MS may send a UTRAN Classmark Change");
-	fake_rx_msg(conn, "06604a40000350caab541a955aa22920c11200060005628425"
+	ms_sends_msg("06604a40000350caab541a955aa22920c11200060005628425"
 		    "1cfba267aed97284a39f744cf5db2f509473ee899ebb65872d0101c4"
 		    "109c38f5d0d133d76cb4006407406f5293492d691006c6c0");
 #endif
@@ -396,11 +395,11 @@ void test_authen()
 	gsup_rx("_UPDATE_LOCATION_RESULT", "06010809710000004026f0", NULL);
 	EXPECT_ACCEPTED(false);
 
-	thwart_rx_non_initial_requests(conn);
+	thwart_rx_non_initial_requests();
 
 	btw("MS sends Authen Response, VLR accepts and sends GSUP LU Req to HLR");
 	gsup_expect_tx("04010809710000004026f0");
-	fake_rx_msg(conn, "05542d8b2c3e");
+	ms_sends_msg("05542d8b2c3e");
 
 	btw("HLR sends _INSERT_DATA_REQUEST, VLR responds with _INSERT_DATA_RESULT");
 	gsup_rx("_INSERT_DATA_REQUEST",
@@ -422,25 +421,26 @@ void test_authen()
 	EXPECT_ACCEPTED(false);
 
 	btw("...sends a CM Service Request. VLR responds with Auth Req, 2nd auth vector");
-	fake_rx_cm_service_req(conn);
+	ms_sends_cm_service_req();
 	OSMO_ASSERT(conn->conn_fsm);
 	OSMO_ASSERT(conn->subscr);
 	OSMO_ASSERT(conn->subscr->vsub);
 
 	btw("needs auth, not yet accepted");
 	EXPECT_ACCEPTED(false);
-	thwart_rx_non_initial_requests(conn);
+	thwart_rx_non_initial_requests();
 
 	btw("MS sends Authen Response, VLR accepts with a CM Service Accept");
 	gsup_expect_tx(NULL);
-	fake_rx_msg(conn, "0554" "20bde240" /* 2nd vector's sres, s.a. */);
+	ms_sends_msg("0554" "20bde240" /* 2nd vector's sres, s.a. */);
 
 	btw("a USSD request is serviced");
 	dtap_expect_tx("8b2a1c27a225020100302002013b301b04010f0416d9775d0e2ae3"
 		       "e965f73cfd7683d27310cd06bbc51a0d");
-	fake_rx_msg(conn, "0b3b1c15a11302010002013b300b04010f0406aa510c061b017f0100");
+	ms_sends_msg("0b3b1c15a11302010002013b300b04010f0406aa510c061b017f0100");
 
 	btw("conn is released");
+	// FIXME: should happen implicitly
 	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
 	EXPECT_CONN_COUNT(0);
 
@@ -452,7 +452,7 @@ void test_ciph()
 	comment_start();
 	clear_vlr();
 
-	net->authentication_required = true;
+	/* implicit: net->authentication_required = true; */
 	net->a5_encryption = VLR_CIPH_A5_1;
 
 	btw("new conn");
@@ -460,7 +460,7 @@ void test_ciph()
 
 	btw("Location Update request causes a GSUP Send Auth Info request to HLR");
 	gsup_expect_tx("08010809710000004026f0");
-	fake_rx_lu_req(conn);
+	ms_sends_lu_req();
 	OSMO_ASSERT(gsup_tx_confirmed);
 
 	btw("from HLR, rx _SEND_AUTH_INFO_RESULT; VLR sends Auth Req to MS");
@@ -486,7 +486,7 @@ void test_ciph()
 
 	btw("MS sends Authen Response, VLR accepts and sends GSUP LU Req to HLR, also Ciphering Mode Command to MS");
 	gsup_expect_tx("04010809710000004026f0");
-	fake_rx_msg(conn, "05542d8b2c3e");
+	ms_sends_msg("05542d8b2c3e");
 
 	btw("HLR sends _INSERT_DATA_REQUEST, VLR responds with _INSERT_DATA_RESULT");
 	gsup_rx("_INSERT_DATA_REQUEST",
@@ -497,11 +497,74 @@ void test_ciph()
 	gsup_rx("_UPDATE_LOCATION_RESULT", "06010809710000004026f0", NULL);
 
 	btw("conn is released");
+	// FIXME: should happen implicitly
 	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
 	EXPECT_CONN_COUNT(0);
 
 	comment_end();
 }
+
+#if 0
+void test_no_authen_imei()
+{
+	comment_start();
+	clear_vlr();
+
+	net->authentication_required = false;
+	net->a5_encryption = VLR_CIPH_NONE;
+
+	btw("new conn");
+	struct gsm_subscriber_connection *conn = conn_new();
+
+	btw("Location Update request causes a GSUP LU request to HLR");
+	gsup_expect_tx("04010809710000004026f0");
+	ms_sends_lu_req();
+	OSMO_ASSERT(gsup_tx_confirmed);
+
+	btw("HLR sends _INSERT_DATA_REQUEST, VLR responds with _INSERT_DATA_RESULT");
+	gsup_rx("_INSERT_DATA_REQUEST",
+		"10010809710000004026f00804036470f1",
+		"12010809710000004026f0");
+
+	btw("having received subscriber data does not mean acceptance");
+	EXPECT_ACCEPTED(false);
+
+	thwart_rx_non_initial_requests();
+
+	btw("HLR also sends GSUP _UPDATE_LOCATION_RESULT");
+	gsup_rx("_UPDATE_LOCATION_RESULT", "06010809710000004026f0", NULL);
+
+	btw("now the conn is accepted");
+	EXPECT_ACCEPTED(true);
+
+	btw("the conn is discarded");
+	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
+	EXPECT_CONN_COUNT(0);
+
+	btw("after a while, a new conn...");
+	conn = conn_new();
+	EXPECT_ACCEPTED(false);
+
+	btw("...sends a CM Service Request");
+	ms_sends_cm_service_req();
+	OSMO_ASSERT(conn->conn_fsm);
+	OSMO_ASSERT(conn->subscr);
+	OSMO_ASSERT(conn->subscr->vsub);
+	EXPECT_ACCEPTED(true);
+
+	btw("a USSD request is serviced");
+	dtap_expect_tx("8b2a1c27a225020100302002013b301b04010f0416d9775d0e2ae3"
+		       "e965f73cfd7683d27310cd06bbc51a0d");
+	ms_sends_msg("0b3b1c15a11302010002013b300b04010f0406aa510c061b017f0100");
+
+	btw("conn is released");
+	osmo_fsm_inst_dispatch(conn->conn_fsm, SUBSCR_CONN_E_CN_CLOSE, NULL);
+	EXPECT_CONN_COUNT(0);
+
+	comment_end();
+}
+#endif
+
 
 static struct log_info_cat test_categories[] = {
 	[DMSC] = {
@@ -702,18 +765,18 @@ int main(int argc, const char **argv)
 	the_bts = gsm_bts_alloc(net);
 
 	osmo_fsm_log_addr(false);
-	OSMO_ASSERT(msc_vlr_init(tall_bsc_ctx, "none", 0) == 0);
-	OSMO_ASSERT(g_vlr);
-	OSMO_ASSERT(g_vlr->gsup_client);
+	OSMO_ASSERT(msc_vlr_init(net, "none", 0) == 0);
+	OSMO_ASSERT(net->vlr);
+	OSMO_ASSERT(net->vlr->gsup_client);
 	msc_subscr_conn_init();
 
-	g_vlr->ops.tx_lu_acc = fake_vlr_tx_lu_acc;
-	g_vlr->ops.tx_lu_rej = fake_vlr_tx_lu_rej;
-	g_vlr->ops.tx_cm_serv_acc = fake_vlr_tx_cm_serv_acc;
-	g_vlr->ops.tx_cm_serv_rej = fake_vlr_tx_cm_serv_rej;
-	g_vlr->ops.tx_auth_req = fake_vlr_tx_auth_req;
-	g_vlr->ops.tx_auth_rej = fake_vlr_tx_auth_rej;
-	g_vlr->ops.set_ciph_mode = fake_vlr_tx_ciph_mode_cmd;
+	net->vlr->ops.tx_lu_acc = fake_vlr_tx_lu_acc;
+	net->vlr->ops.tx_lu_rej = fake_vlr_tx_lu_rej;
+	net->vlr->ops.tx_cm_serv_acc = fake_vlr_tx_cm_serv_acc;
+	net->vlr->ops.tx_cm_serv_rej = fake_vlr_tx_cm_serv_rej;
+	net->vlr->ops.tx_auth_req = fake_vlr_tx_auth_req;
+	net->vlr->ops.tx_auth_rej = fake_vlr_tx_auth_rej;
+	net->vlr->ops.set_ciph_mode = fake_vlr_tx_ciph_mode_cmd;
 
 	test_early_stage();
 	test_cm_service_without_lu();

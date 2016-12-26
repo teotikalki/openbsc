@@ -17,6 +17,8 @@ enum subscr_conn_fsm_event {
 	SUBSCR_CONN_E_INVALID = 0,
 	/* LU or Process Access FSM has determined that this conn is good */
 	SUBSCR_CONN_E_ACCEPTED,
+	/* Some async action has completed, check again whether all is done */
+	SUBSCR_CONN_E_BUMP,
 	/* MS/BTS/BSC originated close request */
 	SUBSCR_CONN_E_MO_CLOSE,
 	/* MSC originated close request, e.g. failed authentication */
@@ -51,5 +53,7 @@ int msc_vlr_init(struct gsm_network *net,
 void msc_release_connection(struct gsm_subscriber_connection *conn);
 
 bool msc_subscr_conn_is_accepted(struct gsm_subscriber_connection *conn);
+
+void msc_release_anchor(struct gsm_subscriber_connection *conn);
 
 #endif

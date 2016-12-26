@@ -46,6 +46,24 @@ static int msc_clear_request(struct gsm_subscriber_connection *conn, uint32_t ca
 	return 1;
 }
 
+static bool keep_conn(struct gsm_subscriber_connection *conn)
+{
+	/* TODO: what about a silent call? */
+
+	if (!conn->conn_fsm) {
+		DEBUGP(DMM, "No conn_fsm, release conn\n");
+		return false;
+	}
+
+	switch (conn->conn_fsm->state) {
+	case SUBSCR_CONN_S_NEW:
+	case SUBSCR_CONN_S_ACCEPTED:
+		return true;
+	default:
+		return false;
+	}
+}
+
 /* Receive a COMPLETE LAYER3 INFO from BSC */
 static int msc_compl_l3(struct gsm_subscriber_connection *conn, struct msgb *msg,
 			uint16_t chosen_channel)
@@ -53,6 +71,17 @@ static int msc_compl_l3(struct gsm_subscriber_connection *conn, struct msgb *msg
 	gsm0408_new_conn(conn);
 	gsm0408_dispatch(conn, msg);
 
+	/* NOTE: after the MSC split, returning BSC_API_CONN_POL_REJECT shall
+	 * be replaced with a call to msc_subscr_con_free() */
+
+	if (!keep_conn(conn)) {
+		DEBUGP(DMM, "Discarding conn\n");
+		return BSC_API_CONN_POL_REJECT;
+	}
+	DEBUGP(DMM, "Keeping conn\n");
+	return BSC_API_CONN_POL_ACCEPT;
+
+#if 0
 	/*
 	 * If this is a silent call we want the channel to remain open as long as
 	 * possible and this is why we accept this connection regardless of any
@@ -67,12 +96,18 @@ static int msc_compl_l3(struct gsm_subscriber_connection *conn, struct msgb *msg
 
 	LOGP(DRR, LOGL_INFO, "MSC Complete L3: Rejecting connection.\n");
 	return BSC_API_CONN_POL_REJECT;
+#endif
 }
 
 /* Receive a DTAP message from BSC */
 static void msc_dtap(struct gsm_subscriber_connection *conn, uint8_t link_id, struct msgb *msg)
 {
 	gsm0408_dispatch(conn, msg);
+	if (!keep_conn(conn)) {
+		DEBUGP(DMM, "Discarding conn\n");
+		msc_subscr_con_free(conn);
+	}
+	DEBUGP(DMM, "Keeping conn\n");
 }
 
 /* Receive an ASSIGNMENT COMPLETE from BSC */
@@ -162,6 +197,8 @@ void msc_subscr_con_cleanup(struct gsm_subscriber_connection *conn)
 {
 	if (!conn)
 		return;
+
+	msc_release_anchor(conn);
 
 	if (conn->subscr) {
 		DEBUGP(DRLL, "subscr %s: Freeing subscriber connection\n",

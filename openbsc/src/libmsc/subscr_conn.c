@@ -31,6 +31,7 @@
 static const struct value_string subscr_conn_fsm_event_names[] = {
 	OSMO_VALUE_STRING(SUBSCR_CONN_E_INVALID),
 	OSMO_VALUE_STRING(SUBSCR_CONN_E_ACCEPTED),
+	OSMO_VALUE_STRING(SUBSCR_CONN_E_BUMP),
 	OSMO_VALUE_STRING(SUBSCR_CONN_E_MO_CLOSE),
 	OSMO_VALUE_STRING(SUBSCR_CONN_E_CN_CLOSE),
 	OSMO_VALUE_STRING(SUBSCR_CONN_E_CLOSE_CONF),
@@ -87,21 +88,32 @@ void subscr_conn_fsm_new(struct osmo_fsm_inst *fi, uint32_t event, void *data)
 		break;
 #endif
 
-void subscr_conn_fsm_accepted(struct osmo_fsm_inst *fi, uint32_t event, void *data)
-{
-	/* Whatever happens in the accepted state, it means release. Even if an
-	 * unexpected event is passed, the safest thing to do is discard the
-	 * conn. We don't expect another SUBSCR_CONN_E_ACCEPTED. */
-	osmo_fsm_inst_state_chg(fi, SUBSCR_CONN_S_RELEASED, 0, 0);
-}
-
-void subscr_conn_fsm_release(struct osmo_fsm_inst *fi, uint32_t prev_state)
+void subscr_conn_fsm_bump(struct osmo_fsm_inst *fi, uint32_t prev_state)
 {
 	struct gsm_subscriber_connection *conn = fi->priv;
-	if (!conn)
+	bool keep_conn = false;
+
+	if (conn->silent_call)
+		keep_conn = true;
+
+	if (!keep_conn)
+		osmo_fsm_inst_state_chg(fi, SUBSCR_CONN_S_RELEASED, 0, 0);
+}
+
+void subscr_conn_fsm_accepted(struct osmo_fsm_inst *fi, uint32_t event, void *data)
+{
+	switch (event) {
+	case SUBSCR_CONN_E_BUMP:
+		subscr_conn_fsm_bump(fi, fi->state);
 		return;
-	gsm0808_clear(conn);
-	bsc_subscr_con_free(conn);
+
+	default:
+		break;
+	}
+	/* Whatever unexpected happens in the accepted state, it means release.
+	 * Even if an unexpected event is passed, the safest thing to do is
+	 * discard the conn. We don't expect another SUBSCR_CONN_E_ACCEPTED. */
+	osmo_fsm_inst_state_chg(fi, SUBSCR_CONN_S_RELEASED, 0, 0);
 }
 
 #define S(x)	(1 << (x))
@@ -121,15 +133,16 @@ static const struct osmo_fsm_state subscr_conn_fsm_states[] = {
 		.name = OSMO_STRINGIFY(SUBSCR_CONN_S_ACCEPTED),
 		/* allow everything to release for any odd behavior */
 		.in_event_mask = S(SUBSCR_CONN_E_ACCEPTED) |
+				 S(SUBSCR_CONN_E_BUMP) |
 				 S(SUBSCR_CONN_E_MO_CLOSE) |
 				 S(SUBSCR_CONN_E_CN_CLOSE) |
 				 S(SUBSCR_CONN_E_CLOSE_CONF),
 		.out_state_mask = S(SUBSCR_CONN_S_RELEASED),
+		.onenter = subscr_conn_fsm_bump,
 		.action = subscr_conn_fsm_accepted,
 	},
 	[SUBSCR_CONN_S_RELEASED] = {
 		.name = OSMO_STRINGIFY(SUBSCR_CONN_S_RELEASED),
-		.onenter = subscr_conn_fsm_release,
 	},
 };
 

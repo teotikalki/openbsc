@@ -78,7 +78,6 @@ static int tch_rtp_signal(struct gsm_lchan *lchan, int signal);
 static int gsm0408_loc_upd_acc(struct gsm_subscriber_connection *conn);
 static int gsm48_tx_simple(struct gsm_subscriber_connection *conn,
 			   uint8_t pdisc, uint8_t msg_type);
-static void release_anchor(struct gsm_subscriber_connection *conn);
 
 struct gsm_lai {
 	uint16_t mcc;
@@ -274,7 +273,7 @@ void gsm0408_clear_request(struct gsm_subscriber_connection *conn, uint32_t caus
 	}
 
 	release_security_operation(conn);
-	release_anchor(conn);
+	msc_release_anchor(conn);
 
 	/*
 	 * Free all transactions that are associated with the released
@@ -872,7 +871,7 @@ static int gsm48_rx_mm_imsi_detach_ind(struct gsm_subscriber_connection *conn, s
 	/* FIXME: iterate over all transactions and release them,
 	 * imagine an IMSI DETACH happening during an active call! */
 
-	release_anchor(conn);
+	msc_release_anchor(conn);
 	return 0;
 }
 
@@ -3443,7 +3442,7 @@ static int gsm0408_rcv_cc(struct gsm_subscriber_connection *conn, struct msgb *m
 }
 
 /* Create a dummy to wait five seconds */
-static void release_anchor(struct gsm_subscriber_connection *conn)
+void msc_release_anchor(struct gsm_subscriber_connection *conn)
 {
 	if (!conn->anch_operation)
 		return;
@@ -3458,7 +3457,7 @@ static void anchor_timeout(void *_data)
 {
 	struct gsm_subscriber_connection *con = _data;
 
-	release_anchor(con);
+	msc_release_anchor(con);
 }
 
 int gsm0408_new_conn(struct gsm_subscriber_connection *conn)
@@ -3533,7 +3532,7 @@ int gsm0408_dispatch(struct gsm_subscriber_connection *conn, struct msgb *msg)
 
 	switch (pdisc) {
 	case GSM48_PDISC_CC:
-		release_anchor(conn);
+		msc_release_anchor(conn);
 		rc = gsm0408_rcv_cc(conn, msg);
 		break;
 	case GSM48_PDISC_MM:
@@ -3543,7 +3542,7 @@ int gsm0408_dispatch(struct gsm_subscriber_connection *conn, struct msgb *msg)
 		rc = gsm0408_rcv_rr(conn, msg);
 		break;
 	case GSM48_PDISC_SMS:
-		release_anchor(conn);
+		msc_release_anchor(conn);
 		rc = gsm0411_rcv_sms(conn, msg);
 		break;
 	case GSM48_PDISC_MM_GPRS:
@@ -3553,7 +3552,7 @@ int gsm0408_dispatch(struct gsm_subscriber_connection *conn, struct msgb *msg)
 		rc = -ENOTSUP;
 		break;
 	case GSM48_PDISC_NC_SS:
-		release_anchor(conn);
+		msc_release_anchor(conn);
 		rc = handle_rcv_ussd(conn, msg);
 		break;
 	default:
